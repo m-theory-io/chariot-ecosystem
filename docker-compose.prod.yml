@@ -1,0 +1,11 @@
+# Production override - uses bridge networking for SSL termination
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  # Visual DSL (React/TypeScript frontend) - Production Mode
+  visual-dsl:
+    environment:
+      - NODE_ENV=production
+      - CHARIOTEER_URL=http://192.168.0.116:8080
+      - GO_CHARIOT_URL=http://192.168.0.116:8087
+    # Bridge networking with port mapping (already configured in base docker-compose.yml)

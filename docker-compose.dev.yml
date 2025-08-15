@@ -1,0 +1,14 @@
+# Development override - preserves Copilot connectivity with host networking
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Visual DSL (React/TypeScript frontend) - Development Mode
+  visual-dsl:
+    network_mode: host
+    ports: []  # Remove port mapping since we're using host networking
+    environment:
+      - NODE_ENV=development
+      - CHARIOTEER_URL=http://localhost:8080
+      - GO_CHARIOT_URL=http://localhost:8087
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]  # Use HTTP for dev

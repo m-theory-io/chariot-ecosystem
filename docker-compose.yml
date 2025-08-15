@@ -1,0 +1,168 @@
+# Chariot Ecosystem - Unified Docker Compose
+# Using host networking to prevent DNS conflicts and simplify service discovery
+
+volumes:
+  # Database volumes
+  couchbase-data:
+    driver: local
+  mysql-data:
+    driver: local
+  
+  # SSL certificate volumes  
+  ssl-certs:
+    driver: local
+
+services:
+  # ===========================================
+  # DATABASE SERVICES
+  # ===========================================
+  
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: chariot-mysql
+    network_mode: host
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./databases/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./databases/mysql/my.cnf:/etc/mysql/conf.d/chariot.cnf:ro
+    environment:
+      - MYSQL_ROOT_PASSWORD=chariot123
+      - MYSQL_DATABASE=chariot
+      - MYSQL_USER=chariot
+      - MYSQL_PASSWORD=chariot123
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pchariot123"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    command: --bind-address=127.0.0.1 --port=3307
+
+  # Couchbase Community Edition
+  couchbase:
+    image: couchbase:community-7.2.0
+    container_name: chariot-couchbase
+    network_mode: host
+    volumes:
+      - couchbase-data:/opt/couchbase/var
+      - ./databases/couchbase/init.sh:/opt/couchbase/init/init.sh:ro
+    environment:
+      - CB_ADMIN_USERNAME=Administrator
+      - CB_ADMIN_PASSWORD=chariot123
+      - CB_BUCKET_NAME=chariot
+      - CB_BUCKET_RAM=1024
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+
+  # Charioteer Service (Go)
+  charioteer:
+    build:
+      context: ./services/charioteer
+      dockerfile: ../../infrastructure/docker/charioteer/Dockerfile
+      target: production
+    container_name: chariot-charioteer
+    network_mode: host
+    volumes:
+      - ssl-certs:/app/ssl
+      - ./config/charioteer:/app/config:ro
+      - ./logs/charioteer:/app/logs
+    environment:
+      - NODE_ENV=production
+      - GO_CHARIOT_URL=http://localhost:8087
+    depends_on:
+      go-chariot:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Go-Chariot Service
+  go-chariot:
+    build:
+      context: ./services/go-chariot
+      dockerfile: ../../infrastructure/docker/go-chariot/Dockerfile
+      target: production
+    container_name: chariot-go-chariot
+    network_mode: host
+    volumes:
+      - ssl-certs:/app/ssl
+      - ./config/go-chariot:/app/config:ro
+      - ./logs/go-chariot:/app/logs
+      - ~/.azure:/root/.azure:ro
+    environment:
+      - GO_ENV=development
+      - SKIP_DB_WAIT=true
+      - CHARIOT_CERT_PATH=/tmp/ssl
+      - CHARIOT_SSL=false
+      - COUCHBASE_URL=couchbase://localhost
+      - COUCHBASE_USERNAME=Administrator
+      - COUCHBASE_PASSWORD=chariot123
+      - COUCHBASE_BUCKET=chariot
+      - MYSQL_HOST=localhost
+      - MYSQL_PORT=3307
+      - MYSQL_DATABASE=chariot
+      - MYSQL_USERNAME=chariot
+      - MYSQL_PASSWORD=chariot123
+      - CHARIOTEER_URL=http://localhost:8080
+      - AZURE_TENANT_ID=82fbfa53-3046-4f39-a182-f5e0082313d4
+      - AZURE_KEY_VAULT_URL=https://chariot-vault.vault.azure.net
+    depends_on:
+      couchbase:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Visual DSL (React/TypeScript frontend served with Node.js)
+  visual-dsl:
+    build:
+      context: ./services/visual-dsl
+      dockerfile: ../../infrastructure/docker/visual-dsl/Dockerfile
+    container_name: chariot-visual-dsl
+    network_mode: host
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Ingress Controller (SSL termination and routing)
+  nginx:
+    build:
+      context: ./infrastructure/docker/nginx
+    container_name: chariot-nginx
+    ports:
+      - "80:80"   # HTTP (redirects to HTTPS)
+      - "443:443" # HTTPS with self-signed certs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

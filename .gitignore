@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Docker
+.docker/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/settings.json
+.idea/
+
+# Build outputs
+dist/
+build/
+target/
+
+# Go
+bin/
+vendor/
+
+# SSL certificates (generated)
+certs/
+*.pem
+*.crt
+*.key
+
+# Database data
+data/
