@@ -26,6 +26,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./databases/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - ./databases/mysql/my.cnf:/etc/mysql/conf.d/chariot.cnf:ro
+      - ./databases/mysql/my-main.cnf:/etc/my.cnf:ro
     environment:
       - MYSQL_ROOT_PASSWORD=chariot123
       - MYSQL_DATABASE=chariot
@@ -38,7 +39,7 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
-    command: --bind-address=127.0.0.1 --port=3307
+    command: --port=3306
 
   # Couchbase Community Edition
   couchbase:
@@ -79,7 +80,7 @@ services:
       - ./logs/charioteer:/app/logs
     environment:
       - NODE_ENV=production
-      - GO_CHARIOT_URL=http://localhost:8087
+      - CHARIOT_BACKEND_URL=http://localhost:8087
     depends_on:
       go-chariot:
         condition: service_healthy
@@ -103,7 +104,7 @@ services:
       - ssl-certs:/app/ssl
       - ./config/go-chariot:/app/config:ro
       - ./logs/go-chariot:/app/logs
-      - ~/.azure:/root/.azure:ro
+      - ~/.azure:/home/gochariot/.azure:rw
     environment:
       - GO_ENV=development
       - SKIP_DB_WAIT=true
@@ -121,6 +122,8 @@ services:
       - CHARIOTEER_URL=http://localhost:8080
       - AZURE_TENANT_ID=82fbfa53-3046-4f39-a182-f5e0082313d4
       - AZURE_KEY_VAULT_URL=https://chariot-vault.vault.azure.net
+      - AZURE_CONFIG_DIR=/home/gochariot/.azure
+      - CHARIOT_VAULT_KEY_PREFIX=docker
     depends_on:
       couchbase:
         condition: service_started
@@ -156,9 +159,7 @@ services:
     build:
       context: ./infrastructure/docker/nginx
     container_name: chariot-nginx
-    ports:
-      - "80:80"   # HTTP (redirects to HTTPS)
-      - "443:443" # HTTPS with self-signed certs
+    network_mode: host
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "-k", "https://localhost/"]

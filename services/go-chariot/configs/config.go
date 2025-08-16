@@ -34,8 +34,9 @@ type Config struct {
 	SQLDatabase string `evar:"sql_database"` // SQL database name
 	SQLPort     int    `evar:"sql_port"`     // SQL port number
 	// Vault
-	VaultName string `evar:"vault_name"` // Azure Key Vault name
-	VaultURI  string `evar:"vault_uri"`  // Azure Key Vault URI
+	VaultName      string `evar:"vault_name"`       // Azure Key Vault name
+	VaultURI       string `evar:"vault_uri"`        // Azure Key Vault URI
+	VaultKeyPrefix string `evar:"vault_key_prefix"` // Azure Key Vault key prefix (e.g., jpkey, docker)
 	// Serialization
 	DataPath string `evar:"data_path"` // Path to store serialized data
 	// Tree serialization

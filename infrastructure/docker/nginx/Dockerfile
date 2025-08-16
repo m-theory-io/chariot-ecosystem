@@ -14,8 +14,8 @@ RUN mkdir -p /etc/nginx/ssl && \
 # Copy landing page as index.html
 COPY landing.html /usr/share/nginx/html/index.html
 
-# Copy nginx configuration (after removing default)
-COPY nginx.conf /etc/nginx/conf.d/chariot.conf
+# Copy nginx configuration (replacing main config)
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Remove default nginx files and configurations
 RUN rm -f /usr/share/nginx/html/index.nginx-debian.html && \

@@ -45,8 +45,6 @@ type OrgSecret struct {
 	SQLPort     int    `json:"sql_port"` // Optional, can be 0 if not used
 }
 
-const KeyPrefix = "jpkey"
-
 // Global vault client instance
 var (
 	VaultClient *azsecrets.Client
@@ -118,6 +116,12 @@ func GetOrgSecret(ctx context.Context, orgKey string) (*OrgSecret, error) {
 		cfg.ChariotLogger.Error("Failed to parse secret JSON", zap.String("org_key", orgKey), zap.String("details", err.Error()))
 		return nil, fmt.Errorf("%s - failed to parse secret for org %s: %w", logName, orgKey, err)
 	}
+
+	cfg.ChariotLogger.Info("Parsed vault secret",
+		zap.String("org_key", orgKey),
+		zap.String("sql_host", orgSecret.SQLHost),
+		zap.Int("sql_port", orgSecret.SQLPort),
+		zap.String("sql_driver", orgSecret.SQLDriver))
 
 	if cfg.ChariotConfig.Verbose {
 		cfg.ChariotLogger.Info("Successfully retrieved secret", zap.String("org_key", orgKey))
@@ -227,6 +231,10 @@ func ValidateOrgSecret(orgSecret *OrgSecret) error {
 func makeSecretName(orgKey string) string {
 	// Normalize orgKey to lowercase and replace spaces with underscores
 	// orgKey has the form <uuid>
-	normalizedKey := fmt.Sprintf("%s-%s", KeyPrefix, orgKey) // Skip "node:" prefix
+	keyPrefix := cfg.ChariotConfig.VaultKeyPrefix
+	if keyPrefix == "" {
+		keyPrefix = "jpkey" // Default fallback
+	}
+	normalizedKey := fmt.Sprintf("%s-%s", keyPrefix, orgKey)
 	return normalizedKey
 }

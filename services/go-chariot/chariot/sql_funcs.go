@@ -15,6 +15,7 @@ import (
 func RegisterSQLFunctions(rt *Runtime) {
 	// SQL connection management
 	rt.Register("sqlConnect", func(args ...Value) (Value, error) {
+		cfg.ChariotLogger.Info("sqlConnect called", zap.Int("arg_count", len(args)))
 		if len(args) < 1 || len(args) > 5 {
 			return nil, fmt.Errorf("sqlConnect requires 1-5 arguments: nodeName, driver, connectionString, [options...]")
 		}
@@ -30,6 +31,9 @@ func RegisterSQLFunctions(rt *Runtime) {
 		if !ok {
 			return nil, fmt.Errorf("node name must be a string")
 		}
+		cfg.ChariotLogger.Info("sqlConnect args", zap.String("node_name", string(nodeName)),
+			zap.String("arg1", fmt.Sprintf("%v", args[1])),
+			zap.String("arg2", fmt.Sprintf("%v", args[2])))
 		// Create SQL node
 		sqlNode := NewSQLNode(string(nodeName))
 
@@ -52,10 +56,16 @@ func RegisterSQLFunctions(rt *Runtime) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to get org secret: %v", err)
 			}
+			cfg.ChariotLogger.Info("Retrieved vault secret for SQL connection",
+				zap.String("sql_host", orgSecret.SQLHost),
+				zap.Int("sql_port", orgSecret.SQLPort),
+				zap.String("sql_driver", orgSecret.SQLDriver),
+				zap.String("sql_database", orgSecret.SQLDatabase))
 			sqlURL = Str(orgSecret.SQLHost)
 			if orgSecret.SQLPort > 0 {
 				sqlURL = Str(fmt.Sprintf("%s:%d", sqlURL, orgSecret.SQLPort))
 			}
+			cfg.ChariotLogger.Info("Constructed SQL URL", zap.String("sql_url", string(sqlURL)))
 			driver = orgSecret.SQLDriver
 			if orgSecret.SQLUser != "" {
 				sqlUser = orgSecret.SQLUser
@@ -81,15 +91,8 @@ func RegisterSQLFunctions(rt *Runtime) {
 			if port <= 0 {
 				return nil, fmt.Errorf("port must be a positive integer")
 			}
-			// Compare with configured port
-			if cfg.ChariotConfig.SQLPort > 0 {
-				if int64(cfg.ChariotConfig.SQLPort) != port {
-					// warning: port in connection URL does not match configured port
-					cfg.ChariotLogger.Warn("port mismatch in connection URL", zap.Int("configured_port", cfg.ChariotConfig.SQLPort), zap.Int64("url_port", port))
-				}
-				port = int64(cfg.ChariotConfig.SQLPort)
-				sqlURL = Str(fmt.Sprintf("%s:%d", parts[0], port))
-			}
+			// Use the port from the connection URL (vault secret), not the default config
+			cfg.ChariotLogger.Info("Using port from connection URL", zap.Int64("port", port))
 
 		} else if cfg.ChariotConfig.SQLPort == 0 {
 			return nil, fmt.Errorf("SQLPort must be configured")

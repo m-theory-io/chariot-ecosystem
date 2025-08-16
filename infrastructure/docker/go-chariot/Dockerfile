@@ -36,27 +36,43 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
 # Stage 2: Production stage
 FROM alpine:latest AS production
 
-# Install runtime dependencies
+# Install runtime dependencies including Azure CLI
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     curl \
     wget \
-    openssl
+    openssl \
+    python3 \
+    py3-pip \
+    bash \
+    gcc \
+    musl-dev \
+    linux-headers \
+    python3-dev
 
-# Create non-root user
-RUN addgroup -g 1001 gochariot && \
-    adduser -D -s /bin/sh -u 1001 -G gochariot gochariot
+# Install Azure CLI
+RUN pip3 install azure-cli --break-system-packages
+
+# Clean up build dependencies to reduce image size
+RUN apk del gcc musl-dev linux-headers python3-dev
+
+# Create non-root user with matching host UID
+RUN addgroup -g 1000 gochariot && \
+    adduser -D -s /bin/sh -u 1000 -G gochariot gochariot
 
 # Set working directory
 WORKDIR /app
 
 # Create necessary directories
-RUN mkdir -p /app/config /app/logs /app/ssl /app/data && \
-    chown -R gochariot:gochariot /app
+RUN mkdir -p /app/config /app/logs /app/ssl /app/data /home/gochariot/.azure && \
+    chown -R gochariot:gochariot /app /home/gochariot/.azure
 
 # Copy binary from build stage
 COPY --from=builder /src/go-chariot /app/
+
+# Copy data files including bootstrap.ch
+COPY --chown=gochariot:gochariot data/ /app/data/
 
 # Copy entrypoint script
 COPY --chown=gochariot:gochariot entrypoint.sh /app/

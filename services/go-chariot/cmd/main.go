@@ -44,6 +44,7 @@ func init() {
 	cfg.ChariotConfig.IntVar("sql_port", &cfg.ChariotConfig.SQLPort, 3306)
 	// Vault configuration
 	cfg.ChariotConfig.StringVar("vault_name", &cfg.ChariotConfig.VaultName, "chariot-vault")
+	cfg.ChariotConfig.StringVar("vault_key_prefix", &cfg.ChariotConfig.VaultKeyPrefix, "jpkey")
 	// File serialization path
 	cfg.ChariotConfig.StringVar("data_path", &cfg.ChariotConfig.DataPath, "./data")
 	// Tree serialization path

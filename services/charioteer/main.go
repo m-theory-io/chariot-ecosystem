@@ -962,6 +962,19 @@ const editorTemplate = `<!DOCTYPE html>
             return headers;
         }
         
+        // Helper function to get the correct API path (with /charioteer prefix when needed)
+        function getAPIPath(path) {
+            // Check if we're being accessed through a proxy path (like /charioteer/)
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/charioteer/')) {
+                // If the path doesn't already start with /charioteer/, add it
+                if (!path.startsWith('/charioteer/')) {
+                    return '/charioteer' + path;
+                }
+            }
+            return path;
+        }
+        
         // Set up Monaco editor (called from initializeEditor)
         function setupMonacoEditor() {
             // Register Chariot language
@@ -1184,7 +1197,7 @@ const editorTemplate = `<!DOCTYPE html>
                 deleteFunctionButton.disabled = true;
                 deleteFunctionButton.textContent = '🗑️ Deleting...';
                 try {
-                    const response = await fetch('/api/function/delete?name=' + encodeURIComponent(functionName), {
+                    const response = await fetch('/charioteer/api/function/delete?name=' + encodeURIComponent(functionName), {
                         method: 'DELETE',
                         headers: getAuthHeaders()
                     });
@@ -1247,7 +1260,7 @@ const editorTemplate = `<!DOCTYPE html>
             functionSelect.disabled = true;
 
             try {
-                const response = await fetch('/api/functions', { headers: getAuthHeaders() });
+                const response = await fetch('/charioteer/api/functions', { headers: getAuthHeaders() });
                 if (response.ok) {
                     const result = await response.json();
                     if (result.result === "OK" && Array.isArray(result.data)) {
@@ -1268,7 +1281,7 @@ const editorTemplate = `<!DOCTYPE html>
         // Fetch and display the selected function's source code
         async function loadFunctionSource(functionName) {
             try {
-                const response = await fetch('/api/function?name=' + encodeURIComponent(functionName), {
+                const response = await fetch('/charioteer/api/function?name=' + encodeURIComponent(functionName), {
                     headers: getAuthHeaders()
                 });
                 if (response.ok) {
@@ -1338,7 +1351,7 @@ const editorTemplate = `<!DOCTYPE html>
             saveFunctionButton.textContent = '💾 Saving...';
 
             try {
-                const response = await fetch('/api/function/save', {
+                const response = await fetch('/charioteer/api/function/save', {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
@@ -1392,7 +1405,7 @@ const editorTemplate = `<!DOCTYPE html>
             saveAsButton.textContent = '💾 Saving...';
 
             try {
-                const response = await fetch('/api/function/save', {
+                const response = await fetch('/charioteer/api/function/save', {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
@@ -1442,7 +1455,7 @@ const editorTemplate = `<!DOCTYPE html>
             saveLibraryButton.textContent = '💾 Saving...';
 
             try {
-                const response = await fetch('/api/library/save', {
+                const response = await fetch('/charioteer/api/library/save', {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON()
                 });
@@ -1478,7 +1491,7 @@ const editorTemplate = `<!DOCTYPE html>
             loginButton.textContent = 'Logging in...';
             
             try {
-                const response = await fetch('/login', {
+                const response = await fetch(getAPIPath('/login'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1920,7 +1933,7 @@ const editorTemplate = `<!DOCTYPE html>
             const panel = document.getElementById('leftPanel');
             if (!panel) return;
             try {
-                const response = await fetch('/api/runtime/inspect', { headers: getAuthHeaders() });
+                const response = await fetch('/charioteer/api/runtime/inspect', { headers: getAuthHeaders() });
                 if (response.ok) {
                     const result = await response.json();
                     if (result.result === "OK" && result.data) {
@@ -1973,7 +1986,7 @@ const editorTemplate = `<!DOCTYPE html>
                 headers = getAuthHeadersWithJSON();  // Use the version with Content-Type
                 console.log('DEBUG: runCode headers', headers);
                 
-                const response = await fetch('/api/execute', {
+                const response = await fetch(getAPIPath('/api/execute'), {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify({ program: code })
@@ -2369,7 +2382,7 @@ const editorTemplate = `<!DOCTYPE html>
             saveButton.textContent = '💾 Saving...';
             
             try {
-                const response = await fetch('/api/save', {
+                const response = await fetch(getAPIPath('/api/save'), {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
@@ -2457,7 +2470,7 @@ const editorTemplate = `<!DOCTYPE html>
             saveAsButton.textContent = '💾 Saving...';
             
             try {
-                const response = await fetch('/api/save', {
+                const response = await fetch(getAPIPath('/api/save'), {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
@@ -2507,7 +2520,7 @@ const editorTemplate = `<!DOCTYPE html>
             }
             
             try {
-                const url = '/api/files?folder=' + encodeURIComponent(CHARIOT_FILES_FOLDER);
+                const url = getAPIPath('/api/files?folder=' + encodeURIComponent(CHARIOT_FILES_FOLDER));
                 console.log('DEBUG: Fetching file list from:', url);
                 
                 const headers = getAuthHeaders();
@@ -2576,7 +2589,7 @@ const editorTemplate = `<!DOCTYPE html>
         // Get function list
         async function fetchUserFunctions() {
             try {
-                const response = await fetch('/api/functions', {
+                const response = await fetch(getAPIPath('/api/functions'), {
                     headers: getAuthHeaders()
                 });
                 if (response.ok) {
@@ -2596,7 +2609,7 @@ const editorTemplate = `<!DOCTYPE html>
             if (!authToken) return;
             
             try {
-                const response = await fetch('/api/file?path=' + encodeURIComponent(CHARIOT_FILES_FOLDER + '/' + fileName), {
+                const response = await fetch('/charioteer/api/file?path=' + encodeURIComponent(CHARIOT_FILES_FOLDER + '/' + fileName), {
                     headers: getAuthHeaders()
                 });
                 
@@ -2662,7 +2675,7 @@ const editorTemplate = `<!DOCTYPE html>
             renameButton.textContent = '📝 Renaming...';
             
             try {
-                const response = await fetch('/api/rename', {
+                const response = await fetch(getAPIPath('/api/rename'), {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
@@ -2721,7 +2734,7 @@ const editorTemplate = `<!DOCTYPE html>
             deleteButton.textContent = '🗑️ Deleting...';
             
             try {
-                const response = await fetch('/api/delete', {
+                const response = await fetch(getAPIPath('/api/delete'), {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
@@ -3533,15 +3546,10 @@ func main() {
 	http.HandleFunc("/charioteer/api/runtime/inspect", authMiddleware(runtimeInspectHandler))
 
 	// Public routes
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/editor", editorHandler)
-	http.HandleFunc("/login", loginHandler)   // Implement loginHandler to handle login requests
-	http.HandleFunc("/logout", logoutHandler) // Implement logoutHandler to handle logout requests
-
-	// Prefixed routes for proxy path support
+	http.HandleFunc("/charioteer/health", healthHandler)
 	http.HandleFunc("/charioteer/editor", editorHandler)
-	http.HandleFunc("/charioteer/login", loginHandler)
-	http.HandleFunc("/charioteer/logout", logoutHandler)
+	http.HandleFunc("/charioteer/login", loginHandler)   // Implement loginHandler to handle login requests
+	http.HandleFunc("/charioteer/logout", logoutHandler) // Implement logoutHandler to handle logout requests
 
 	log.Println("Current working directory:", func() string { dir, _ := os.Getwd(); return dir }())
 	log.Println("Chariot Editor server starting on :" + getPort())
