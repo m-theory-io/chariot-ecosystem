@@ -1,0 +1,29 @@
+# Azure production nginx container
+FROM nginx:alpine
+
+# Install openssl for self-signed certificates (temporary until Let's Encrypt)
+RUN apk add --no-cache openssl
+
+# Create SSL directory and generate temporary self-signed certificates
+RUN mkdir -p /etc/nginx/ssl && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/server.key \
+        -out /etc/nginx/ssl/server.crt \
+        -subj "/C=US/ST=State/L=City/O=Chariot/OU=IT/CN=chariot.local"
+
+# Copy Azure-specific nginx configuration
+COPY nginx.azure.conf /etc/nginx/nginx.conf
+
+# Copy landing page as index.html
+COPY landing.html /usr/share/nginx/html/index.html
+
+# Create directory for Let's Encrypt challenges
+RUN mkdir -p /var/www/certbot
+
+# Set proper permissions
+RUN chmod 644 /etc/nginx/ssl/server.crt && \
+    chmod 600 /etc/nginx/ssl/server.key
+
+EXPOSE 80 443 3307
+
+CMD ["nginx", "-g", "daemon off;"]

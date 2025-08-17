@@ -1,0 +1,40 @@
+# Production Dockerfile for charioteer - Azure AMD64 deployment
+# Uses pre-built binary for fast, reliable deployment
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    curl \
+    openssl
+
+# Create non-root user for security
+RUN addgroup -g 1001 charioteer && \
+    adduser -D -s /bin/sh -u 1001 -G charioteer charioteer
+
+# Set working directory
+WORKDIR /app
+
+# Copy pre-built AMD64 binary
+COPY build/charioteer-linux-amd64 ./charioteer
+
+# Copy SSL certificates and configuration
+COPY .certs/ ./.certs/
+
+# Ensure binary is executable and fix permissions
+RUN chmod +x ./charioteer && \
+    chown -R charioteer:charioteer /app
+
+# Switch to non-root user
+USER charioteer
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -k -f https://localhost:8080/health || exit 1
+
+# Expose port
+EXPOSE 8080
+
+# Run the application
+CMD ["./charioteer"]

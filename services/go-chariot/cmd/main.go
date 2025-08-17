@@ -28,7 +28,7 @@ func init() {
 	cfg.ChariotConfig.IntVar("port", &cfg.ChariotConfig.Port, 8087)
 	cfg.ChariotConfig.IntVar("timeout", &cfg.ChariotConfig.Timeout, 30)
 	cfg.ChariotConfig.BoolVar("verbose", &cfg.ChariotConfig.Verbose, false)
-	cfg.ChariotConfig.BoolVar("ssl", &cfg.ChariotConfig.SSL, true)
+	cfg.ChariotConfig.BoolVar("ssl", &cfg.ChariotConfig.SSL, false)
 	// Couchbase connectivity
 	cfg.ChariotConfig.StringVar("couchbase_url", &cfg.ChariotConfig.CBUrl, "192.168.0.117")
 	cfg.ChariotConfig.StringVar("couchbase_user", &cfg.ChariotConfig.CBUser, "")

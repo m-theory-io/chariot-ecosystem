@@ -636,6 +636,9 @@ func (s *TreeNodeSerializer) deserializeNodeFromMap(data map[string]interface{})
 	case "*chariot.TreeNodeImpl": // ADD THIS CASE - it was missing!
 		node = NewTreeNode(name)
 
+	case "*chariot.Transform":
+		node = NewTransform(name)
+
 	case "*chariot.XMLNode":
 		node = NewXMLNode(name)
 		// Handle XML-specific data

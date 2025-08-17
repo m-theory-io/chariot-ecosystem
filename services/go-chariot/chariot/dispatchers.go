@@ -208,6 +208,8 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			return jsonSetAt(args...)
 		case *TreeNodeImpl:
 			return treeNodeImplSetAt(args...)
+		case map[string]Value:
+			return mapSetAt(args...)
 		default:
 			return nil, fmt.Errorf("setAt not supported for type %T", firstArg)
 		}
@@ -234,14 +236,30 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		if !ok {
 			return nil, fmt.Errorf("attribute key must be a string, got %T", args[1])
 		}
+		attrName := string(args[1].(Str))
+
+		// Add detailed debugging
+		if cfg.ChariotConfig.Verbose {
+			fmt.Printf("DEBUG: getAttribute called with node type %T, attribute '%s'\n", node, attrName)
+		}
 
 		// Handle different node types using helper functions
 		switch n := node.(type) {
+		case *Transform:
+			// Try using the embedded TreeNodeImpl's GetAttribute directly
+			if n.TreeNodeImpl.Attributes == nil {
+				return nil, fmt.Errorf("Transform node has nil attributes map")
+			}
+			if val, exists := n.TreeNodeImpl.Attributes[attrName]; exists {
+				return val, nil
+			}
+			return nil, fmt.Errorf("attribute '%s' not found in Transform attributes (has %d attributes)", attrName, len(n.TreeNodeImpl.Attributes))
 		case map[string]interface{}:
 			// Handle map[string]interface{} case
 			if attr, exists := n[string(args[1].(Str))]; exists {
 				return convertFromInterface(attr), nil
 			}
+			return nil, fmt.Errorf("attribute '%s' not found in map[string]interface{}", attrName)
 		case *JSONNode:
 			return jsonNodeGetAttribute(args...)
 
@@ -255,32 +273,17 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			return mapGetAttribute(args...)
 
 		case TreeNode:
-			// Handle generic TreeNode interface - try type assertions
-			if tn, ok := n.(*TreeNodeImpl); ok {
-				// Update args[0] to the concrete type and call helper
-				newArgs := make([]Value, len(args))
-				copy(newArgs, args)
-				newArgs[0] = tn
-				return treeNodeImplGetAttribute(newArgs...)
-			}
-			if jn, ok := n.(*JSONNode); ok {
-				// Update args[0] to the concrete type and call helper
-				newArgs := make([]Value, len(args))
-				copy(newArgs, args)
-				newArgs[0] = jn
-				return jsonNodeGetAttribute(newArgs...)
-			}
-			if mn, ok := n.(*MapNode); ok {
-				// Update args[0] to the concrete type and call helper
-				newArgs := make([]Value, len(args))
-				copy(newArgs, args)
-				newArgs[0] = mn
-				return mapNodeGetAttribute(newArgs...)
-			}
-			return nil, fmt.Errorf("unsupported TreeNode type: %T", n)
+			// Debug what type we're actually dealing with
+			return nil, fmt.Errorf("TreeNode interface case: concrete type is %T, checking *Transform assertion: %v", n, func() interface{} {
+				if tn, ok := n.(*Transform); ok {
+					return fmt.Sprintf("SUCCESS - Transform has %d attributes", len(tn.TreeNodeImpl.Attributes))
+				} else {
+					return "FAILED - not *Transform"
+				}
+			}())
 
 		default:
-			return nil, fmt.Errorf("getAttribute requires a node with attributes, got %T", node)
+			return nil, fmt.Errorf("DEBUG: getAttribute called with unsupported type %T for attribute '%s'", node, attrName)
 		}
 		return nil, fmt.Errorf("getAttribute not supported for type %T", node)
 	})
@@ -352,6 +355,8 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		}
 
 		switch args[0].(type) {
+		case map[string]Value:
+			return setPropMap(args...)
 		case *SimpleJSON:
 			return setPropSimpleJSON(args...)
 		case *MapNode:
@@ -704,6 +709,36 @@ func treeNodeImplSetAt(args ...Value) (Value, error) {
 	default:
 		return nil, fmt.Errorf("unsupported child node type: %T", value)
 	}
+
+	return value, nil
+}
+
+func mapSetAt(args ...Value) (Value, error) {
+	if len(args) != 3 {
+		return nil, errors.New("setAt requires 3 arguments: object, index, and value")
+	}
+
+	obj, ok := args[0].(map[string]Value)
+	if !ok {
+		return nil, fmt.Errorf("expected map[string]Value, got %T", args[0])
+	}
+
+	indexValue := args[1]
+	value := args[2]
+
+	// Convert index to string for map key
+	var key string
+	switch idx := indexValue.(type) {
+	case Str:
+		key = string(idx)
+	case Number:
+		key = fmt.Sprintf("%.0f", float64(idx))
+	default:
+		return nil, fmt.Errorf("index must be a string or number, got %T", indexValue)
+	}
+
+	// Set the value in the map
+	obj[key] = value
 
 	return value, nil
 }
@@ -1391,6 +1426,29 @@ func setPropTreeNode(args ...Value) (Value, error) {
 	return value, nil
 }
 
+func setPropMap(args ...Value) (Value, error) {
+	if len(args) != 3 {
+		return nil, errors.New("setProp requires 3 arguments: object, property name, and value")
+	}
+
+	obj, ok := args[0].(map[string]Value)
+	if !ok {
+		return nil, fmt.Errorf("expected map[string]Value, got %T", args[0])
+	}
+
+	propName, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("property name must be a string, got %T", args[1])
+	}
+
+	value := args[2]
+
+	// Set the property in the map
+	obj[string(propName)] = value
+
+	return value, nil
+}
+
 func setPropMapNode(args ...Value) (Value, error) {
 	if len(args) != 3 {
 		return nil, errors.New("setProp requires 3 arguments: object, property name, and value")
@@ -1413,6 +1471,7 @@ func setPropMapNode(args ...Value) (Value, error) {
 
 	return value, nil
 }
+
 func setPropMapValue(args ...Value) (Value, error) {
 	if len(args) != 3 {
 		return nil, errors.New("setProp requires 3 arguments: object, property name, and value")
@@ -1501,6 +1560,27 @@ func treeNodeImplGetAttribute(args ...Value) (Value, error) {
 		return nil, fmt.Errorf("node has no attributes")
 	}
 	if val, exists := treeNode.Attributes[string(attrName)]; exists {
+		return val, nil
+	}
+	return nil, fmt.Errorf("attribute '%s' not found", attrName)
+}
+
+// Helper for Transform
+func transformGetAttribute(args ...Value) (Value, error) {
+	transformNode, ok := args[0].(*Transform)
+	if !ok {
+		return nil, fmt.Errorf("expected Transform, got %T", args[0])
+	}
+
+	attrName, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("attribute name must be a string, got %T", args[1])
+	}
+
+	if transformNode.Attributes == nil {
+		return nil, fmt.Errorf("node has no attributes")
+	}
+	if val, exists := transformNode.Attributes[string(attrName)]; exists {
 		return val, nil
 	}
 	return nil, fmt.Errorf("attribute '%s' not found", attrName)

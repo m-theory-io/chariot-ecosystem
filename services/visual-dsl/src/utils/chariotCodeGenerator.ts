@@ -244,6 +244,8 @@ export class ChariotCodeGenerator {
         return this.generateAddToCode(node);
         
       case 'LogPrint':
+      case 'Log Print':
+      case 'logPrint':
         return this.generateLogPrintCode(node);
         
       case 'Create Transform':
@@ -579,7 +581,46 @@ export class ChariotCodeGenerator {
   }
 
   private generateGenericFunctionCode(node: VisualDSLNode): string {
-    const functionName = node.data.label.toLowerCase().replace(/\s+/g, '');
+    let functionName = node.data.label.toLowerCase().replace(/\s+/g, '');
+    
+    // Special handling for known camelCase functions that shouldn't be lowercased
+    const camelCaseFunctions: Record<string, string> = {
+      'logprint': 'logPrint',
+      'log print': 'logPrint',
+      'LogPrint': 'logPrint',
+      'parseJSON': 'parseJSON',
+      'parsejson': 'parseJSON',
+      'parse json': 'parseJSON',
+      'createTransform': 'createTransform',
+      'create transform': 'createTransform',
+      'addMapping': 'addMapping',
+      'add mapping': 'addMapping',
+      'addChild': 'addChild',
+      'add child': 'addChild',
+      'addTo': 'addTo',
+      'add to': 'addTo',
+      'treeSave': 'treeSave',
+      'tree save': 'treeSave',
+      'treeLoad': 'treeLoad',
+      'tree load': 'treeLoad',
+      'getValue': 'getValue',
+      'get value': 'getValue',
+      'setValue': 'setValue',
+      'set value': 'setValue',
+      'getAttribute': 'getAttribute',
+      'get attribute': 'getAttribute',
+      'setAttribute': 'setAttribute',
+      'set attribute': 'setAttribute'
+    };
+    
+    // Check if we have a known camelCase mapping
+    const labelKey = node.data.label.toLowerCase();
+    if (camelCaseFunctions[labelKey]) {
+      functionName = camelCaseFunctions[labelKey];
+    } else if (camelCaseFunctions[functionName]) {
+      functionName = camelCaseFunctions[functionName];
+    }
+    
     const props = node.data.properties || {};
     
     // Convert properties to function arguments

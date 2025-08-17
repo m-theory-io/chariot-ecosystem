@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	cfg "github.com/bhouse1273/go-chariot/configs"
+	"go.uber.org/zap"
 )
 
 type Transform struct {
@@ -263,28 +266,50 @@ func (t *Transform) ApplyToRow(rt *Runtime, row map[string]string) (map[string]i
 				return nil, fmt.Errorf("unknown transform '%s' for field '%s'", string(mapping.Transform), string(mapping.SourceField))
 			}
 		} else {
-			// Use the program string directly
-			program = []string{string(mapping.Program)}
+			// Check if program is nil, empty, or "<nil>" - these indicate direct field mapping
+			programStr := string(mapping.Program)
+			cfg.ChariotLogger.Info("DEBUG: Transform field processing",
+				zap.String("field", string(mapping.SourceField)),
+				zap.String("program", programStr),
+				zap.Int("program_length", len(programStr)),
+				zap.ByteString("program_bytes", []byte(programStr)))
+			if programStr == "" || programStr == "<nil>" || programStr == "\u003cnil\u003e" {
+				// Direct field mapping - no transformation needed
+				cfg.ChariotLogger.Info("DEBUG: Using direct field mapping", zap.String("field", string(mapping.SourceField)))
+				program = nil
+			} else {
+				// Use the program string directly
+				cfg.ChariotLogger.Info("DEBUG: Using program transformation", zap.String("field", string(mapping.SourceField)))
+				program = []string{programStr}
+			}
 		}
 
-		// Join multi-line program into single string
-		programCode := strings.Join(program, "\n")
+		var transformedValue Value
+		var err error
 
-		// Set up transformation variables
-		variables := map[string]Value{
-			"sourceValue":  Str(sourceValue),
-			"sourceRow":    convertFromNativeValue(row),
-			"fieldName":    mapping.SourceField,
-			"targetType":   mapping.DataType,
-			"targetColumn": mapping.TargetColumn,
-			"required":     mapping.Required,
-			"defaultValue": mapping.DefaultValue,
-		}
+		// If no program specified, do direct field mapping
+		if program == nil || len(program) == 0 {
+			transformedValue = Str(sourceValue)
+		} else {
+			// Join multi-line program into single string
+			programCode := strings.Join(program, "\n")
 
-		// Execute transformation with temporary variables
-		transformedValue, err := rt.ExecuteWithVariables(programCode, variables)
-		if err != nil {
-			return nil, fmt.Errorf("transform error for field '%s': %v", string(mapping.SourceField), err)
+			// Set up transformation variables
+			variables := map[string]Value{
+				"sourceValue":  Str(sourceValue),
+				"sourceRow":    convertFromNativeValue(row),
+				"fieldName":    mapping.SourceField,
+				"targetType":   mapping.DataType,
+				"targetColumn": mapping.TargetColumn,
+				"required":     mapping.Required,
+				"defaultValue": mapping.DefaultValue,
+			}
+
+			// Execute transformation with temporary variables
+			transformedValue, err = rt.ExecuteWithVariables(programCode, variables)
+			if err != nil {
+				return nil, fmt.Errorf("transform error for field '%s': %v", string(mapping.SourceField), err)
+			}
 		}
 
 		// Convert to target data type
@@ -342,18 +367,27 @@ func (t *Transform) ApplyToRowWithMetadata(rt *Runtime, row map[string]string, r
 		}
 
 		// Execute transformation with temporary variables
-		// Use the program string directly
+		// Check if program is nil, empty, or "<nil>" - these indicate direct field mapping
 		tprogram := string(mapping.Program)
-		transformedValue, err := rt.ExecuteWithVariables(tprogram, variables)
-		if err != nil {
-			fieldError := FieldError{
-				FieldName:     string(mapping.SourceField),
-				Error:         fmt.Sprintf("transform error: %v", err),
-				SourceValue:   sourceValue,
-				TransformTime: time.Since(fieldStartTime),
+		var transformedValue Value
+		var err error
+
+		if tprogram == "" || tprogram == "<nil>" || tprogram == "\u003cnil\u003e" {
+			// Direct field mapping - no transformation needed
+			transformedValue = Str(sourceValue)
+		} else {
+			// Use the program string directly
+			transformedValue, err = rt.ExecuteWithVariables(tprogram, variables)
+			if err != nil {
+				fieldError := FieldError{
+					FieldName:     string(mapping.SourceField),
+					Error:         fmt.Sprintf("transform error: %v", err),
+					SourceValue:   sourceValue,
+					TransformTime: time.Since(fieldStartTime),
+				}
+				transformResult.ErrorFields = append(transformResult.ErrorFields, fieldError)
+				continue
 			}
-			transformResult.ErrorFields = append(transformResult.ErrorFields, fieldError)
-			continue
 		}
 
 		// Convert to target data type

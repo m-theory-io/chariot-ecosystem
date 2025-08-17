@@ -14,19 +14,14 @@ RUN apk add --no-cache \
 # Set working directory
 WORKDIR /src
 
-# Copy go mod files first for better caching
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download && go mod verify
-
-# Copy source code
+# Copy source code and modules together including vendor directory
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+# Build the application using vendor dependencies (offline build)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -mod=vendor \
+    -buildvcs=false \
     -ldflags='-w -s -extldflags "-static"' \
-    -a -installsuffix cgo \
     -o go-chariot \
     ./cmd
 
