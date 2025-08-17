@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:nginx": "VITE_BASE_PATH='/visual-dsl/' vite",
     "dev:https": "HTTPS=true vite",
     "dev:secure": "./generate-certs.sh && HTTPS=true vite",
     "dev:firefox": "./generate-firefox-certs.sh && HTTPS=true vite",

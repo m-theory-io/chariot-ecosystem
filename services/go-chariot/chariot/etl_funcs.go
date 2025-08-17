@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	cfg "github.com/bhouse1273/go-chariot/configs"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // Add to RegisterCouchbaseFunctions or create RegisterETLFunctions
@@ -622,6 +624,7 @@ func executeETLJob(rt *Runtime, jobId, csvFile string, transformConfig, targetCo
 	etlJob.SetMeta("clientId", getOptionString(options, "clientId", "unknown"))
 	etlJob.SetMeta("startTime", time.Now().Format(time.RFC3339)) // ✅ RFC3339
 	etlJob.SetMeta("status", "initializing")
+	etlJob.SetMeta("tableName", targetConfig.(*MapValue).Values["tableName"])
 
 	// 1. Create and configure CSV node
 	csvNode := NewCSVNode("source_data")
@@ -673,21 +676,23 @@ func executeETLJob(rt *Runtime, jobId, csvFile string, transformConfig, targetCo
 		// Direct transform object
 		// fmt.Printf("DEBUG: Using direct *Transform\n")
 		transform = t
-	case TreeNode:
-		// Try to cast TreeNode to Transform (handles *TreeNodeImpl case)
-		// fmt.Printf("DEBUG: Got TreeNode, attempting cast to *Transform\n")
-		if transformNode, ok := t.(*Transform); ok {
-			// fmt.Printf("DEBUG: Successfully cast TreeNode to *Transform\n")
-			transform = transformNode
-		} else {
-			// fmt.Printf("DEBUG: Failed to cast TreeNode to *Transform, actual type: %T\n", t)
-			return nil, fmt.Errorf("TreeNode is not a Transform: %T", t)
-		}
 	case *TreeNodeImpl:
-		// Handle direct TreeNodeImpl case - check if it's actually a Transform
-		// fmt.Printf("DEBUG: Got *TreeNodeImpl, checking if it's a Transform\n")
-		// This is tricky - we need to see if this TreeNodeImpl is actually part of a Transform
-		return nil, fmt.Errorf("received *TreeNodeImpl instead of *Transform - this suggests a type embedding issue")
+		// Check if this TreeNodeImpl is actually a Transform
+		if t.GetType() == ValueObject {
+			// Create a new Transform based on the TreeNodeImpl
+			transform = NewTransform(t.Name())
+			// Copy attributes and children from the TreeNodeImpl
+			for key, value := range t.GetAttributes() {
+				transform.SetAttribute(key, value)
+			}
+			for _, child := range t.GetChildren() {
+				transform.AddChild(child)
+			}
+			// fmt.Printf("DEBUG: Created Transform from TreeNodeImpl\n")
+		} else {
+			// fmt.Printf("DEBUG: TreeNodeImpl is not a transform type, got: %s\n", t.GetType().String())
+			return nil, fmt.Errorf("TreeNode is not a Transform, got node type: %s", t.GetType())
+		}
 	case *MapValue:
 		// Transform configuration as map
 		// fmt.Printf("DEBUG: Creating new transform from MapValue config\n")
@@ -733,6 +738,16 @@ func executeETLJob(rt *Runtime, jobId, csvFile string, transformConfig, targetCo
 				}
 			}
 		}
+	case TreeNode:
+		// Try to cast TreeNode to Transform (handles *TreeNodeImpl case)
+		// fmt.Printf("DEBUG: Got TreeNode, attempting cast to *Transform\n")
+		if transformNode, ok := t.(*Transform); ok {
+			// fmt.Printf("DEBUG: Successfully cast TreeNode to *Transform\n")
+			transform = transformNode
+		} else {
+			// fmt.Printf("DEBUG: Failed to cast TreeNode to *Transform, actual type: %T\n", t)
+			return nil, fmt.Errorf("TreeNode is not a Transform: %T", t)
+		}
 	default:
 		// fmt.Printf("DEBUG: Unknown transform config type: %T\n", transformConfig)
 		return nil, fmt.Errorf("invalid transform configuration type: %T", transformConfig)
@@ -740,33 +755,58 @@ func executeETLJob(rt *Runtime, jobId, csvFile string, transformConfig, targetCo
 
 	etlJob.AddChild(transform)
 
-	// 3. Create target configuration and initialize target nodes
+	// 3. Create target configuration node (for ProcessETLJob compatibility)
 	targetNode := NewJSONNode("target_config")
 	targetNode.SetJSONValue(convertValueToNative(targetConfig))
 	etlJob.AddChild(targetNode)
 
-	// 3b. Initialize actual target database nodes based on configuration
+	// 4. Create log node for tracking (must be at index 3 for ProcessETLJob)
+	logNode := NewJSONNode("processing_log")
+	etlJob.AddChild(logNode)
+
+	// 5. Initialize actual target database nodes and store in ETL job metadata
 	var actualTargetNode TreeNode
 	if targetMap, ok := targetConfig.(*MapValue); ok {
-		targetType := string(targetMap.Values["type"].(Str))
+		// Check if type field exists and is not nil
+		typeValue, exists := targetMap.Values["type"]
+		if !exists || typeValue == nil {
+			return nil, fmt.Errorf("target configuration missing required 'type' field")
+		}
+
+		typeStr, ok := typeValue.(Str)
+		if !ok {
+			return nil, fmt.Errorf("target configuration 'type' field must be a string, got %T", typeValue)
+		}
+		targetType := string(typeStr)
 
 		switch targetType {
 		case "sql":
 			// Check if a connection name is provided (use existing connection)
-			if connectionName, exists := targetMap.Values["connectionName"]; exists {
-				connectionNameStr := string(connectionName.(Str))
+			if connectionName, exists := targetMap.Values["connectionName"]; exists && connectionName != nil {
+				if connectionNameStr, ok := connectionName.(Str); ok {
+					connectionNameStrValue := string(connectionNameStr)
 
-				// Look for existing SQL connection in runtime
-				if existingConnection, exists := rt.GetVariable(connectionNameStr); exists {
-					if sqlNode, ok := existingConnection.(*SQLNode); ok {
-						// Use existing connected SQLNode
-						actualTargetNode = sqlNode
-						fmt.Printf("✅ Using existing SQL connection: %s\n", connectionNameStr)
+					// Debug: Show what we're looking for and what's available
+					cfg.ChariotLogger.Info("Looking for SQL connection", zap.String("connection_name", connectionNameStrValue))
+					cfg.ChariotLogger.Info("Available runtime objects", zap.Int("count", len(rt.objects)))
+					for key, obj := range rt.objects {
+						cfg.ChariotLogger.Info("Runtime object", zap.String("key", key), zap.String("type", fmt.Sprintf("%T", obj)))
+					}
+
+					// Look for existing SQL connection in runtime objects
+					if existingConnection, exists := rt.objects[connectionNameStrValue]; exists {
+						if sqlNode, ok := existingConnection.(*SQLNode); ok {
+							// Use existing connected SQLNode
+							actualTargetNode = sqlNode
+							cfg.ChariotLogger.Info("Using existing SQL connection", zap.String("connection_name", connectionNameStrValue))
+						} else {
+							return nil, fmt.Errorf("object '%s' is not a SQLNode", connectionNameStrValue)
+						}
 					} else {
-						return nil, fmt.Errorf("variable '%s' is not a SQLNode", connectionNameStr)
+						return nil, fmt.Errorf("SQL connection '%s' not found in runtime", connectionNameStrValue)
 					}
 				} else {
-					return nil, fmt.Errorf("SQL connection '%s' not found in runtime", connectionNameStr)
+					return nil, fmt.Errorf("connectionName must be a string, got %T", connectionName)
 				}
 			} else {
 				// Fallback: Create new SQL connection (legacy behavior)
@@ -834,14 +874,11 @@ func executeETLJob(rt *Runtime, jobId, csvFile string, transformConfig, targetCo
 			return nil, fmt.Errorf("unsupported target type: %s", targetType)
 		}
 
-		etlJob.AddChild(actualTargetNode) // Add as 4th child
+		// Store the actual target node in ETL job metadata for ProcessETLJob to access
+		etlJob.SetMeta("actualTargetNode", actualTargetNode)
 	} else {
 		return nil, fmt.Errorf("target configuration must be a map")
 	}
-
-	// 4. Create log node for tracking
-	logNode := NewJSONNode("processing_log")
-	etlJob.AddChild(logNode)
 
 	// 5. Execute the ETL pipeline
 	err = ProcessETLJob(rt, etlJob)
@@ -929,6 +966,34 @@ func ProcessETLJob(rt *Runtime, etlJob TreeNode) error {
 		successCount := 0
 		errorCount := 0
 
+		// Start a transaction for this batch (if SQL target)
+		var sqlNodeForBatch *SQLNode
+		if len(batch) > 0 {
+			// Get the actual target node from ETL job metadata
+			actualTargetNodeMeta, exists := etlJob.GetMeta("actualTargetNode")
+			if exists {
+				if actualTargetNode, ok := actualTargetNodeMeta.(TreeNode); ok {
+					targetNode := children[2]
+					if targetConfig, ok := targetNode.(*JSONNode); ok {
+						targetData := targetConfig.GetJSONValue()
+						if targetMap, ok := targetData.(map[string]interface{}); ok {
+							targetType := targetMap["type"].(string)
+							if targetType == "sql" {
+								if sqlNode, ok := actualTargetNode.(*SQLNode); ok {
+									sqlNodeForBatch = sqlNode
+									// Start transaction for the batch
+									err := sqlNode.Begin()
+									if err != nil {
+										cfg.ChariotLogger.Warn("Failed to start transaction, using autocommit", zap.Error(err))
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		for i, csvRow := range batch {
 			// Convert CSV row to map
 			rowMap := make(map[string]string)
@@ -951,67 +1016,97 @@ func ProcessETLJob(rt *Runtime, etlJob TreeNode) error {
 			}
 			// Insert into target database
 			if len(sqlRow) > 0 {
-				// Get the actual target node (4th child) - this is the connected database node
-				if len(children) > 4 {
-					actualTargetNode := children[4] // The connected database node
+				// Get the actual target node from ETL job metadata
+				actualTargetNodeMeta, exists := etlJob.GetMeta("actualTargetNode")
+				if !exists {
+					errorMsg := fmt.Sprintf("No target node found in ETL job metadata for row %d", globalRowIndex+i)
+					batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
+					errorCount++
+					continue
+				}
 
-					// Get target configuration to determine type
-					targetNode := children[2]
-					if targetConfig, ok := targetNode.(*JSONNode); ok {
-						targetData := targetConfig.GetJSONValue()
-						if targetMap, ok := targetData.(map[string]interface{}); ok {
-							targetType := targetMap["type"].(string)
+				actualTargetNode, ok := actualTargetNodeMeta.(TreeNode)
+				if !ok {
+					errorMsg := fmt.Sprintf("Invalid target node type in metadata for row %d", globalRowIndex+i)
+					batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
+					errorCount++
+					continue
+				}
+				// Populate tableName meta from etlJob meta
+				tableName, ok := etlJob.GetMeta("tableName")
+				if ok {
+					actualTargetNode.SetMeta("tableName", tableName)
+				}
 
-							switch targetType {
-							case "sql":
-								// Cast to SQL node and insert
-								if sqlNode, ok := actualTargetNode.(*SQLNode); ok {
-									err := sqlNode.Insert(sqlRow)
-									if err != nil {
-										errorMsg := fmt.Sprintf("SQL insert failed for row %d: %v", globalRowIndex+i, err)
-										batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
-										errorCount++
-									} else {
-										successCount++
-									}
-								} else {
-									errorMsg := fmt.Sprintf("Target node is not a SQLNode for row %d", globalRowIndex+i)
+				// Get target configuration to determine type
+				targetNode := children[2]
+				if targetConfig, ok := targetNode.(*JSONNode); ok {
+					targetData := targetConfig.GetJSONValue()
+					if targetMap, ok := targetData.(map[string]interface{}); ok {
+						targetType := targetMap["type"].(string)
+
+						switch targetType {
+						case "sql":
+							// Cast to SQL node and insert
+							if sqlNode, ok := actualTargetNode.(*SQLNode); ok {
+								err := sqlNode.Insert(sqlRow)
+								if err != nil {
+									errorMsg := fmt.Sprintf("SQL insert failed for row %d: %v", globalRowIndex+i, err)
 									batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
 									errorCount++
-								}
-							case "couchbase":
-								// Cast to Couchbase node and insert
-								if cbNode, ok := actualTargetNode.(*CouchbaseNode); ok {
-									docId := generateDocIdWithConfig(sqlRow, cbNode)
-									_, err := cbNode.Insert(docId, sqlRow, 0)
-									if err != nil {
-										errorMsg := fmt.Sprintf("Couchbase insert failed for row %d: %v", globalRowIndex+i, err)
-										batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
-										errorCount++
-									} else {
-										successCount++
-									}
 								} else {
-									errorMsg := fmt.Sprintf("Target node is not a CouchbaseNode for row %d", globalRowIndex+i)
-									batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
-									errorCount++
+									successCount++
 								}
-							default:
-								// Just count as success for testing
-								successCount++
+							} else {
+								errorMsg := fmt.Sprintf("Target node is not a SQLNode for row %d", globalRowIndex+i)
+								batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
+								errorCount++
 							}
-						} else {
-							successCount++ // Fallback for testing
+						case "couchbase":
+							// Cast to Couchbase node and insert
+							if cbNode, ok := actualTargetNode.(*CouchbaseNode); ok {
+								docId := generateDocIdWithConfig(sqlRow, cbNode)
+								_, err := cbNode.Insert(docId, sqlRow, 0)
+								if err != nil {
+									errorMsg := fmt.Sprintf("Couchbase insert failed for row %d: %v", globalRowIndex+i, err)
+									batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
+									errorCount++
+								} else {
+									successCount++
+								}
+							} else {
+								errorMsg := fmt.Sprintf("Target node is not a CouchbaseNode for row %d", globalRowIndex+i)
+								batchLog["errors"] = append(batchLog["errors"].([]string), errorMsg)
+								errorCount++
+							}
+						case "test":
+							// For testing - just count as success
+							successCount++
+						default:
+							// Just count as success for testing
+							successCount++
 						}
 					} else {
 						successCount++ // Fallback for testing
 					}
 				} else {
-					// No target node configured - just count as success for testing
-					successCount++
+					successCount++ // Fallback for testing
 				}
 			} else {
 				errorCount++
+			}
+		}
+
+		// Commit the transaction if we started one for this batch
+		if sqlNodeForBatch != nil {
+			err := sqlNodeForBatch.Commit()
+			if err != nil {
+				cfg.ChariotLogger.Error("Failed to commit transaction", zap.Error(err))
+				// If commit fails, the inserts will be rolled back automatically
+			} else {
+				cfg.ChariotLogger.Info("Successfully committed batch transaction",
+					zap.Int("batch_number", batchNumber),
+					zap.Int("success_rows", successCount))
 			}
 		}
 
@@ -1135,7 +1230,8 @@ func GetMetaInt(node TreeNode, key string, defaultValue int) int {
 
 func GetMetaString(node TreeNode, key string, defaultValue string) string {
 	if val, exists := node.GetMeta(key); exists {
-		if str, ok := val.(string); ok {
+		tstr := convertFromChariotValue(val)
+		if str, ok := tstr.(string); ok {
 			return str
 		}
 	}

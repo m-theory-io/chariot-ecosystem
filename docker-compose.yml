@@ -110,6 +110,7 @@ services:
       - SKIP_DB_WAIT=true
       - CHARIOT_CERT_PATH=/tmp/ssl
       - CHARIOT_SSL=false
+      - CHARIOT_VERBOSE=true
       - COUCHBASE_URL=couchbase://localhost
       - COUCHBASE_USERNAME=Administrator
       - COUCHBASE_PASSWORD=chariot123

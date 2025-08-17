@@ -1,0 +1,44 @@
+# Production Dockerfile for go-chariot - Azure AMD64 deployment
+# Uses pre-built binary for fast, reliable deployment
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    curl \
+    openssl
+
+# Create non-root user for security
+RUN addgroup -g 1001 gochariot && \
+    adduser -D -s /bin/sh -u 1001 -G gochariot gochariot
+
+# Set working directory
+WORKDIR /app
+
+# Copy pre-built AMD64 binary
+COPY build/go-chariot-linux-amd64 ./go-chariot
+
+# Ensure binary is executable
+RUN chmod +x ./go-chariot
+
+# Create necessary directories
+RUN mkdir -p ./files ./templates ./configs ./vault && \
+    chown -R gochariot:gochariot /app
+
+# Copy configuration files if needed
+COPY configs/ ./configs/
+COPY templates/ ./templates/
+
+# Switch to non-root user
+USER gochariot
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8087/health || exit 1
+
+# Expose port
+EXPOSE 8087
+
+# Run the application
+CMD ["./go-chariot"]

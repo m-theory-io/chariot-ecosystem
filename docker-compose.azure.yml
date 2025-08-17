@@ -1,0 +1,142 @@
+# Azure production docker-compose configuration
+# Uses pre-built binaries for fast, reliable deployment
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mtheorycontainerregistry.azurecr.io/mysql:amd64
+    container_name: chariot-mysql-prod
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-chariot_root_2024}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-chariot}
+      MYSQL_USER: ${MYSQL_USER:-chariot}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chariot123}
+    volumes:
+      - mysql_data_prod:/var/lib/mysql
+      - ./databases/mysql:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 20s
+      retries: 15
+      start_period: 60s
+
+  # Couchbase Database
+  couchbase:
+    image: mtheorycontainerregistry.azurecr.io/couchbase:community-amd64
+    container_name: chariot-couchbase-prod
+    ports:
+      - "8091-8096:8091-8096"
+      - "11210:11210"
+    environment:
+      - CLUSTER_NAME=chariot-cluster
+    volumes:
+      - couchbase_data_prod:/opt/couchbase/var
+      - ./databases/couchbase:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/ui/index.html"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 60s
+
+  # Go-Chariot API Service
+  go-chariot:
+    image: mtheorycontainerregistry.azurecr.io/go-chariot:amd64
+    container_name: chariot-api-prod
+    environment:
+      - CHARIOT_PORT=8087
+      - CHARIOT_SSL=false
+      - CHARIOT_HEADLESS=false
+      # Azure Key Vault configuration (firewall rule added)
+      - CHARIOT_VAULT_NAME=${AZURE_VAULT_NAME:-chariot-vault}
+      - CHARIOT_VAULT_KEY_PREFIX=azure
+    ports:
+      - "8087:8087"
+    volumes:
+      - go_chariot_data:/app/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      couchbase:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+      start_period: 60s
+
+  # Charioteer Web Editor
+  charioteer:
+    image: mtheorycontainerregistry.azurecr.io/charioteer:amd64
+    container_name: chariot-editor-prod
+    environment:
+      - CHARIOT_BACKEND_URL=http://go-chariot:8087
+      - NODE_ENV=production
+      - SSL_ENABLED=false
+      - USE_SSL=false
+      - DISABLE_SSL=true
+      - HTTP_ONLY=true
+      - COOKIE_SECRET=${COOKIE_SECRET:-dev_cookie_secret_change_in_production}
+    ports:
+      - "8080:8080"
+    depends_on:
+      go-chariot:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Visual DSL Frontend
+  visual-dsl:
+    image: mtheorycontainerregistry.azurecr.io/visual-dsl:amd64
+    container_name: chariot-visual-dsl-prod
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: mtheorycontainerregistry.azurecr.io/nginx:amd64
+    container_name: chariot-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+      - "3307:3307"  # MySQL proxy port
+    depends_on:
+      - go-chariot
+      - charioteer
+      - visual-dsl
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql_data_prod:
+    driver: local
+  couchbase_data_prod:
+    driver: local
+  go_chariot_data:
+    driver: local
+
+networks:
+  default:
+    name: chariot-network-prod

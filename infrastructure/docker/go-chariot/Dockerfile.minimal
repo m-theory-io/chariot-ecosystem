@@ -1,0 +1,47 @@
+# Minimal Dockerfile using pre-built binary
+FROM alpine:latest
+
+# Install minimal runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    curl \
+    bash
+
+# Create non-root user
+RUN addgroup -g 1001 chariot && \
+    adduser -D -s /bin/sh -u 1001 -G chariot chariot
+
+# Set working directory
+WORKDIR /app
+
+# Copy pre-built binary
+COPY bin/go-chariot-amd64 /app/go-chariot
+
+# Copy configuration files if they exist
+COPY config/ /app/config/
+
+# Copy data files
+COPY data/ /app/data/
+
+# Copy minimal entrypoint script (no SSL generation when SSL disabled)
+COPY entrypoint-minimal.sh /app/entrypoint.sh
+
+# Make binary and script executable
+RUN chmod +x /app/go-chariot /app/entrypoint.sh
+
+# Change ownership to chariot user
+RUN chown -R chariot:chariot /app
+
+# Switch to non-root user
+USER chariot
+
+# Expose port
+EXPOSE 8087
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8087/health || exit 1
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["/app/go-chariot"]
