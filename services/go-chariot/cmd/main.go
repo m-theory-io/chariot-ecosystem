@@ -6,14 +6,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/bhouse1273/go-chariot/chariot"
-	cfg "github.com/bhouse1273/go-chariot/configs"
-	"github.com/bhouse1273/go-chariot/logs"
-	"github.com/bhouse1273/go-chariot/vault"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 	"go.uber.org/zap"
 
-	"github.com/bhouse1273/go-chariot/internal/handlers"
-	"github.com/bhouse1273/go-chariot/internal/routes"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/handlers"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/routes"
 	"github.com/bhouse1273/kissflag"
 
 	"github.com/labstack/echo/v4"

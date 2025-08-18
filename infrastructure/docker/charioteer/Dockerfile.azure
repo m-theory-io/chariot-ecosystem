@@ -16,11 +16,16 @@ RUN addgroup -g 1001 charioteer && \
 # Set working directory
 WORKDIR /app
 
-# Copy pre-built AMD64 binary
-COPY build/charioteer-linux-amd64 ./charioteer
+# Copy pre-built AMD64 binary (built to services/charioteer/build/)
+COPY services/charioteer/build/charioteer-linux-amd64 ./charioteer
 
-# Copy SSL certificates and configuration
-COPY .certs/ ./.certs/
+# Copy SSL certificates (optional; exists in services/charioteer/.certs)
+COPY services/charioteer/.certs/ ./.certs/
+
+# Copy bundled example/user files used by the editor
+# This provides the required "files" folder and initial .ch examples
+COPY services/charioteer/files/ /app/files/
+RUN chown -R charioteer:charioteer /app/files
 
 # Ensure binary is executable and fix permissions
 RUN chmod +x ./charioteer && \

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	cfg "github.com/bhouse1273/go-chariot/configs"
-	"github.com/bhouse1273/go-chariot/logs"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
 	"go.uber.org/zap"
 )
 

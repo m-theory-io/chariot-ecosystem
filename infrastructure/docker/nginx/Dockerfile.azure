@@ -1,5 +1,5 @@
 # Azure production nginx container
-FROM nginx:alpine
+FROM --platform=linux/amd64 nginx:alpine
 
 # Install openssl for self-signed certificates (temporary until Let's Encrypt)
 RUN apk add --no-cache openssl
@@ -16,6 +16,11 @@ COPY nginx.azure.conf /etc/nginx/nginx.conf
 
 # Copy landing page as index.html
 COPY landing.html /usr/share/nginx/html/index.html
+
+# Ensure nginx can read static content
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chmod -R a+rX /usr/share/nginx/html \
+    && chmod 644 /usr/share/nginx/html/index.html
 
 # Create directory for Let's Encrypt challenges
 RUN mkdir -p /var/www/certbot

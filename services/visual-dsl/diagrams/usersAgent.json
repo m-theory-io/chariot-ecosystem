@@ -1,0 +1,272 @@
+{
+  "name": "usersAgent",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "logicon",
+      "position": { "x": 50, "y": 50 },
+      "data": {
+        "label": "Start",
+        "icon": "🚀",
+        "category": "control",
+        "properties": {
+          "name": "usersAgent"
+        }
+      }
+    },
+    {
+      "id": "declare-1",
+      "type": "logicon",
+      "position": { "x": 50, "y": 200 },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": true,
+          "variableName": "usersAgent",
+          "typeSpecifier": "T"
+        }
+      }
+    },
+    {
+      "id": "create-2",
+      "type": "logicon",
+      "position": { "x": 50, "y": 350 },
+      "data": {
+        "label": "Create",
+        "icon": "🆕",
+        "category": "node",
+        "properties": {
+          "nodeName": "usersAgent"
+        }
+      }
+    },
+    {
+      "id": "declare-3",
+      "type": "logicon",
+      "position": { "x": 276, "y": 211 },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "users",
+          "typeSpecifier": "J"
+        }
+      }
+    },
+    {
+      "id": "parseJSON-4",
+      "type": "logicon",
+      "position": { "x": 276, "y": 361 },
+      "data": {
+        "label": "Parse JSON",
+        "icon": "📖",
+        "category": "json",
+        "properties": {
+          "jsonString": "[]",
+          "nodeName": "users"
+        }
+      }
+    },
+    {
+      "id": "declare-5",
+      "type": "logicon",
+      "position": { "x": 502, "y": 211 },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "roles",
+          "typeSpecifier": "J"
+        }
+      }
+    },
+    {
+      "id": "parseJSON-6",
+      "type": "logicon",
+      "position": { "x": 502, "y": 361 },
+      "data": {
+        "label": "Parse JSON",
+        "icon": "📖",
+        "category": "json",
+        "properties": {
+          "jsonString": "[\"admin\", \"contributor\", \"viewer\"]",
+          "nodeName": "roles"
+        }
+      }
+    },
+    {
+      "id": "declare-7",
+      "type": "logicon",
+      "position": { "x": 728, "y": 211 },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "rules",
+          "typeSpecifier": "J"
+        }
+      }
+    },
+    {
+      "id": "parseJSON-8",
+      "type": "logicon",
+      "position": { "x": 728, "y": 361 },
+      "data": {
+        "label": "Parse JSON",
+        "icon": "📖",
+        "category": "json",
+        "properties": {
+          "jsonString": "{}",
+          "nodeName": "rules"
+        }
+      }
+    },
+    {
+      "id": "declare-9",
+      "type": "logicon",
+      "position": { "x": 954, "y": 211 },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "config",
+          "typeSpecifier": "J"
+        }
+      }
+    },
+    {
+      "id": "parseJSON-10",
+      "type": "logicon",
+      "position": { "x": 954, "y": 361 },
+      "data": {
+        "label": "Parse JSON",
+        "icon": "📖",
+        "category": "json",
+        "properties": {
+          "jsonString": "{\"maxLoginAttempts\": 5, \"sessionTimeout\": 3600, \"encryptionEnabled\": true}",
+          "nodeName": "config"
+        }
+      }
+    },
+    {
+      "id": "addChild-12",
+      "type": "logicon",
+      "position": { "x": 1100, "y": 244 },
+      "data": {
+        "label": "Add Child",
+        "icon": "➕",
+        "category": "node"
+      }
+    },
+    {
+      "id": "treeSave-16",
+      "type": "logicon",
+      "position": { "x": 1757, "y": 248 },
+      "data": {
+        "label": "Tree Save",
+        "icon": "💾",
+        "category": "tree",
+        "properties": {
+          "filename": "usersAgent.json"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-declare-1",
+      "source": "start",
+      "target": "declare-1"
+    },
+    {
+      "id": "declare-1-create-2",
+      "source": "declare-1",
+      "target": "create-2"
+    },
+    {
+      "id": "create-2-declare-3",
+      "source": "create-2",
+      "target": "declare-3"
+    },
+    {
+      "id": "declare-3-parseJSON-4",
+      "source": "declare-3",
+      "target": "parseJSON-4"
+    },
+    {
+      "id": "parseJSON-4-declare-5",
+      "source": "parseJSON-4",
+      "target": "declare-5"
+    },
+    {
+      "id": "declare-5-parseJSON-6",
+      "source": "declare-5",
+      "target": "parseJSON-6"
+    },
+    {
+      "id": "parseJSON-6-declare-7",
+      "source": "parseJSON-6",
+      "target": "declare-7"
+    },
+    {
+      "id": "declare-7-parseJSON-8",
+      "source": "declare-7",
+      "target": "parseJSON-8"
+    },
+    {
+      "id": "parseJSON-8-declare-9",
+      "source": "parseJSON-8",
+      "target": "declare-9"
+    },
+    {
+      "id": "declare-9-parseJSON-10",
+      "source": "declare-9",
+      "target": "parseJSON-10"
+    },
+    {
+      "id": "parseJSON-10-addChild-12",
+      "source": "parseJSON-10",
+      "target": "addChild-12"
+    },
+    {
+      "id": "addChild-12-treeSave-16",
+      "source": "addChild-12",
+      "target": "treeSave-16"
+    }
+  ],
+  "nestingRelations": [
+    {
+      "parentId": "declare-3",
+      "childId": "parseJSON-4",
+      "order": 0
+    },
+    {
+      "parentId": "declare-5",
+      "childId": "parseJSON-6",
+      "order": 0
+    },
+    {
+      "parentId": "declare-7",
+      "childId": "parseJSON-8",
+      "order": 0
+    },
+    {
+      "parentId": "declare-9",
+      "childId": "parseJSON-10",
+      "order": 0
+    }
+  ],
+  "groupCount": 4,
+  "created": "2024-01-01T00:00:00.000Z",
+  "modified": "2024-01-01T00:00:00.000Z"
+}

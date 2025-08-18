@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
+	azv "github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"go.uber.org/zap"
 
-	cfg "github.com/bhouse1273/go-chariot/configs"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	// Import go-chariot/vault package for vault client initialization
 )
 
@@ -47,7 +47,7 @@ type OrgSecret struct {
 
 // Global vault client instance
 var (
-	VaultClient *azsecrets.Client
+	VaultClient *azv.Client
 	VaultURI    string
 )
 
@@ -70,7 +70,7 @@ func InitVaultClient() error {
 	vaultUri := fmt.Sprintf("https://%s.vault.azure.net", cfg.ChariotConfig.VaultName)
 
 	// Create Key Vault client
-	client, err := azsecrets.NewClient(vaultUri, cred, nil)
+	client, err := azv.NewClient(vaultUri, cred, nil)
 	if err != nil {
 		cfg.ChariotLogger.Error("Failed to create Key Vault client", zap.String("vault_uri", vaultUri), zap.String("details", err.Error()))
 		return fmt.Errorf("%s - failed to create Key Vault client: %w", logName, err)

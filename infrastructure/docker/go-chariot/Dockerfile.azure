@@ -16,19 +16,20 @@ RUN addgroup -g 1001 gochariot && \
 # Set working directory
 WORKDIR /app
 
-# Copy pre-built AMD64 binary
-COPY build/go-chariot-linux-amd64 ./go-chariot
+# Copy pre-built AMD64 binary (built in services/go-chariot/build)
+# NOTE: Build context should be the repo root so these paths are available.
+COPY services/go-chariot/build/go-chariot-linux-amd64 ./go-chariot
 
 # Ensure binary is executable
 RUN chmod +x ./go-chariot
 
-# Create necessary directories
-RUN mkdir -p ./files ./templates ./configs ./vault && \
+# Create runtime data directories and set permissions
+RUN mkdir -p ./data ./data/trees && \
     chown -R gochariot:gochariot /app
 
-# Copy configuration files if needed
-COPY configs/ ./configs/
-COPY templates/ ./templates/
+# Copy runtime data (bootstrap + trees) from infrastructure folder
+# These are used by CHARIOT_DATA_PATH, CHARIOT_TREE_PATH, CHARIOT_BOOTSTRAP
+COPY infrastructure/docker/go-chariot/data/ ./data/
 
 # Switch to non-root user
 USER gochariot

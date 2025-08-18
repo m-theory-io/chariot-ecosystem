@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bhouse1273/go-chariot/chariot"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // TestJSONNodes tests JSON node creation and manipulation

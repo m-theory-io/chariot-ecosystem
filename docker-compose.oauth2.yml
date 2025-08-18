@@ -1,0 +1,195 @@
+version: '3.8'
+
+services:
+  # OAuth2 Proxy - Azure AD Authentication Gateway
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: oauth2-proxy
+    restart: unless-stopped
+    ports:
+      - "443:4180"  # HTTPS public access
+      - "80:4180"   # HTTP redirect to HTTPS
+    environment:
+      # Azure AD Configuration
+      OAUTH2_PROXY_PROVIDER: azure
+      OAUTH2_PROXY_AZURE_TENANT: ${AZURE_TENANT_ID}
+      OAUTH2_PROXY_CLIENT_ID: ${AZURE_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0
+      
+      # Proxy Configuration
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REDIRECT_URL: https://chariot.m-theory.io/oauth2/callback
+      OAUTH2_PROXY_UPSTREAM: http://nginx:80
+      
+      # Cookie Configuration
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_COOKIE_SECRET}
+      OAUTH2_PROXY_COOKIE_SECURE: false  # Disable for HTTP testing
+      OAUTH2_PROXY_COOKIE_HTTPONLY: true
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_COOKIE_DOMAINS: .m-theory.io
+      OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy_chariot
+      
+      # Security Configuration
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"  # Allow any email domain
+      OAUTH2_PROXY_SKIP_AUTH_REGEX: "^/health$|^/oauth2/"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: true
+      OAUTH2_PROXY_PASS_USER_HEADERS: true
+      OAUTH2_PROXY_SET_XAUTHREQUEST: true
+      
+      # Logging
+      OAUTH2_PROXY_REQUEST_LOGGING: true
+      OAUTH2_PROXY_STANDARD_LOGGING: true
+      
+      # Remove SSL Configuration - use HTTP for now
+    depends_on:
+      - nginx
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4180/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx - Internal only, no public ports
+  nginx:
+    image: mtheorycontainerregistry.azurecr.io/nginx:amd64
+    container_name: nginx
+    restart: unless-stopped
+    # Remove public port exposure - only internal
+    expose:
+      - "80"
+    volumes:
+      - nginx_ssl:/etc/nginx/ssl
+    depends_on:
+      - visual-dsl
+      - go-chariot
+      - charioteer
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Visual DSL Service
+  visual-dsl:
+    image: mtheorycontainerregistry.azurecr.io/visual-dsl:amd64
+    container_name: visual-dsl
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - ssl=false  # Disable SSL - OAuth2 proxy handles it
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Go Chariot API Service
+  go-chariot:
+    image: mtheorycontainerregistry.azurecr.io/go-chariot:amd64
+    container_name: go-chariot
+    restart: unless-stopped
+    expose:
+      - "8087"
+    environment:
+      - CHARIOT_SSL=false  # Disable SSL using kissflag standard
+      # Database credentials retrieved from Azure Key Vault - no env vars needed
+    depends_on:
+      - mysql
+      - couchbase
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Charioteer Service
+  charioteer:
+    image: mtheorycontainerregistry.azurecr.io/charioteer:amd64
+    container_name: charioteer
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      - ssl=false  # Disable SSL
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=${MYSQL_DATABASE}
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+    depends_on:
+      - mysql
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"  # Keep MySQL exposed for external access
+    environment:
+      # MySQL configured manually - credentials from Azure Key Vault
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: chariot
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./databases/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./databases/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Couchbase Database
+  couchbase:
+    image: couchbase:community
+    container_name: couchbase
+    restart: unless-stopped
+    ports:
+      - "8091-8096:8091-8096"
+      - "11210-11211:11210-11211"
+    environment:
+      # Couchbase configured manually - no credentials in environment
+      COUCHBASE_CLUSTER_NAME: chariot-cluster
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+      - ./databases/couchbase/init.sh:/opt/couchbase/init.sh
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/pools"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql_data:
+  couchbase_data:
+  nginx_ssl:
+  oauth2_certs:
+  oauth2_keys:
+
+networks:
+  chariot-network:
+    driver: bridge
+    name: chariot-network

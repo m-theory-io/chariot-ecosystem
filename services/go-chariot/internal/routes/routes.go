@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/bhouse1273/go-chariot/internal/handlers"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/handlers"
 	"github.com/labstack/echo/v4"
 )
 

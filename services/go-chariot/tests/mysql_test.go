@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bhouse1273/go-chariot/chariot"
-	cfg "github.com/bhouse1273/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/bhouse1273/kissflag"
 )
 
@@ -25,8 +25,8 @@ func initMySQLConfig() {
 		os.Setenv("CHARIOT_SQL_PASSWORD", "Borg12731273")
 		os.Setenv("CHARIOT_SQL_DATABASE", "testsql")
 		os.Setenv("CHARIOT_SQL_PORT", "3306")
-		os.Setenv("CHARIOT_DATA_PATH", "/home/nvidia/go/src/github.com/bhouse1273/go-chariot/tests/data")
-		os.Setenv("CHARIOT_TREE_PATH", "/home/nvidia/go/src/github.com/bhouse1273/go-chariot/tests/data/tree")
+		os.Setenv("CHARIOT_DATA_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
+		os.Setenv("CHARIOT_TREE_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
 		os.Setenv("CHARIOT_VAULT_NAME", "chariot-vault")
 		kissflag.SetPrefix("CHARIOT_")
 

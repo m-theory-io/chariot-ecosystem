@@ -1,11 +1,11 @@
 # Azure production docker-compose configuration
 # Uses pre-built binaries for fast, reliable deployment
-version: '3.8'
 
 services:
   # MySQL Database
   mysql:
-    image: mtheorycontainerregistry.azurecr.io/mysql:amd64
+    image: mysql:8.0
+    platform: linux/amd64
     container_name: chariot-mysql-prod
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-chariot_root_2024}
@@ -27,7 +27,8 @@ services:
 
   # Couchbase Database
   couchbase:
-    image: mtheorycontainerregistry.azurecr.io/couchbase:community-amd64
+    image: couchbase:community
+    platform: linux/amd64
     container_name: chariot-couchbase-prod
     ports:
       - "8091-8096:8091-8096"
@@ -47,7 +48,7 @@ services:
 
   # Go-Chariot API Service
   go-chariot:
-    image: mtheorycontainerregistry.azurecr.io/go-chariot:amd64
+    image: "mtheorycontainerregistry.azurecr.io/go-chariot:${GO_CHARIOT_TAG:-amd64}"
     container_name: chariot-api-prod
     environment:
       - CHARIOT_PORT=8087
@@ -56,10 +57,13 @@ services:
       # Azure Key Vault configuration (firewall rule added)
       - CHARIOT_VAULT_NAME=${AZURE_VAULT_NAME:-chariot-vault}
       - CHARIOT_VAULT_KEY_PREFIX=azure
+      # Data/tree paths and bootstrap script
+      - CHARIOT_DATA_PATH=/app/data
+      - CHARIOT_TREE_PATH=/app/data/trees
+      - CHARIOT_BOOTSTRAP=bootstrap.ch
     ports:
       - "8087:8087"
-    volumes:
-      - go_chariot_data:/app/data
+    # Do not mount /app/data in production so embedded bootstrap assets are visible
     depends_on:
       mysql:
         condition: service_healthy
@@ -77,6 +81,7 @@ services:
   charioteer:
     image: mtheorycontainerregistry.azurecr.io/charioteer:amd64
     container_name: chariot-editor-prod
+    command: ["/app/charioteer", "-ssl=false", "-backend=http://go-chariot:8087"]
     environment:
       - CHARIOT_BACKEND_URL=http://go-chariot:8087
       - NODE_ENV=production
@@ -92,23 +97,29 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/charioteer/health"]
       interval: 30s
       timeout: 10s
       retries: 5
 
   # Visual DSL Frontend
   visual-dsl:
-    image: mtheorycontainerregistry.azurecr.io/visual-dsl:amd64
-    container_name: chariot-visual-dsl-prod
-    ports:
-      - "3000:3000"
+    image: "mtheorycontainerregistry.azurecr.io/visual-dsl:${VISUAL_DSL_TAG:-amd64}"
+    container_name: visual-dsl
     restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+      - ssl=false  # Disable SSL - nginx handles SSL termination
+      - SSL_ENABLED=false
+      - USE_SSL=false
+      - HTTPS=false
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
 
   # Nginx Reverse Proxy
   nginx:
@@ -118,13 +129,17 @@ services:
       - "80:80"
       - "443:443"
       - "3307:3307"  # MySQL proxy port
+    volumes:
+      # Mount certbot Docker volumes (created by Let's Encrypt setup)
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
       - go-chariot
       - charioteer
       - visual-dsl
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD", "sh", "-c", "curl -skf https://localhost:443/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -134,8 +149,13 @@ volumes:
     driver: local
   couchbase_data_prod:
     driver: local
-  go_chariot_data:
-    driver: local
+  # External volumes created by certbot compose/setup
+  certbot_certs:
+    external: true
+    name: mtheory_certbot_certs
+  certbot_www:
+    external: true
+    name: mtheory_certbot_www
 
 networks:
   default:

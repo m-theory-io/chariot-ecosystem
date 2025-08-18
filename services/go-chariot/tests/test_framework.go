@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bhouse1273/go-chariot/chariot"
-	cfg "github.com/bhouse1273/go-chariot/configs"
-	"github.com/bhouse1273/go-chariot/logs"
-	"github.com/bhouse1273/go-chariot/vault"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 	"go.uber.org/zap"
 )
 
@@ -34,8 +34,8 @@ func init() {
 	cfg.ChariotConfig.VaultName = "chariot-vault"
 
 	// Set DataPath for file operations in tests - use absolute path
-	cfg.ChariotConfig.DataPath = "/home/nvidia/go/src/github.com/bhouse1273/go-chariot/tests/data"
-	cfg.ChariotConfig.TreePath = "/home/nvidia/go/src/github.com/bhouse1273/go-chariot/tests/data/tree"
+	cfg.ChariotConfig.DataPath = "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data"
+	cfg.ChariotConfig.TreePath = "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree"
 
 	// Initialize Vault client for all tests
 	if err := vault.InitVaultClient(); err != nil {
