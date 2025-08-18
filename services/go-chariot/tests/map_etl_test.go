@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/bhouse1273/go-chariot/chariot"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // TestMapFunction tests the new map() function for creating MapValue

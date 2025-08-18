@@ -1,0 +1,37 @@
+version: '3.8'
+
+# Cross-platform development build overrides
+# Use this with: docker-compose -f docker-compose.yml -f docker-compose.cross-platform.yml build
+
+services:
+  visual-dsl:
+    build:
+      context: ./services/visual-dsl
+      dockerfile: ../../infrastructure/docker/visual-dsl/Dockerfile.azure
+      platforms:
+        - linux/amd64
+    image: visual-dsl:amd64
+
+  nginx:
+    build:
+      context: ./infrastructure/docker/nginx
+      dockerfile: Dockerfile.azure
+      platforms:
+        - linux/amd64
+    image: nginx:amd64
+
+  go-chariot:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/go-chariot/Dockerfile.azure
+      platforms:
+        - linux/amd64
+    image: go-chariot:amd64
+
+  charioteer:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/charioteer/Dockerfile.azure
+      platforms:
+        - linux/amd64
+    image: charioteer:amd64

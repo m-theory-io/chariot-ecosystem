@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bhouse1273/go-chariot/chariot"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 func main() {

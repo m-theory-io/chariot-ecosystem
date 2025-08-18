@@ -10,6 +10,7 @@
     "dev:secure": "./generate-certs.sh && HTTPS=true vite",
     "dev:firefox": "./generate-firefox-certs.sh && HTTPS=true vite",
     "build": "vite build",
+    "build:amd64": "ESBUILD_PLATFORM=linux ESBUILD_ARCH=x64 vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "preview:https": "HTTPS=true vite preview",

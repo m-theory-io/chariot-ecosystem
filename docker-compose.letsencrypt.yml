@@ -1,0 +1,207 @@
+version: '3.8'
+
+services:
+  # Certbot for Let's Encrypt SSL certificates
+  certbot:
+    image: certbot/certbot:latest
+    container_name: certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    command: >
+      certonly --webroot --webroot-path=/var/www/certbot 
+      --email ${LETSENCRYPT_EMAIL} 
+      --agree-tos --no-eff-email 
+      -d chariot.m-theory.io
+    networks:
+      - chariot-network
+
+  # OAuth2 Proxy - Azure AD Authentication Gateway with Let's Encrypt
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: oauth2-proxy
+    restart: unless-stopped
+    ports:
+      - "443:4180"  # HTTPS
+      - "80:8080"   # HTTP for Let's Encrypt challenge
+    environment:
+      # Azure AD Configuration
+      OAUTH2_PROXY_PROVIDER: azure
+      OAUTH2_PROXY_AZURE_TENANT: ${AZURE_TENANT_ID}
+      OAUTH2_PROXY_CLIENT_ID: ${AZURE_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0
+      
+      # Proxy Configuration
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REDIRECT_URL: https://chariot.m-theory.io/oauth2/callback
+      OAUTH2_PROXY_UPSTREAM: http://nginx:80
+      
+      # Cookie Configuration
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_COOKIE_SECRET}
+      OAUTH2_PROXY_COOKIE_SECURE: true
+      OAUTH2_PROXY_COOKIE_HTTPONLY: true
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_COOKIE_DOMAINS: .chariot.m-theory.io
+      OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy_chariot
+      
+      # Security Configuration
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_SKIP_AUTH_REGEX: "^/health$|^/oauth2/|^/\\.well-known/"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: true
+      OAUTH2_PROXY_PASS_USER_HEADERS: true
+      OAUTH2_PROXY_SET_XAUTHREQUEST: true
+      
+      # SSL Configuration with Let's Encrypt
+      OAUTH2_PROXY_TLS_CERT_FILE: /etc/letsencrypt/live/chariot.m-theory.io/fullchain.pem
+      OAUTH2_PROXY_TLS_KEY_FILE: /etc/letsencrypt/live/chariot.m-theory.io/privkey.pem
+      
+      # Logging
+      OAUTH2_PROXY_REQUEST_LOGGING: true
+      OAUTH2_PROXY_STANDARD_LOGGING: true
+    volumes:
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      - nginx
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4180/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx with Let's Encrypt challenge support
+  nginx:
+    image: mtheorycontainerregistry.azurecr.io/nginx:amd64
+    container_name: nginx
+    restart: unless-stopped
+    expose:
+      - "80"
+    ports:
+      - "8080:8080"  # Let's Encrypt challenge server
+    volumes:
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      - visual-dsl
+      - go-chariot
+      - charioteer
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Visual DSL Service
+  visual-dsl:
+    image: mtheorycontainerregistry.azurecr.io/visual-dsl:amd64
+    container_name: visual-dsl
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - ssl=false
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Go Chariot API Service (gets credentials from Azure Key Vault)
+  go-chariot:
+    image: mtheorycontainerregistry.azurecr.io/go-chariot:amd64
+    container_name: go-chariot
+    restart: unless-stopped
+    expose:
+      - "8087"
+    environment:
+      - CHARIOT_SSL=false
+    depends_on:
+      - mysql
+      - couchbase
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Charioteer Service
+  charioteer:
+    image: mtheorycontainerregistry.azurecr.io/charioteer:amd64
+    container_name: charioteer
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      - ssl=false
+    depends_on:
+      - mysql
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./databases/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./databases/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Couchbase Community Database
+  couchbase:
+    image: couchbase:community
+    container_name: couchbase
+    restart: unless-stopped
+    ports:
+      - "8091-8096:8091-8096"
+      - "11210-11211:11210-11211"
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+      - ./databases/couchbase/init.sh:/opt/couchbase/init.sh
+    networks:
+      - chariot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/pools"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql_data:
+  couchbase_data:
+  certbot_certs:
+  certbot_www:
+
+networks:
+  chariot-network:
+    driver: bridge
+    name: chariot-network

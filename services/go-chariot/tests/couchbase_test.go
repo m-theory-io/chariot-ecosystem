@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bhouse1273/go-chariot/chariot"
-	cfg "github.com/bhouse1273/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/bhouse1273/kissflag"
 )
 
@@ -31,8 +31,8 @@ func initCouchbaseConfig() {
 		os.Setenv("CHARIOT_COUCHBASE_PASSWORD", "Borg12731273")
 		os.Setenv("CHARIOT_COUCHBASE_BUCKET", "chariot")
 		os.Setenv("CHARIOT_COUCHBASE_SCOPE", "_default")
-		os.Setenv("CHARIOT_DATA_PATH", "/home/nvidia/go/src/github.com/bhouse1273/go-chariot/tests/data")
-		os.Setenv("CHARIOT_TREE_PATH", "/home/nvidia/go/src/github.com/bhouse1273/go-chariot/tests/data/tree")
+		os.Setenv("CHARIOT_DATA_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
+		os.Setenv("CHARIOT_TREE_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
 
 		kissflag.SetPrefix("CHARIOT_")
 		kissflag.BindAllEVars(cfg.ChariotConfig)

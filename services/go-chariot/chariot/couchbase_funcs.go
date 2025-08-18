@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	cfg "github.com/bhouse1273/go-chariot/configs"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // RegisterCouchbaseFunctions registers all Couchbase-related functions

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	cfg "github.com/bhouse1273/go-chariot/configs"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // FunctionExtractor analyzes TreeNodes to extract all function calls

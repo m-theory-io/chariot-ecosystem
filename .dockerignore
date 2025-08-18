@@ -1,0 +1,37 @@
+# Global VCS and editor cruft
+.git
+.git/**
+.github/**
+.vscode/**
+**/.DS_Store
+**/*.log
+**/.idea/**
+**/.cache/**
+**/tmp/**
+
+# Node.js artifacts (not needed for go-chariot image build)
+**/node_modules/**
+**/.pnpm-store/**
+**/.yarn/**
+services/visual-dsl/.vite/**
+services/visual-dsl/dist/**
+
+# Large database init assets (not required for go-chariot image build)
+databases/**
+
+# Go-Chariot development/test outputs
+services/go-chariot/bin/**
+services/go-chariot/tests/**
+services/go-chariot/test-results.txt
+services/go-chariot/logs/**
+
+# Exclude entire build dir except the linux/amd64 binary the Dockerfile copies
+services/go-chariot/build/**
+!services/go-chariot/build/go-chariot-linux-amd64
+
+# Keep Docker build assets and runtime data needed by Dockerfile.azure
+!infrastructure/docker/go-chariot/Dockerfile.azure
+!infrastructure/docker/go-chariot/data/**
+
+# Exclude stray service-level infra that isn't used for building the runtime image
+services/go-chariot/infrastructure/**

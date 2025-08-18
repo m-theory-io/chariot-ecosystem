@@ -19,13 +19,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
+	azv "github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/pbkdf2"
 
-	cfg "github.com/bhouse1273/go-chariot/configs"
-	"github.com/bhouse1273/go-chariot/logs"
-	"github.com/bhouse1273/go-chariot/vault"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 )
 
 // Global CryptoManager instance
@@ -34,7 +34,7 @@ var cryptoInitOnce sync.Once
 
 // CryptoManager handles all cryptographic operations using Azure Key Vault
 type CryptoManager struct {
-	vaultClient *azsecrets.Client
+	vaultClient *azv.Client
 	logger      *logs.ZapLogger
 	keyCache    map[string]*cachedKey
 	cacheMutex  sync.RWMutex

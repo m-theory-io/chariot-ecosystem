@@ -71,44 +71,32 @@ print_status "ACR Login Server: $ACR_LOGIN_SERVER"
 print_status "Logging into Azure Container Registry..."
 az acr login --name "$REGISTRY_NAME"
 
-# Build AMD64 binaries
-print_status "Building AMD64 binaries for production..."
+# Build AMD64 binaries and Docker images
+print_status "Building AMD64 binaries and Docker images for production..."
 
-# Build go-chariot
-print_status "Building go-chariot..."
-cd services/go-chariot
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o bin/go-chariot-linux ./cmd
-cd ../..
+# Use the cross-platform build script
+./scripts/build-azure-cross-platform.sh
 
-# Build charioteer
-print_status "Building charioteer..."
-cd services/charioteer
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/charioteer-linux-amd64 .
-cd ../..
-
-print_status "Binaries built successfully!"
+print_status "Cross-platform build completed!"
 
 # Build and push Docker images
-print_status "Building and pushing Docker images..."
+print_status "Pushing Docker images to ACR..."
 
-# Build and push go-chariot
-print_status "Building go-chariot image..."
-docker build -f infrastructure/docker/go-chariot/Dockerfile.azure -t "$ACR_LOGIN_SERVER/chariot-api:latest" .
+# The images are already built by the cross-platform script, just push them
+print_status "Pushing go-chariot image..."
+docker tag go-chariot:amd64 "$ACR_LOGIN_SERVER/chariot-api:latest"
 docker push "$ACR_LOGIN_SERVER/chariot-api:latest"
 
-# Build and push charioteer
-print_status "Building charioteer image..."
-docker build -f infrastructure/docker/charioteer/Dockerfile.azure -t "$ACR_LOGIN_SERVER/chariot-editor:latest" .
+print_status "Pushing charioteer image..."
+docker tag charioteer:amd64 "$ACR_LOGIN_SERVER/chariot-editor:latest"
 docker push "$ACR_LOGIN_SERVER/chariot-editor:latest"
 
-# Build and push visual-dsl
-print_status "Building visual-dsl image..."
-docker build -f infrastructure/docker/visual-dsl/Dockerfile.azure -t "$ACR_LOGIN_SERVER/chariot-visual-dsl:latest" .
+print_status "Pushing visual-dsl image..."
+docker tag visual-dsl:amd64 "$ACR_LOGIN_SERVER/chariot-visual-dsl:latest"
 docker push "$ACR_LOGIN_SERVER/chariot-visual-dsl:latest"
 
-# Build and push nginx
-print_status "Building nginx image..."
-docker build -f infrastructure/docker/nginx/Dockerfile -t "$ACR_LOGIN_SERVER/chariot-nginx:latest" .
+print_status "Pushing nginx image..."
+docker tag nginx:amd64 "$ACR_LOGIN_SERVER/chariot-nginx:latest"
 docker push "$ACR_LOGIN_SERVER/chariot-nginx:latest"
 
 print_status "All images pushed successfully!"

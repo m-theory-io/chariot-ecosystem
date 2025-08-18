@@ -11,8 +11,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	cfg "github.com/bhouse1273/go-chariot/configs"
-	"github.com/bhouse1273/go-chariot/vault"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 	"go.uber.org/zap"
 	// Register database drivers as needed
 	// _ "github.com/lib/pq"

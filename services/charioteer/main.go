@@ -26,7 +26,7 @@ var (
 	libraryName        = flag.String("library", "stlib.json", "Name of the library to use for function execution")
 	insecureSkipVerify = flag.Bool("insecure", true, "Skip TLS certificate verification for backend (dev only)")
 	certPath           = flag.String("certpath", ".certs", "cert file folder")
-	useSSL             = flag.Bool("ssl", true, "Use HTTPS with TLS certs (default true for dev)")
+	useSSL             = flag.Bool("ssl", false, "Use HTTPS with TLS certs (default false for dev)")
 )
 
 // ResultJSON provides a standardized JSON response format
