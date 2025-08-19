@@ -29,9 +29,13 @@ RUN mkdir -p ./data ./data/trees && \
 
 # Copy runtime data (bootstrap + trees) from infrastructure folder
 # These are used by CHARIOT_DATA_PATH, CHARIOT_TREE_PATH, CHARIOT_BOOTSTRAP
-COPY infrastructure/docker/go-chariot/data/ ./data/
+COPY infrastructure/docker/go-chariot/data/ /app/data.default/
 
-# Switch to non-root user
+# Copy entrypoint and set executable (must be done as root for /usr/local/bin)
+COPY infrastructure/docker/go-chariot/entrypoint-minimal.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
+
+# Switch to non-root user for runtime
 USER gochariot
 
 # Health check
@@ -41,5 +45,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose port
 EXPOSE 8087
 
-# Run the application
-CMD ["./go-chariot"]
+# Start via entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

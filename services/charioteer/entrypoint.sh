@@ -32,13 +32,30 @@ if [ -d "/app/ssl" ] && [ -w "/app/ssl" ]; then
     ln -sf "$SSL_DIR/server.crt" "/app/ssl/server.crt" || true
 fi
 
+# Ensure volume directory exists and permissions are correct (needs root)
+if [ "$(id -u)" = "0" ]; then
+    mkdir -p /app/files
+    # If mounted with root-only perms, fix ownership
+    chown -R 1001:1001 /app/files || true
+fi
+
+# Seed default files into mounted volume if empty
+if [ -d "/app/files.default" ] && [ -z "$(ls -A /app/files 2>/dev/null)" ]; then
+    echo "Seeding /app/files from /app/files.default..."
+    cp -r /app/files.default/* /app/files/ 2>/dev/null || cp -r /app/files.default/. /app/files/ || true
+    # Ensure ownership is charioteer
+    if [ "$(id -u)" = "0" ]; then
+        chown -R 1001:1001 /app/files || true
+    fi
+fi
+
 # Wait for go-chariot dependency
 if [ "$NODE_ENV" = "production" ]; then
     echo "Waiting for go-chariot dependency..."
     
     # Wait for go-chariot service
     echo "Waiting for go-chariot..."
-    until curl -f "http://localhost:8087/health" 2>/dev/null; do
+    until curl -f "http://go-chariot:8087/health" 2>/dev/null; do
         echo "go-chariot is unavailable - sleeping"
         sleep 5
     done
@@ -51,6 +68,28 @@ if [ -f "./migrate" ]; then
     ./migrate || echo "Migration failed or not needed"
 fi
 
-# Start the application
+# Start the application (drop privileges if running as root)
 echo "Starting Charioteer server..."
-exec /app/charioteer -ssl=false
+
+# Build the final command
+if [ "$#" -gt 0 ]; then
+    echo "Launching with provided args: $*"
+    set -- "$@"
+else
+    BACKEND_URL="${CHARIOT_BACKEND_URL:-http://go-chariot:8087}"
+    echo "Launching with defaults: -ssl=false -backend=${BACKEND_URL}"
+    set -- /app/charioteer -ssl=false -backend="${BACKEND_URL}"
+fi
+
+if [ "$(id -u)" = "0" ]; then
+    if command -v su-exec >/dev/null 2>&1; then
+        exec su-exec 1001:1001 "$@"
+    elif command -v gosu >/dev/null 2>&1; then
+        exec gosu 1001:1001 "$@"
+    else
+        echo "su-exec/gosu not found; running as root (not recommended)"
+        exec "$@"
+    fi
+else
+    exec "$@"
+fi

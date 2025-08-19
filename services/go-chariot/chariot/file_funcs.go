@@ -6,10 +6,12 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"gopkg.in/yaml.v3"
@@ -545,21 +547,35 @@ func registerCSVFileOps(rt *Runtime) {
 		if filepath.Ext(fileNameStr) != ".csv" {
 			return nil, fmt.Errorf("file must have .csv extension, got '%s'", fileNameStr)
 		}
-		// Get secure path
-		fullPath, err := getSecureFilePath(fileNameStr, "data")
-		if err != nil {
-			return nil, err
+		var reader *csv.Reader
+		// Support HTTP(S) sources (e.g., Azure Blob SAS URLs) for large ETL inputs
+		if strings.HasPrefix(strings.ToLower(fileNameStr), "http://") || strings.HasPrefix(strings.ToLower(fileNameStr), "https://") {
+			client := &http.Client{Timeout: 2 * time.Minute}
+			resp, err := client.Get(fileNameStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch CSV from URL '%s': %v", fileNameStr, err)
+			}
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				defer resp.Body.Close()
+				return nil, fmt.Errorf("failed to fetch CSV from URL '%s': HTTP %d", fileNameStr, resp.StatusCode)
+			}
+			defer resp.Body.Close()
+			reader = csv.NewReader(resp.Body)
+		} else {
+			// Local file path under configured DataPath
+			fullPath, err := getSecureFilePath(fileNameStr, "data")
+			if err != nil {
+				return nil, err
+			}
+			file, err := os.Open(fullPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to open CSV file '%s': %v", fileNameStr, err)
+			}
+			defer file.Close()
+			reader = csv.NewReader(file)
 		}
-
-		// Read file
-		file, err := os.Open(fullPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open CSV file '%s': %v", fileNameStr, err)
-		}
-		defer file.Close()
 
 		// Parse CSV
-		reader := csv.NewReader(file)
 		records, err := reader.ReadAll()
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse CSV from '%s': %v", fileNameStr, err)
