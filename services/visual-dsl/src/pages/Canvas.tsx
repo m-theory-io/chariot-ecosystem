@@ -122,7 +122,20 @@ export default function VisualDSLPrototype() {
 
   const loadDiagram = (jsonData: string) => {
     try {
-      const diagramData: DiagramData = JSON.parse(jsonData);
+      // Sanitize input and handle potential double-encoding or BOMs
+      let raw = typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData);
+      raw = raw.trim().replace(/^\uFEFF/, ''); // strip BOM if present
+
+      let parsed: any = JSON.parse(raw);
+      // If the first parse yields a string that looks like JSON, parse again
+      if (typeof parsed === 'string') {
+        const inner = parsed.trim();
+        if ((inner.startsWith('{') && inner.endsWith('}')) || (inner.startsWith('[') && inner.endsWith(']'))) {
+          parsed = JSON.parse(inner);
+        }
+      }
+
+      const diagramData: DiagramData = parsed;
       
       // Clear existing nesting relations
       nestingRelations.forEach(rel => {
@@ -175,7 +188,12 @@ export default function VisualDSLPrototype() {
       alert(`Diagram "${diagramData.name}" loaded successfully!`);
     } catch (error) {
       alert('Failed to load diagram. Invalid JSON format.');
-      console.error('Load diagram error:', error);
+      try {
+        const preview = (typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData)).slice(0, 200);
+        console.error('Load diagram error:', error, '\nPreview:', preview);
+      } catch (_) {
+        console.error('Load diagram error:', error);
+      }
     }
   };
 

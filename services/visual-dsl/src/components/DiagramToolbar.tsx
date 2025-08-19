@@ -95,14 +95,19 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const loadDiagramFromStorage = (key: string) => {
     const storageData = localStorage.getItem(key);
     if (storageData) {
+      // Always pass the raw JSON string to the loader; it will normalize/parse safely
+      onLoad(storageData);
+      // Try to parse locally just to update the name, but don't block on failure
       try {
-        const diagramData = JSON.parse(storageData);
-        onLoad(diagramData);
-        onDiagramNameChange(diagramData.name || 'Untitled Diagram');
-        setIsDropdownOpen(false);
+        const parsed = JSON.parse(storageData);
+        onDiagramNameChange(parsed.name || 'Untitled Diagram');
       } catch (error) {
-        console.error('Error loading diagram:', error);
+        console.warn('Saved diagram name parse failed; using key as fallback');
+        try {
+          onDiagramNameChange(key.replace(/^diagram_/, ''));
+        } catch (_) {}
       }
+      setIsDropdownOpen(false);
     }
   };
 

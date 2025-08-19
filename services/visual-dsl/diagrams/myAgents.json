@@ -1,0 +1,175 @@
+{
+  "name": "myAgents",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 50
+      },
+      "data": {
+        "label": "Start",
+        "icon": "🚀",
+        "category": "control",
+        "properties": {
+          "name": "myAgents"
+        }
+      },
+      "width": 100,
+      "height": 68,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "declare-1755617366675-1",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": true,
+          "variableName": "myAgents",
+          "typeSpecifier": "T"
+        }
+      },
+      "width": 100,
+      "height": 88,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "newTree-1755617402236-2",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 350
+      },
+      "data": {
+        "label": "New Tree",
+        "icon": "🌳",
+        "category": "tree",
+        "properties": {
+          "nodeName": "myAgents"
+        }
+      },
+      "width": 100,
+      "height": 68
+    },
+    {
+      "id": "declare-1755617477315-3",
+      "type": "logicon",
+      "position": {
+        "x": 248,
+        "y": 198
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "router",
+          "typeSpecifier": "J"
+        }
+      },
+      "width": 100,
+      "height": 88,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 248,
+        "y": 198
+      },
+      "dragging": false
+    },
+    {
+      "id": "parseJSON-1755617659984-4",
+      "type": "logicon",
+      "position": {
+        "x": 249,
+        "y": 360
+      },
+      "data": {
+        "label": "Parse JSON",
+        "icon": "📖",
+        "category": "json",
+        "properties": {
+          "jsonString": "{\"onDecisionRequest\": func(req) {\n  setq(profile, getAttribute(req, 'profile')\n }}",
+          "nodeName": "handlers"
+        }
+      },
+      "width": 100,
+      "height": 68,
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-declare-1755617366675-1",
+      "source": "start",
+      "target": "declare-1755617366675-1",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "declare-1755617366675-1-newTree-1755617402236-2",
+      "source": "declare-1755617366675-1",
+      "target": "newTree-1755617402236-2",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    },
+    {
+      "id": "declare-1755617366675-1-declare-1755617477315-3",
+      "source": "declare-1755617366675-1",
+      "target": "declare-1755617477315-3",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "declare-1755617477315-3-parseJSON-1755617659984-4",
+      "source": "declare-1755617477315-3",
+      "target": "parseJSON-1755617659984-4",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    }
+  ],
+  "nestingRelations": [
+    {
+      "parentId": "declare-1755617366675-1",
+      "childId": "newTree-1755617402236-2",
+      "order": 0
+    },
+    {
+      "parentId": "declare-1755617477315-3",
+      "childId": "parseJSON-1755617659984-4",
+      "order": 0
+    }
+  ],
+  "groupCount": 2,
+  "created": "2025-08-19T15:38:40.955Z",
+  "modified": "2025-08-19T15:38:40.955Z"
+}
