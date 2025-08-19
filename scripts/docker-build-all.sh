@@ -5,7 +5,7 @@ set -euo pipefail
 ACR="mtheorycontainerregistry.azurecr.io"
 GO_CHARIOT_TAG="v0.004"
 CHARIOTEER_TAG="v0.004"
-VISUAL_DSL_TAG="v0.002"
+VISUAL_DSL_TAG="v0.004"
 NGINX_TAG="v0.002"
 
 # Optional: ensure you're logged in
