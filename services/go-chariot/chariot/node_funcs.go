@@ -1126,6 +1126,54 @@ func RegisterNode(rt *Runtime) {
 		return child, nil
 	})
 
+	rt.Register("setChildByName", func(args ...Value) (Value, error) {
+		if len(args) != 3 {
+			return nil, errors.New("setChildByName requires 3 arguments: node, name, and child")
+		}
+
+		// Unwrap the first two arguments if they are ScopeEntries
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		// Get the node
+		node, ok := args[0].(TreeNode)
+		if !ok {
+			return nil, fmt.Errorf("expected node, got %T", args[0])
+		}
+
+		// Get the child name
+		if len(args) < 2 {
+			return nil, errors.New("setChildByName requires a child name")
+		}
+		if _, ok := args[1].(Str); !ok {
+			return nil, fmt.Errorf("child name must be a string, got %T", args[1])
+		}
+
+		// Get the child name, converting to string if necessary
+		var name string
+		switch v := args[1].(type) {
+		case string:
+			name = v
+		case Str:
+			name = string(v)
+		default:
+			return nil, fmt.Errorf("second argument must be a string or Str, got %T", args[1])
+		}
+
+		// Set the new child
+		childNew, ok := args[2].(TreeNode)
+		if !ok {
+			return nil, fmt.Errorf("third argument must be a node, got %T", args[2])
+		}
+
+		node.SetChildByName(name, childNew)
+
+		return childNew, nil
+	})
+
 	rt.Register("childCount", func(args ...Value) (Value, error) {
 		if len(args) != 1 {
 			return nil, errors.New("childCount requires 1 argument: node")
