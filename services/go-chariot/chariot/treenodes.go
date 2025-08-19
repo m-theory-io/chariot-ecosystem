@@ -117,6 +117,8 @@ type TreeNode interface {
 	GetChildCount() int
 	// GetChildByName(name string) (TreeNode, bool) // Optional: method to get a child by name
 	GetChildByName(name string) (TreeNode, bool)
+	// SetChildByName(name string, child TreeNode) // Optional: method to set a child by name
+	SetChildByName(name string, child TreeNode)
 	// Optional: method to check if the node is a leaf (no children)
 	IsLeaf() bool
 	// Optional: method to check if the node is a root (no parent)
@@ -230,6 +232,17 @@ func (n *TreeNodeImpl) GetChildByName(name string) (TreeNode, bool) {
 		}
 	}
 	return nil, false
+}
+
+// SetChildByName sets a child node by name
+func (n *TreeNodeImpl) SetChildByName(name string, child TreeNode) {
+	for i, c := range n.Children {
+		if c.Name() == name {
+			n.Children[i] = child
+			child.SetParent(n)
+			return
+		}
+	}
 }
 
 // GetRoot returns the root node of the tree
