@@ -1,0 +1,9 @@
+# One email per line. Only these users can sign in during pre-launch.
+# Example entries:
+# alice@example.com
+# bob@partner.org
+bhouse@m-theory.io
+ci@justpaidnow.com
+vlad.lepadatu@tarainteractive.com
+bhouse@swarm.engineering
+

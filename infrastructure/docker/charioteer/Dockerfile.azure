@@ -7,7 +7,8 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     curl \
-    openssl
+    openssl \
+    su-exec
 
 # Create non-root user for security
 RUN addgroup -g 1001 charioteer && \
@@ -22,24 +23,27 @@ COPY services/charioteer/build/charioteer-linux-amd64 ./charioteer
 # Copy SSL certificates (optional; exists in services/charioteer/.certs)
 COPY services/charioteer/.certs/ ./.certs/
 
-# Copy bundled example/user files used by the editor
-# This provides the required "files" folder and initial .ch examples
-COPY services/charioteer/files/ /app/files/
-RUN chown -R charioteer:charioteer /app/files
+# Copy default files separately so we can seed a mounted volume on first run
+COPY services/charioteer/files/ /app/files.default/
+RUN chown -R charioteer:charioteer /app/files.default
 
 # Ensure binary is executable and fix permissions
 RUN chmod +x ./charioteer && \
     chown -R charioteer:charioteer /app
 
-# Switch to non-root user
-USER charioteer
+# Copy entrypoint and set executable (must be done as root for /usr/local/bin)
+COPY services/charioteer/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
-# Health check
+# Run entrypoint as root so it can adjust permissions on mounted volumes; it will drop to 'charioteer'
+USER root
+
+# Health check (app runs with -ssl=false; health path is prefixed)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -k -f https://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/charioteer/health || exit 1
 
 # Expose port
 EXPOSE 8080
 
-# Run the application
-CMD ["./charioteer"]
+# Start via entrypoint (handles seeding and SSL)
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

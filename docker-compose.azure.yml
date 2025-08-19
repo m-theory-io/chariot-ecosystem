@@ -48,7 +48,7 @@ services:
 
   # Go-Chariot API Service
   go-chariot:
-    image: "mtheorycontainerregistry.azurecr.io/go-chariot:${GO_CHARIOT_TAG:-amd64}"
+    image: "mtheorycontainerregistry.azurecr.io/go-chariot:${GO_CHARIOT_TAG:-v0.001}"
     container_name: chariot-api-prod
     environment:
       - CHARIOT_PORT=8087
@@ -63,13 +63,14 @@ services:
       - CHARIOT_BOOTSTRAP=bootstrap.ch
     ports:
       - "8087:8087"
-    # Do not mount /app/data in production so embedded bootstrap assets are visible
     depends_on:
       mysql:
         condition: service_healthy
       couchbase:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - go_chariot_data_prod:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
       interval: 30s
@@ -79,7 +80,7 @@ services:
 
   # Charioteer Web Editor
   charioteer:
-    image: mtheorycontainerregistry.azurecr.io/charioteer:amd64
+    image: "mtheorycontainerregistry.azurecr.io/charioteer:${CHARIOTEER_TAG:-amd64}"
     container_name: chariot-editor-prod
     command: ["/app/charioteer", "-ssl=false", "-backend=http://go-chariot:8087"]
     environment:
@@ -96,6 +97,8 @@ services:
       go-chariot:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - charioteer_files_prod:/app/files
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/charioteer/health"]
       interval: 30s
@@ -104,14 +107,14 @@ services:
 
   # Visual DSL Frontend
   visual-dsl:
-    image: "mtheorycontainerregistry.azurecr.io/visual-dsl:${VISUAL_DSL_TAG:-amd64}"
+    image: "mtheorycontainerregistry.azurecr.io/visual-dsl:${VISUAL_DSL_TAG:-v0.001}"
     container_name: visual-dsl
     restart: unless-stopped
     ports:
       - "3000:80"
     environment:
       - NODE_ENV=production
-      - ssl=false  # Disable SSL - nginx handles SSL termination
+      - ssl=false
       - SSL_ENABLED=false
       - USE_SSL=false
       - HTTPS=false
@@ -123,39 +126,96 @@ services:
 
   # Nginx Reverse Proxy
   nginx:
-    image: mtheorycontainerregistry.azurecr.io/nginx:amd64
+    image: "mtheorycontainerregistry.azurecr.io/nginx:${NGINX_TAG:-amd64}"
     container_name: chariot-nginx-prod
     ports:
       - "80:80"
       - "443:443"
-      - "3307:3307"  # MySQL proxy port
+      - "3307:3307"
     volumes:
-      # Mount certbot Docker volumes (created by Let's Encrypt setup)
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
     depends_on:
       - go-chariot
       - charioteer
       - visual-dsl
+      - oauth2-proxy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -skf https://localhost:443/ || exit 1"]
+      test: ["CMD", "sh", "-c", "curl -skf https://localhost:443/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
+
+  # OAuth2 Proxy - Azure AD Authentication Gateway (internal only)
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: chariot-oauth2-proxy
+    restart: unless-stopped
+    expose:
+      - "4180"
+    environment:
+      - OAUTH2_PROXY_PROVIDER=oidc
+      - OAUTH2_PROXY_AZURE_TENANT=${AZURE_TENANT_ID}
+      - OAUTH2_PROXY_CLIENT_ID=${AZURE_CLIENT_ID}
+      - OAUTH2_PROXY_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - OAUTH2_PROXY_OIDC_ISSUER_URL=https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0
+      - OAUTH2_PROXY_SCOPE=openid profile email
+      - OAUTH2_PROXY_OIDC_EMAIL_CLAIM=preferred_username
+      - OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL=true
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+      - OAUTH2_PROXY_REDIRECT_URL=https://chariot.m-theory.io/oauth2/callback
+      - OAUTH2_PROXY_REVERSE_PROXY=true
+      - OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_COOKIE_SECRET}
+      - OAUTH2_PROXY_COOKIE_SECURE=true
+      - OAUTH2_PROXY_COOKIE_HTTPONLY=true
+      - OAUTH2_PROXY_COOKIE_SAMESITE=lax
+      - OAUTH2_PROXY_COOKIE_DOMAINS=chariot.m-theory.io
+      - OAUTH2_PROXY_COOKIE_NAME=_oauth2_proxy_chariot
+      - OAUTH2_PROXY_EMAIL_DOMAINS=*
+      - OAUTH2_PROXY_ALLOWED_REDIRECT_DOMAINS=chariot.m-theory.io
+      - OAUTH2_PROXY_WHITELIST_DOMAIN=chariot.m-theory.io
+      - OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE=/etc/oauth2-proxy/authenticated-emails.txt
+      - OAUTH2_PROXY_PASS_ACCESS_TOKEN=false
+      - OAUTH2_PROXY_PASS_USER_HEADERS=false
+      - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+      - OAUTH2_PROXY_REQUEST_LOGGING=true
+      - OAUTH2_PROXY_STANDARD_LOGGING=true
+      - OAUTH2_PROXY_AUTH_LOGGING=true
+      - OAUTH2_PROXY_SHOW_DEBUG_ON_ERROR=true
+      - OAUTH2_PROXY_SESSION_STORE_TYPE=redis
+      - OAUTH2_PROXY_REDIS_CONNECTION_URL=redis://redis:6379
+    volumes:
+      # Bind-mount a real file from the VM (create it on the host). Defaults to /home/mtheory/.oauth2-proxy/authenticated-emails.txt
+      - "${OAUTH2_EMAILS_FILE:-/home/mtheory/.oauth2-proxy/authenticated-emails.txt}:/etc/oauth2-proxy/authenticated-emails.txt:ro"
+  # No container healthcheck (distroless image lacks curl/wget).
+
+  # Redis for oauth2-proxy session storage
+  redis:
+    image: redis:7-alpine
+    container_name: chariot-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data_prod:/data
 
 volumes:
   mysql_data_prod:
     driver: local
   couchbase_data_prod:
     driver: local
-  # External volumes created by certbot compose/setup
+  go_chariot_data_prod:
+    driver: local
+  charioteer_files_prod:
+    driver: local
   certbot_certs:
     external: true
     name: mtheory_certbot_certs
   certbot_www:
     external: true
     name: mtheory_certbot_www
+  redis_data_prod:
+    driver: local
 
 networks:
   default:

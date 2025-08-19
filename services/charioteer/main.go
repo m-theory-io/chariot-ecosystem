@@ -841,7 +841,8 @@ const editorTemplate = `<!DOCTYPE html>
             initializeEditor();
         });
         
-        require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@latest/min/vs' } });
+        // Pin Monaco to a specific version for stability
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
         
         let editor;
         let fileEditorContent = '';         // Last content loaded in Files tab
