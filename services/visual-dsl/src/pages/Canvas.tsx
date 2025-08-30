@@ -20,6 +20,10 @@ import CreateTransformNodeProperties, { CreateTransformNodeProperties as CreateT
 import AddMappingNodeProperties, { AddMappingNodeProperties as AddMappingProperties } from "../components/dialogs/AddMappingNodeProperties";
 import { TreeSaveNodePropertiesDialog, TreeSaveNodeProperties } from "../components/dialogs/TreeSaveNodeProperties";
 import { TreeLoadNodePropertiesDialog, TreeLoadNodeProperties } from "../components/dialogs/TreeLoadNodeProperties";
+import { IfNodePropertiesDialog, IfNodeProperties } from "../components/dialogs/IfNodeProperties";
+import { IifNodePropertiesDialog, IifNodeProperties } from "../components/dialogs/IifNodeProperties";
+import { WhileNodePropertiesDialog, WhileNodeProperties } from "../components/dialogs/WhileNodeProperties";
+import { CBQueryNodePropertiesDialog, CBQueryNodeProperties } from "../components/dialogs/CBQueryNodeProperties";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { DirectionToggle } from "../components/ui/DirectionToggle";
 import { NestingToggle } from "../components/NestingToggle";
@@ -379,29 +383,37 @@ export default function VisualDSLPrototype() {
       const label = node.data.label;
       const category = node.data.category;
       
-      if (label === 'Start' || category === 'start' || category === 'control') {
+      if ((label === 'Start' || label === 'start') && category === 'control') {
         nodeType = 'start';
-      } else if (label === 'Declare' || category === 'declare' || category === 'value') {
+      } else if ((label === 'Declare' || label === 'declare') && category === 'value') {
         nodeType = 'declare';
-      } else if (label === 'Add Child' || label === 'addChild') {
+      } else if ((label === 'If' || label === 'if') && category === 'control') {
+        nodeType = 'if';
+      } else if ((label === 'Iif' || label === 'IIf'|| label === 'iif') && category === 'comparison') {
+        nodeType = 'iif';
+      } else if ((label === 'While' || label === 'while') && category === 'control') {
+        nodeType = 'while';
+      } else if ((label === 'CB Query' || label === 'cbQuery') && category === 'couchbase') {
+        nodeType = 'cbQuery';
+      } else if ((label === 'Add Child' || label === 'addChild') && category === 'node') {
         nodeType = 'addChild';
-      } else if (label === 'Tree Save' || label === 'treeSave' || category === 'treeSave' || (label === 'Tree Save' && category === 'tree')) {
+      } else if ((label === 'Tree Save' || label === 'treeSave') && category === 'tree') {
         nodeType = 'treeSave';
-      } else if (label === 'Tree Load' || label === 'treeLoad' || category === 'treeLoad') {
+      } else if ((label === 'Tree Load' || label === 'treeLoad') && category === 'tree') {
         nodeType = 'treeLoad';
-      } else if (label === 'Add To' || label === 'addTo' || category === 'addTo') {
+      } else if ((label === 'Add To' || label === 'addTo') && category === 'array') {
         nodeType = 'addTo';
-      } else if (label === 'Log Print' || label === 'LogPrint' || label === 'logPrint' || category === 'logPrint') {
+      } else if ((label === 'Log Print' || label === 'LogPrint' || label === 'logPrint') && category === 'system') {
         nodeType = 'logPrint';
-      } else if (label === 'Create Transform' || label === 'CreateTransform' || label === 'createTransform' || category === 'createTransform') {
+      } else if ((label === 'Create Transform' || label === 'CreateTransform' || label === 'createTransform') && category === 'etl') {
         nodeType = 'createTransform';
-      } else if (label === 'Add Mapping' || label === 'AddMapping' || label === 'addMapping' || category === 'addMapping') {
+      } else if ((label === 'Add Mapping' || label === 'AddMapping' || label === 'addMapping') && category === 'etl') {
         nodeType = 'addMapping';
-      } else if (label === 'Create' || label === 'New Tree' || category === 'create') {
+      } else if ((label === 'Create' || label === 'New Tree') && category === 'tree') {
         nodeType = 'create';
-      } else if (label === 'Parse JSON' || category === 'parseJSON' || category === 'json') {
+      } else if ((label === 'Parse JSON' || category === 'parseJSON' || category === 'json')) {
         nodeType = 'parseJSON';
-      } else if (label === 'Array' || category === 'array') {
+      } else if ((label === 'Array' || label === 'array') && category === 'array') {
         nodeType = 'array';
       }
       
@@ -1251,6 +1263,42 @@ export default function VisualDSLPrototype() {
                 variableName: 'myVar', 
                 typeSpecifier: 'S' 
               }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'if' && (
+            <IfNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as IfNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'iif' && (
+            <IifNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as IifNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'while' && (
+            <WhileNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as WhileNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'cbQuery' && (
+            <CBQueryNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as CBQueryNodeProperties || {}}
             />
           )}
           

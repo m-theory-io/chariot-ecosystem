@@ -2,7 +2,7 @@ package chariot
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -116,7 +116,7 @@ func (fe *FunctionExtractor) ExtractFromPlainTextFile(filename string) error {
 	fullPath := filepath.Join(basePath, filename)
 
 	// Read the file content
-	content, err := ioutil.ReadFile(fullPath)
+	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %v", filename, err)
 	}
@@ -201,7 +201,7 @@ func (fe *FunctionExtractor) ExtractFromInterface(value interface{}) {
 			fe.ExtractFromSerializedNode(nodeType.(string), v)
 		}
 	case TreeNode:
-		fe.ExtractFromTreeNode(v)
+		_ = fe.ExtractFromTreeNode(v)
 	}
 }
 
@@ -215,7 +215,7 @@ func (fe *FunctionExtractor) ExtractFromValue(value Value) {
 			fe.ExtractFromValue(v.Get(i))
 		}
 	case TreeNode:
-		fe.ExtractFromTreeNode(v)
+		_ = fe.ExtractFromTreeNode(v)
 	case *FunctionValue:
 		// Extract from function body - Body is a single Node
 		if v.Body != nil {

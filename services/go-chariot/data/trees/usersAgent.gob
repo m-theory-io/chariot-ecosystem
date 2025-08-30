@@ -1,0 +1,124 @@
+{
+  "_meta": {
+    "serializer_type": "*chariot.TreeNodeImpl",
+    "serializer_version": "1.0"
+  },
+  "children": [
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "_users": [
+          {
+            "email": "bhouse@m-theory,io",
+            "password": "9d61f70341d8db28d31419bf1f203ac8e71746b6ef774815f260427b89476eb2",
+            "roles": {
+              "Elements": [
+                "admin",
+                "contributor"
+              ]
+            },
+            "userID": "bhouse"
+          }
+        ]
+      },
+      "name": "users"
+    },
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "_roles": [
+          "admin",
+          "contributor",
+          "viewer"
+        ]
+      },
+      "name": "roles"
+    },
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "userCount": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "IfNode",
+                "condition": {
+                  "_node_type": "FuncCall",
+                  "args": [
+                    {
+                      "_node_type": "VarRef",
+                      "name": "users"
+                    },
+                    {
+                      "_node_type": "Literal",
+                      "val": "_users"
+                    }
+                  ],
+                  "name": "hasAttribute"
+                },
+                "falseBranch": [
+                  {
+                    "_node_type": "Literal",
+                    "val": 0
+                  }
+                ],
+                "position": 0,
+                "trueBranch": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "users"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "_users"
+                          }
+                        ],
+                        "name": "getAttribute"
+                      }
+                    ],
+                    "name": "length"
+                  }
+                ]
+              }
+            ]
+          },
+          "parameters": [
+            "users"
+          ],
+          "source": "func(users)"
+        }
+      },
+      "name": "rules"
+    },
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "encryptionEnabled": true,
+        "maxLoginAttempts": 5,
+        "sessionTimeout": 3600
+      },
+      "name": "config"
+    }
+  ],
+  "name": "usersAgent"
+}

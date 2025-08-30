@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	// Import go-chariot/vault package for vault client initialization
 )
 
 // DBContext represents database connection information for a tenant
