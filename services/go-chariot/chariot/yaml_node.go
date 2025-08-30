@@ -204,7 +204,7 @@ func convertYAMLScalar(node *yaml.Node) interface{} {
 // Helper to parse a number safely
 func parseFloat(s string) float64 {
 	var f float64
-	fmt.Sscanf(s, "%f", &f)
+	_, _ = fmt.Sscanf(s, "%f", &f)
 	return f
 }
 
@@ -662,7 +662,7 @@ func (n *YAMLNode) mergeValues(target, source *YAMLNode) error {
 
 					// Recursively merge if source child exists
 					if sourceChild != nil {
-						n.mergeValues(targetChild, sourceChild)
+						_ = n.mergeValues(targetChild, sourceChild)
 					} else {
 						// Just set the value
 						targetChild.Value = sourceVal
@@ -881,7 +881,7 @@ func (n *YAMLNode) mergeKubernetesValues(target, patch *YAMLNode) error {
 					targetChild.Value = patchVal
 				} else if patchChild != nil {
 					// Recursively merge
-					n.mergeKubernetesValues(targetChild, patchChild)
+					_ = n.mergeKubernetesValues(targetChild, patchChild)
 				}
 			}
 			return nil
@@ -945,7 +945,7 @@ func (n *YAMLNode) mergeKubernetesValues(target, patch *YAMLNode) error {
 												// Find matching patch child
 												childKeyVal, _ := yamlPatchChild.Get(mergeKey)
 												if childKeyVal == keyVal {
-													n.mergeKubernetesValues(targetChild, yamlPatchChild)
+													_ = n.mergeKubernetesValues(targetChild, yamlPatchChild)
 													matched = true
 													break
 												}

@@ -288,7 +288,7 @@ func (t *Transform) ApplyToRow(rt *Runtime, row map[string]string) (map[string]i
 		var err error
 
 		// If no program specified, do direct field mapping
-		if program == nil || len(program) == 0 {
+		if len(program) == 0 {
 			transformedValue = Str(sourceValue)
 		} else {
 			// Join multi-line program into single string

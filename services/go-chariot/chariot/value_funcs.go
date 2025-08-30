@@ -608,7 +608,7 @@ func RegisterValues(rt *Runtime) {
 				return nil, fmt.Errorf("array index out of bounds: %d", index)
 			}
 
-			arr.Set(index, valueToSet)
+			_ = arr.Set(index, valueToSet)
 			return valueToSet, nil
 
 		case "table":
@@ -948,7 +948,7 @@ func RegisterValues(rt *Runtime) {
 		for arr.Length() <= intIndex {
 			arr.Append(DBNull)
 		}
-		arr.Set(intIndex, value)
+		_ = arr.Set(intIndex, value)
 		return value, nil
 	})
 

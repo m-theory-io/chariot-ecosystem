@@ -8,7 +8,6 @@ node_modules/
 .env.*.local
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 
@@ -27,6 +26,8 @@ Thumbs.db
 dist/
 build/
 target/
+jpyaml/
+chyaml/
 
 # Go
 bin/
@@ -38,5 +39,4 @@ certs/
 *.crt
 *.key
 
-# Database data
-data/
+*.zip

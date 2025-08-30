@@ -285,7 +285,6 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		default:
 			return nil, fmt.Errorf("DEBUG: getAttribute called with unsupported type %T for attribute '%s'", node, attrName)
 		}
-		return nil, fmt.Errorf("getAttribute not supported for type %T", node)
 	})
 
 	// Dynamic getAttributes
@@ -637,7 +636,7 @@ func arraySetAt(args ...Value) (Value, error) {
 	}
 
 	// Set the element
-	arr.Set(index, value)
+	_ = arr.Set(index, value)
 
 	return value, nil
 }
@@ -674,7 +673,7 @@ func jsonSetAt(args ...Value) (Value, error) {
 	}
 
 	// Set the element
-	arrayValue.Set(index, value)
+	_ = arrayValue.Set(index, value)
 
 	return value, nil
 }

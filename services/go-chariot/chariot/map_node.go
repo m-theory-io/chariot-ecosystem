@@ -87,7 +87,7 @@ func (n *MapNode) AddChildMap(name string) *MapNode {
 func (n *MapNode) FindByKey(key string, value Value) *MapNode {
 	var result *MapNode
 
-	n.Traverse(func(node TreeNode) error {
+	err := n.Traverse(func(node TreeNode) error {
 		if mapNode, ok := node.(*MapNode); ok {
 			if val, exists := mapNode.Get(key); exists && val == value {
 				result = mapNode
@@ -97,6 +97,9 @@ func (n *MapNode) FindByKey(key string, value Value) *MapNode {
 		}
 		return nil
 	})
+	if err != nil && err.Error() != "found" {
+		return nil
+	}
 
 	return result
 }
@@ -185,7 +188,7 @@ func (n *MapNode) UnmarshalJSON(data []byte) error {
 			// Nested objects become child nodes
 			childNode := NewMapNode(key)
 			childJSON, _ := json.Marshal(v)
-			childNode.UnmarshalJSON(childJSON)
+			_ = childNode.UnmarshalJSON(childJSON)
 			n.AddChild(childNode)
 
 		case []interface{}:
@@ -195,7 +198,7 @@ func (n *MapNode) UnmarshalJSON(data []byte) error {
 					childName := fmt.Sprintf("%s[%d]", key, i)
 					childNode := NewMapNode(childName)
 					itemJSON, _ := json.Marshal(itemMap)
-					childNode.UnmarshalJSON(itemJSON)
+					_ = childNode.UnmarshalJSON(itemJSON)
 					n.AddChild(childNode)
 				} else {
 					// Array of primitives - store as attribute

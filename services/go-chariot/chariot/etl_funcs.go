@@ -691,7 +691,7 @@ func executeETLJob(rt *Runtime, jobId, csvFile string, transformConfig, targetCo
 			// fmt.Printf("DEBUG: Created Transform from TreeNodeImpl\n")
 		} else {
 			// fmt.Printf("DEBUG: TreeNodeImpl is not a transform type, got: %s\n", t.GetType().String())
-			return nil, fmt.Errorf("TreeNode is not a Transform, got node type: %s", t.GetType())
+			return nil, fmt.Errorf("TreeNode is not a Transform, got node type: %v", t.GetType())
 		}
 	case *MapValue:
 		// Transform configuration as map
@@ -1136,7 +1136,10 @@ func ProcessETLJob(rt *Runtime, etlJob TreeNode) error {
 		if couchbaseNode, exists := rt.GetVariable("couchbaseConnection"); exists {
 			if cbNode, ok := couchbaseNode.(interface{ Upsert(string, TreeNode) error }); ok {
 				jobId := GetMetaString(etlJob, "jobId", "unknown") // ✅ Safe
-				cbNode.Upsert(jobId, logNode)
+				err := cbNode.Upsert(jobId, logNode)
+				if err != nil {
+					cfg.ChariotLogger.Warn("Failed to update log in Couchbase", zap.Error(err))
+				}
 			}
 		}
 
@@ -1155,7 +1158,10 @@ func ProcessETLJob(rt *Runtime, etlJob TreeNode) error {
 		etlJob.SetMeta("endTime", time.Now().Format(time.RFC3339))
 
 		// Send failure message to NSQ (if implemented)
-		sendNSQMessage("etl.failed", processingLog)
+		nsqErr := sendNSQMessage("etl.failed", processingLog)
+		if nsqErr != nil {
+			cfg.ChariotLogger.Warn("Failed to send NSQ message", zap.Error(nsqErr))
+		}
 
 		return err
 	}
@@ -1201,12 +1207,18 @@ func ProcessETLJob(rt *Runtime, etlJob TreeNode) error {
 	if couchbaseNode, exists := rt.GetVariable("couchbaseConnection"); exists {
 		if cbNode, ok := couchbaseNode.(interface{ Upsert(string, TreeNode) error }); ok {
 			jobId := GetMetaString(etlJob, "jobId", "unknown") // ✅ Safe
-			cbNode.Upsert(jobId, logNode)
+			err := cbNode.Upsert(jobId, logNode)
+			if err != nil {
+				cfg.ChariotLogger.Warn("Failed to update log in Couchbase", zap.Error(err))
+			}
 		}
 	}
 
 	// Send success message to NSQ
-	sendNSQMessage("etl.completed", processingLog)
+	nsqErr := sendNSQMessage("etl.completed", processingLog)
+	if nsqErr != nil {
+		cfg.ChariotLogger.Warn("Failed to send NSQ message", zap.Error(nsqErr))
+	}
 
 	return nil
 }

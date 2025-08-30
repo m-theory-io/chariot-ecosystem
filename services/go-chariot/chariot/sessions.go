@@ -208,7 +208,7 @@ func (sm *SessionManager) CleanupExpiredSessions() {
 
 	// Remove expired sessions
 	for _, token := range expiredTokens {
-		sm.EndSession(token)
+		_ = sm.EndSession(token)
 	}
 }
 

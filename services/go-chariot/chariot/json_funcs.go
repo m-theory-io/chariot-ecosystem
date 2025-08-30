@@ -166,7 +166,7 @@ func (rt *Runtime) findJSONNode(nodeName string) (*JSONNode, error) {
 
 // Create a clean JSONNode from native Go values
 func createCleanJSONNode(name string, v interface{}) (Value, error) {
-
+	_ = name
 	switch val := v.(type) {
 	case map[string]interface{}:
 		return NewSimpleJSON(v), nil

@@ -1,0 +1,507 @@
+{
+  "bootstrap": {
+    "_value_type": "function",
+    "body": {
+      "_node_type": "Block",
+      "stmts": [
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "Literal",
+              "val": "testCluster"
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            }
+          ],
+          "name": "cbConnect"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "Literal",
+              "val": "mysql1"
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            },
+            {
+              "_node_type": "Literal",
+              "val": ""
+            }
+          ],
+          "name": "sqlConnect"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "T"
+            },
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "Literal",
+                  "val": "usersAgent.json"
+                }
+              ],
+              "name": "treeLoad"
+            }
+          ],
+          "name": "declareGlobal"
+        }
+      ]
+    },
+    "formatted_source": "function bootstrap() {\n    // bootstrap.ch - loads startup runtime environment in dev server mode\n\n    // 1. connect to Couchbase\n    cbConnect('testCluster', '', '', '')\n    // 2. connect to RDBMS\n    sqlConnect('mysql1', '', '', '', '')\n    // 3. load usersAgent\n    declareGlobal(usersAgent, 'T', treeLoad('usersAgent.json'))\n}",
+    "parameters": null,
+    "source": "setq(bootstrap, func() {\n    // bootstrap.ch - loads startup runtime environment in dev server mode\n\n    // 1. connect to Couchbase\n    cbConnect('testCluster', '', '', '')\n    // 2. connect to RDBMS\n    sqlConnect('mysql1', '', '', '', '')\n    // 3. load usersAgent\n    declareGlobal(usersAgent, 'T', treeLoad('usersAgent.json'))\n})"
+  },
+  "createUsersAgent": {
+    "_value_type": "function",
+    "body": {
+      "_node_type": "Block",
+      "stmts": [
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "T"
+            },
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "Literal",
+                  "val": "usersAgent"
+                }
+              ],
+              "name": "create"
+            }
+          ],
+          "name": "declareGlobal"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "users"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "J"
+            },
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "Literal",
+                  "val": "[]"
+                },
+                {
+                  "_node_type": "Literal",
+                  "val": "users"
+                }
+              ],
+              "name": "parseJSON"
+            }
+          ],
+          "name": "declare"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "roles"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "J"
+            },
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "Literal",
+                  "val": "[\"admin\", \"contributor\", \"viewer\"]"
+                },
+                {
+                  "_node_type": "Literal",
+                  "val": "roles"
+                }
+              ],
+              "name": "parseJSON"
+            }
+          ],
+          "name": "declare"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "rules"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "J"
+            },
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "Literal",
+                  "val": "{}"
+                },
+                {
+                  "_node_type": "Literal",
+                  "val": "rules"
+                }
+              ],
+              "name": "parseJSON"
+            }
+          ],
+          "name": "declare"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "config"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "J"
+            },
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "Literal",
+                  "val": "{}"
+                },
+                {
+                  "_node_type": "Literal",
+                  "val": "config"
+                }
+              ],
+              "name": "parseJSON"
+            }
+          ],
+          "name": "declare"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "config"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "encryptionEnabled"
+            },
+            {
+              "_node_type": "VarRef",
+              "name": "true"
+            }
+          ],
+          "name": "setAttribute"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "config"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "sessionTimeout"
+            },
+            {
+              "_node_type": "Literal",
+              "val": 3600
+            }
+          ],
+          "name": "setAttribute"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "config"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "maxLoginAttempts"
+            },
+            {
+              "_node_type": "Literal",
+              "val": 5
+            }
+          ],
+          "name": "setAttribute"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "rules"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "userCount"
+            },
+            {
+              "_node_type": "FunctionDefNode",
+              "body": {
+                "_node_type": "Block",
+                "stmts": [
+                  {
+                    "_node_type": "IfNode",
+                    "condition": {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "VarRef",
+                          "name": "users"
+                        },
+                        {
+                          "_node_type": "Literal",
+                          "val": "_users"
+                        }
+                      ],
+                      "name": "hasAttribute"
+                    },
+                    "falseBranch": [
+                      {
+                        "_node_type": "Literal",
+                        "val": 0
+                      }
+                    ],
+                    "position": 0,
+                    "trueBranch": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "FuncCall",
+                            "args": [
+                              {
+                                "_node_type": "VarRef",
+                                "name": "users"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "_users"
+                              }
+                            ],
+                            "name": "getAttribute"
+                          }
+                        ],
+                        "name": "length"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "parameters": [
+                "users"
+              ],
+              "position": 0,
+              "source": ""
+            }
+          ],
+          "name": "setAttribute"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "VarRef",
+              "name": "users"
+            }
+          ],
+          "name": "addChild"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "VarRef",
+              "name": "roles"
+            }
+          ],
+          "name": "addChild"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "VarRef",
+              "name": "rules"
+            }
+          ],
+          "name": "addChild"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "VarRef",
+              "name": "config"
+            }
+          ],
+          "name": "addChild"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "usersAgent"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "usersAgent.json"
+            }
+          ],
+          "name": "treeSave"
+        }
+      ]
+    },
+    "formatted_source": "function createUsersAgent() {\n    // createUsersAgent\n    declareGlobal(usersAgent, 'T', create('usersAgent'))\n    // declare child nodes\n    declare(users, 'J', parseJSON('[]', 'users'))\n    declare(roles,'J', parseJSON('[\"admin\", \"contributor\", \"viewer\"]', 'roles'))\n    declare(rules, 'J', parseJSON('{}', 'rules'))\n    declare(config,'J', parseJSON('{}', 'config'))\n    // populate default config node\n    setAttribute(config, 'encryptionEnabled', true)\n    setAttribute(config, 'sessionTimeout', 3600)\n    setAttribute(config, 'maxLoginAttempts', 5)\n    // populate rules\n    setAttribute(rules, 'userCount', func(users) {\n        if(hasAttribute(users, '_users')) {\n            length(getAttribute(users, '_users'))\n        } else {\n            0\n        }\n    })\n    // Add children\n    addChild(usersAgent, users)\n    addChild(usersAgent, roles)\n    addChild(usersAgent, rules)\n    addChild(usersAgent, config)\n    // Save usersAgent\n    treeSave(usersAgent, 'usersAgent.json')\n}",
+    "parameters": null,
+    "source": "setq(createUsersAgent, func() {\n    // createUsersAgent\n    declareGlobal(usersAgent, 'T', create('usersAgent'))\n    // declare child nodes\n    declare(users, 'J', parseJSON('[]', 'users'))\n    declare(roles,'J', parseJSON('[\"admin\", \"contributor\", \"viewer\"]', 'roles'))\n    declare(rules, 'J', parseJSON('{}', 'rules'))\n    declare(config,'J', parseJSON('{}', 'config'))\n    // populate default config node\n    setAttribute(config, 'encryptionEnabled', true)\n    setAttribute(config, 'sessionTimeout', 3600)\n    setAttribute(config, 'maxLoginAttempts', 5)\n    // populate rules\n    setAttribute(rules, 'userCount', func(users) {\n        if(hasAttribute(users, '_users')) {\n            length(getAttribute(users, '_users'))\n        } else {\n            0\n        }\n    })\n    // Add children\n    addChild(usersAgent, users)\n    addChild(usersAgent, roles)\n    addChild(usersAgent, rules)\n    addChild(usersAgent, config)\n    // Save usersAgent\n    treeSave(usersAgent, 'usersAgent.json')\n})"
+  },
+  "patientModel": {
+    "_value_type": "function",
+    "body": {
+      "_node_type": "Block",
+      "stmts": [
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "t"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "patientModel called"
+            }
+          ],
+          "name": "setq"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "t"
+            }
+          ],
+          "name": "log"
+        },
+        {
+          "_node_type": "VarRef",
+          "name": "t"
+        }
+      ]
+    },
+    "formatted_source": "",
+    "parameters": null,
+    "source": "func()"
+  },
+  "tenantModel": {
+    "_value_type": "function",
+    "body": {
+      "_node_type": "Block",
+      "stmts": [
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "t"
+            },
+            {
+              "_node_type": "Literal",
+              "val": "tenantModel called"
+            }
+          ],
+          "name": "setq"
+        },
+        {
+          "_node_type": "FuncCall",
+          "args": [
+            {
+              "_node_type": "VarRef",
+              "name": "t"
+            }
+          ],
+          "name": "log"
+        },
+        {
+          "_node_type": "VarRef",
+          "name": "t"
+        }
+      ]
+    },
+    "formatted_source": "",
+    "parameters": null,
+    "source": "func()"
+  }
+}

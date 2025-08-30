@@ -120,7 +120,7 @@ func (n *XMLNode) AddChildElement(name string) *XMLNode {
 func (n *XMLNode) FindElementsByTagName(tagName string) []*XMLNode {
 	var result []*XMLNode
 
-	n.Traverse(func(node TreeNode) error {
+	_ = n.Traverse(func(node TreeNode) error {
 		if xmlNode, ok := node.(*XMLNode); ok {
 			if xmlNode.Name() == tagName {
 				result = append(result, xmlNode)

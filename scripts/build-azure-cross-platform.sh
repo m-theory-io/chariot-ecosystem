@@ -1,23 +1,40 @@
 #!/bin/bash
-
-# Cross-platform build script for Azure deployment
+# Cross-platform Azure build script
+# Builds binaries locally and creates Docker images for Azure deployment
 # Handles M1 Mac -> AMD64 Linux builds with proper platform targeting
+# Usage: ./build-azure-cross-platform.sh [TAG] [SERVICE]
+#   TAG: Docker tag (default: latest)
+#   SERVICE: Specific service to build (go-chariot, charioteer, visual-dsl, nginx) or 'all' (default: all)
 
 set -e
 
-echo "🔨 Building Chariot services for Azure (AMD64) from M1 Mac..."
-
-# Configuration
 REGISTRY_NAME="${AZURE_REGISTRY:-mtheorycontainerregistry}"
 TARGET_PLATFORM="linux/amd64"
+TAG=${1:-latest}
+SERVICE=${2:-all}
+
+# Validate service argument
+case "$SERVICE" in
+    go-chariot|charioteer|visual-dsl|nginx|all)
+        ;;
+    *)
+        echo "❌ Invalid service: $SERVICE"
+        echo "Valid options: go-chariot, charioteer, visual-dsl, nginx, all"
+        exit 1
+        ;;
+esac
+
+if [ "$SERVICE" = "all" ]; then
+    echo "🔨 Building all Chariot services for Azure (AMD64) with tag: $TAG..."
+else
+    echo "🔨 Building $SERVICE service for Azure (AMD64) with tag: $TAG..."
+fi
 
 # Colors for output (simplified to avoid terminal issues)
 print_status() { echo "[INFO] $1"; }
 print_warning() { echo "[WARN] $1"; }
 print_error() { echo "[ERROR] $1"; }
 print_building() { echo "[BUILD] $1"; }
-
-# Function definitions already included above
 
 # Check prerequisites
 print_status "Checking prerequisites..."
@@ -43,90 +60,126 @@ docker buildx inspect --bootstrap
 
 print_status "Building for platform: $TARGET_PLATFORM"
 
-# Build Go services with cross-compilation
-print_building "Building Go binaries for AMD64..."
+# Function to build go-chariot
+build_go_chariot() {
+    print_building "Building go-chariot binary..."
+    cd services/go-chariot
+    mkdir -p build
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/go-chariot-linux-amd64 ./cmd
+    cd ../..
 
-# Build go-chariot binary
-print_building "Building go-chariot binary..."
-cd services/go-chariot
-mkdir -p build
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/go-chariot-linux-amd64 ./cmd
-cd ../..
+    print_building "Building go-chariot Docker image..."
+    docker buildx build \
+        --platform $TARGET_PLATFORM \
+        -f infrastructure/docker/go-chariot/Dockerfile \
+        -t go-chariot:$TAG \
+        --load \
+        .
+}
 
-# Build charioteer binary
-print_building "Building charioteer binary..."
-cd services/charioteer
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/charioteer-linux-amd64 .
-cd ../..
+# Function to build charioteer
+build_charioteer() {
+    print_building "Building charioteer binary..."
+    cd services/charioteer
+    mkdir -p build
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/charioteer-linux-amd64 .
+    cd ../..
 
-print_status "Go binaries built successfully!"
+    print_building "Building charioteer Docker image..."
+    docker buildx build \
+        --platform $TARGET_PLATFORM \
+        -f infrastructure/docker/charioteer/Dockerfile \
+        -t charioteer:$TAG \
+        --load \
+        .
+}
 
-# Build Docker images with platform specification
-print_building "Building Docker images for $TARGET_PLATFORM..."
+# Function to build visual-dsl
+build_visual_dsl() {
+    print_building "Building visual-dsl Docker image..."
+    docker buildx build \
+        --platform $TARGET_PLATFORM \
+        -f infrastructure/docker/visual-dsl/Dockerfile \
+        -t visual-dsl:$TAG \
+        --load \
+        --no-cache \
+        ./services/visual-dsl
+}
 
-# Build visual-dsl with cross-platform support
-print_building "Building visual-dsl image..."
-docker buildx build \
-    --platform $TARGET_PLATFORM \
-    -f infrastructure/docker/visual-dsl/Dockerfile.azure \
-    -t visual-dsl:amd64 \
-    --load \
-    ./services/visual-dsl
+# Function to build nginx
+build_nginx() {
+    print_building "Building nginx Docker image..."
+    docker buildx build \
+        --platform $TARGET_PLATFORM \
+        -f infrastructure/docker/nginx/Dockerfile.azure \
+        -t nginx:$TAG \
+        --load \
+        ./infrastructure/docker/nginx
+}
 
-# Build nginx image
-print_building "Building nginx image..."
-docker buildx build \
-    --platform $TARGET_PLATFORM \
-    -f infrastructure/docker/nginx/Dockerfile.azure \
-    -t nginx:amd64 \
-    --load \
-    ./infrastructure/docker/nginx
+# Build services based on argument
+case "$SERVICE" in
+    go-chariot)
+        build_go_chariot
+        BUILT_IMAGES=("go-chariot:$TAG")
+        ;;
+    charioteer)
+        build_charioteer
+        BUILT_IMAGES=("charioteer:$TAG")
+        ;;
+    visual-dsl)
+        build_visual_dsl
+        BUILT_IMAGES=("visual-dsl:$TAG")
+        ;;
+    nginx)
+        build_nginx
+        BUILT_IMAGES=("nginx:$TAG")
+        ;;
+    all)
+        build_go_chariot
+        build_charioteer
+        build_visual_dsl
+        build_nginx
+        BUILT_IMAGES=(
+            "go-chariot:$TAG"
+            "charioteer:$TAG"
+            "visual-dsl:$TAG"
+            "nginx:$TAG"
+        )
+        ;;
+esac
 
-# Build go-chariot image
-print_building "Building go-chariot image..."
-docker buildx build \
-    --platform $TARGET_PLATFORM \
-    -f infrastructure/docker/go-chariot/Dockerfile.azure \
-    -t go-chariot:amd64 \
-    --load \
-    ./services/go-chariot
-
-# Build charioteer image
-print_building "Building charioteer image..."
-docker buildx build \
-    --platform $TARGET_PLATFORM \
-    -f infrastructure/docker/charioteer/Dockerfile.azure \
-    -t charioteer:amd64 \
-    --load \
-    ./services/charioteer
-
-print_status "✅ All images built successfully for $TARGET_PLATFORM!"
+print_status "✅ Build completed successfully for $TARGET_PLATFORM!"
 
 # Tag images for registry if registry name is provided
 if [ -n "$REGISTRY_NAME" ]; then
     print_status "Tagging images for registry: $REGISTRY_NAME.azurecr.io"
     
-    docker tag visual-dsl:amd64 "$REGISTRY_NAME.azurecr.io/visual-dsl:amd64"
-    docker tag nginx:amd64 "$REGISTRY_NAME.azurecr.io/nginx:amd64"
-    docker tag go-chariot:amd64 "$REGISTRY_NAME.azurecr.io/go-chariot:amd64"
-    docker tag charioteer:amd64 "$REGISTRY_NAME.azurecr.io/charioteer:amd64"
+    for image in "${BUILT_IMAGES[@]}"; do
+        service_name=$(echo $image | cut -d: -f1)
+        docker tag $image "$REGISTRY_NAME.azurecr.io/$service_name:$TAG"
+    done
     
     print_status "Images tagged for registry!"
-    print_warning "To push to registry, run: docker push $REGISTRY_NAME.azurecr.io/IMAGE_NAME:amd64"
 fi
 
-print_status "Cross-platform build complete!"
-print_status "Built images:"
-echo "  • visual-dsl:amd64"
-echo "  • nginx:amd64" 
-echo "  • go-chariot:amd64"
-echo "  • charioteer:amd64"
+print_status "📦 Images created:"
+for image in "${BUILT_IMAGES[@]}"; do
+    echo "   - $image"
+done
 
 # Verify images are for correct architecture
 print_status "Verifying image architectures..."
-for image in visual-dsl:amd64 nginx:amd64 go-chariot:amd64 charioteer:amd64; do
+for image in "${BUILT_IMAGES[@]}"; do
     arch=$(docker inspect $image --format='{{.Architecture}}')
     echo "  • $image: $arch"
 done
 
-print_status "🎉 Build complete! Images are ready for Azure deployment."
+echo ""
+print_status "🚀 To push to registry:"
+for image in "${BUILT_IMAGES[@]}"; do
+    service_name=$(echo $image | cut -d: -f1)
+    echo "   docker push $REGISTRY_NAME.azurecr.io/$service_name:$TAG"
+done
+
+print_status "🎉 Cross-platform build complete! Images are ready for Azure deployment."

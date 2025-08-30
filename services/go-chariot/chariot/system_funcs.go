@@ -251,12 +251,12 @@ func RegisterSystem(rt *Runtime) {
 		go func() {
 			// Run onstart program
 			if onstart != "" {
-				rt.RunProgram(onstart, int(port))
+				_ = rt.RunProgram(onstart, int(port))
 			}
 			// Listen on port and handle requests...
 			// On shutdown, run onexit program
 			if onexit != "" {
-				rt.RunProgram(onexit, int(port))
+				_ = rt.RunProgram(onexit, int(port))
 			}
 		}()
 		return nil, nil

@@ -439,7 +439,7 @@ func (cm *CryptoManager) DeriveKeyPBKDF2(password string, salt []byte, iteration
 	if salt == nil {
 		// Generate random salt if none provided
 		salt = make([]byte, 32)
-		rand.Read(salt)
+		_, _ = rand.Read(salt)
 	}
 
 	if iterations < 10000 {
