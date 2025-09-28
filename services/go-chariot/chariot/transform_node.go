@@ -273,7 +273,7 @@ func (t *Transform) ApplyToRow(rt *Runtime, row map[string]string) (map[string]i
 				zap.String("program", programStr),
 				zap.Int("program_length", len(programStr)),
 				zap.ByteString("program_bytes", []byte(programStr)))
-			if programStr == "" || programStr == "<nil>" || programStr == "\u003cnil\u003e" {
+			if programStr == "" || programStr == "<nil>" || programStr == "\u003cnil\u003e" || programStr == "[]" {
 				// Direct field mapping - no transformation needed
 				cfg.ChariotLogger.Info("DEBUG: Using direct field mapping", zap.String("field", string(mapping.SourceField)))
 				program = nil
@@ -372,7 +372,7 @@ func (t *Transform) ApplyToRowWithMetadata(rt *Runtime, row map[string]string, r
 		var transformedValue Value
 		var err error
 
-		if tprogram == "" || tprogram == "<nil>" || tprogram == "\u003cnil\u003e" {
+		if tprogram == "" || tprogram == "<nil>" || tprogram == "\u003cnil\u003e" || tprogram == "[]" {
 			// Direct field mapping - no transformation needed
 			transformedValue = Str(sourceValue)
 		} else {
@@ -415,38 +415,74 @@ func (t *Transform) ApplyToRowWithMetadata(rt *Runtime, row map[string]string, r
 }
 
 func (t *Transform) convertToSQLType(value Value, dataType string) (interface{}, error) {
+	// First, let's handle the value conversion more safely
+	var stringValue string
+
+	switch v := value.(type) {
+	case Str:
+		stringValue = string(v)
+	case Number:
+		stringValue = fmt.Sprintf("%g", float64(v))
+	case Bool:
+		if v {
+			stringValue = "true"
+		} else {
+			stringValue = "false"
+		}
+	case *ArrayValue:
+		// For arrays, convert to comma-separated string or handle specially
+		if v.Length() == 0 {
+			stringValue = ""
+		} else if v.Length() == 1 {
+			// Single element array, extract the element
+			elem := v.Get(0)
+			if elemStr, ok := elem.(Str); ok {
+				stringValue = string(elemStr)
+			} else {
+				stringValue = fmt.Sprintf("%v", convertValueToNative(elem))
+			}
+		} else {
+			// Multiple elements, create comma-separated string
+			var parts []string
+			for i := 0; i < v.Length(); i++ {
+				elem := v.Get(i)
+				if elemStr, ok := elem.(Str); ok {
+					parts = append(parts, string(elemStr))
+				} else {
+					parts = append(parts, fmt.Sprintf("%v", convertValueToNative(elem)))
+				}
+			}
+			stringValue = strings.Join(parts, ",")
+		}
+	default:
+		// Fallback: convert to native and then to string
+		stringValue = fmt.Sprintf("%v", convertValueToNative(value))
+	}
+
 	switch strings.ToUpper(dataType) {
 	case "INT", "INTEGER":
 		if num, ok := value.(Number); ok {
 			return int(num), nil
 		}
-		if str, ok := value.(Str); ok {
-			return strconv.Atoi(string(str))
-		}
+		return strconv.Atoi(stringValue)
 
 	case "DECIMAL", "FLOAT":
 		if num, ok := value.(Number); ok {
 			return float64(num), nil
 		}
-		if str, ok := value.(Str); ok {
-			return strconv.ParseFloat(string(str), 64)
-		}
+		return strconv.ParseFloat(stringValue, 64)
 
 	case "VARCHAR", "TEXT", "STRING":
-		return string(value.(Str)), nil
+		return stringValue, nil
 
 	case "DATETIME", "TIMESTAMP":
-		if str, ok := value.(Str); ok {
-			return time.Parse("2006-01-02 15:04:05", string(str))
-		}
+		return time.Parse("2006-01-02 15:04:05", stringValue)
 
 	case "BOOL", "BOOLEAN":
 		if b, ok := value.(Bool); ok {
 			return bool(b), nil
 		}
-		if str, ok := value.(Str); ok {
-			return strconv.ParseBool(string(str))
-		}
+		return strconv.ParseBool(stringValue)
 	}
 
 	return nil, fmt.Errorf("unsupported data type: %s", dataType)

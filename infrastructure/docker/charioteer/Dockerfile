@@ -15,16 +15,16 @@ RUN apk add --no-cache \
 WORKDIR /src
 
 # Copy go mod files first for better caching
-COPY go.mod ./
+COPY services/charioteer/go.mod ./
 
 # Download dependencies (if any)
 RUN go mod download && go mod verify
 
 # Copy source code
-COPY . .
+COPY services/charioteer/ .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o charioteer \
@@ -58,10 +58,10 @@ RUN mkdir -p /app/config /app/logs /app/ssl /app/files && \
 COPY --from=builder /src/charioteer /app/
 
 # Copy application files
-COPY --chown=charioteer:charioteer files/ /app/files/
+COPY --chown=charioteer:charioteer services/charioteer/files/ /app/files/
 
 # Copy entrypoint script
-COPY --chown=charioteer:charioteer entrypoint.sh /app/
+COPY --chown=charioteer:charioteer services/charioteer/entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh
 
 # Switch to non-root user
