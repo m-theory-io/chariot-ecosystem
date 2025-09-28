@@ -11,11 +11,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // Configuration variables
@@ -106,6 +109,101 @@ func getHTTPClient() *http.Client {
 		}
 	}
 	return &http.Client{Timeout: getTimeout()}
+}
+
+// ---- WebSocket proxy support ----
+// We use gorilla/websocket for client/server WS in charioteer as well to proxy to backend
+// without relying on the http reverse proxy. This keeps the Authorization header on upgrade.
+// Minimal inline proxy without external deps besides stdlib.
+
+// dashboardWSProxyHandler proxies WebSocket connections to the backend /api/dashboard/stream
+func dashboardWSProxyHandler(w http.ResponseWriter, r *http.Request) {
+	// Browsers cannot set custom headers on WebSocket upgrade. Accept token from query string.
+	// Fallbacks: Authorization header (for non-browser clients) or cookie named "chariot_token".
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		token = r.Header.Get("Authorization")
+	}
+	if token == "" {
+		if c, err := r.Cookie("chariot_token"); err == nil {
+			token = c.Value
+		}
+	}
+	if token == "" {
+		sendError(w, http.StatusUnauthorized, "Authorization token required")
+		return
+	}
+
+	// Build backend WS URL from backend HTTP URL
+	backend, err := url.Parse(getBackendURL())
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Invalid backend URL")
+		return
+	}
+	scheme := "ws"
+	if backend.Scheme == "https" {
+		scheme = "wss"
+	}
+	target := &url.URL{Scheme: scheme, Host: backend.Host, Path: "/api/dashboard/stream"}
+
+	// Perform a simple bidirectional proxy using gorilla/websocket client and Upgrader
+	// Use separate connections: clientConn (server->browser) and backendConn (server->backend)
+
+	// Upgrade incoming request
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
+	}
+	clientConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WS proxy upgrade failed: %v", err)
+		return
+	}
+	defer clientConn.Close()
+
+	// Dial backend
+	header := http.Header{}
+	header.Set("Authorization", token)
+	backendConn, _, err := websocket.DefaultDialer.Dial(target.String(), header)
+	if err != nil {
+		log.Printf("WS proxy dial backend failed: %v", err)
+		clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "backend unavailable"))
+		return
+	}
+	defer backendConn.Close()
+
+	// Pump data between connections
+	errc := make(chan error, 2)
+	go func() { // browser -> backend
+		for {
+			mt, msg, err := clientConn.ReadMessage()
+			if err != nil {
+				errc <- err
+				return
+			}
+			if err := backendConn.WriteMessage(mt, msg); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+	go func() { // backend -> browser
+		for {
+			mt, msg, err := backendConn.ReadMessage()
+			if err != nil {
+				errc <- err
+				return
+			}
+			if err := clientConn.WriteMessage(mt, msg); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	// Wait for one side to close
+	<-errc
 }
 
 func getTLSKey() (string, error) {
@@ -729,6 +827,7 @@ const editorTemplate = `<!DOCTYPE html>
                 <div class="toolbar-tabs">
                     <button id="filesTab" class="toolbar-tab active">Files</button>
                     <button id="functionsTab" class="toolbar-tab">Function Library</button>
+                    <button id="dashboardTab" class="toolbar-tab">Dashboard</button>
                 </div>
                 <div id="fileToolbar" class="toolbar-section active">
                     <div class="file-selector">
@@ -756,6 +855,9 @@ const editorTemplate = `<!DOCTYPE html>
                     <button id="saveAsFunctionButton" class="toolbar-button" disabled>💾 Save As...</button>
                     <button id="deleteFunctionButton" class="toolbar-button file-action delete" disabled>🗑️ Delete</button>
                     <button id="saveLibraryButton" class="toolbar-button" disabled>💾 Save Library</button>
+                </div>
+                <div id="dashboardToolbar" class="toolbar-section">
+                    <button id="refreshDashboardButton" class="toolbar-button" onclick="refreshDashboardData()">🔄 Refresh</button>
                 </div>
                 <button id="runButton" class="run-button" disabled>▶ Run</button>
                 
@@ -849,8 +951,11 @@ const editorTemplate = `<!DOCTYPE html>
         let fileEditorFileName = '';        // Last file loaded in Files tab
         let functionEditorContent = '';     // Last content loaded in Function Library tab
         let functionEditorFunctionName = ''; // Last function loaded in Function Library tab
+        let dashboardContent = '';          // Last dashboard HTML content
+        let dashboardLoaded = false;        // Track if dashboard has been loaded
         let currentFileName = '';
         let currentTab = 'output';
+    let dashboardAutoRefresh = null;    // Timer for auto-refreshing dashboard when visible
         let isResizing = false;
         let authToken = null;
         let currentUser = null;
@@ -1841,23 +1946,66 @@ const editorTemplate = `<!DOCTYPE html>
             // Toolbar tab switching
             const filesTab = document.getElementById('filesTab');
             const functionsTab = document.getElementById('functionsTab');
+            const dashboardTab = document.getElementById('dashboardTab');
             const fileToolbar = document.getElementById('fileToolbar');
             const functionsToolbar = document.getElementById('functionsToolbar');
+            const dashboardToolbar = document.getElementById('dashboardToolbar');
 
-            if (filesTab && functionsTab && fileToolbar && functionsToolbar) {
+            if (filesTab && functionsTab && dashboardTab && fileToolbar && functionsToolbar && dashboardToolbar) {
+                // Helpers to manage dashboard auto-refresh lifecycle
+                function stopDashboardAutoRefresh() {
+                    if (dashboardAutoRefresh) {
+                        clearInterval(dashboardAutoRefresh);
+                        dashboardAutoRefresh = null;
+                    }
+                    // Also close WS if open
+                    try { if (dashboardWS) { dashboardWS.close(); dashboardWS = null; } } catch (e) {}
+                }
+
+                function startDashboardAutoRefresh() {
+                    // Ensure only one timer is running
+                    stopDashboardAutoRefresh();
+                    // Poll every 10 seconds to reflect session changes/timeouts
+                    dashboardAutoRefresh = setInterval(() => {
+                        if (currentTab === 'dashboard' && typeof fetchAndUpdateDashboard === 'function') {
+                            try { fetchAndUpdateDashboard(); } catch (e) { /* ignore */ }
+                        } else {
+                            stopDashboardAutoRefresh();
+                        }
+                    }, 10000);
+                }
+
                 function showToolbar(selected) {
                     // Hide all toolbars
                     fileToolbar.classList.remove('active');
                     functionsToolbar.classList.remove('active');
-                    // Remove active from both tabs
+                    dashboardToolbar.classList.remove('active');
+                    // Remove active from all tabs
                     filesTab.classList.remove('active');
                     functionsTab.classList.remove('active');
+                    dashboardTab.classList.remove('active');
 
                     if (selected === 'files') {
+                        // Leaving dashboard: stop auto refresh
+                        stopDashboardAutoRefresh();
                         // Save current function editor state
                         if (currentTab === 'functions') {
                             functionEditorContent = editor.getValue();
                             functionEditorFunctionName = document.getElementById('functionSelect').value;
+                        }
+                        // Save current dashboard state
+                        if (currentTab === 'dashboard') {
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editorContainer) {
+                                dashboardContent = editorContainer.innerHTML;
+                            }
+                        }
+                        // Restore Monaco editor if coming from dashboard
+                        if (currentTab === 'dashboard') {
+                            // Clear dashboard content and restore editor container
+                            const editorContainer = document.getElementById('editorContainer');
+                            editorContainer.innerHTML = '';
+                            setupMonacoEditor();
                         }
                         // Restore file editor state
                         fileToolbar.classList.add('active');
@@ -1876,11 +2024,27 @@ const editorTemplate = `<!DOCTYPE html>
                         updateSaveButtonStates();
                         updateRunButtonState();
                         currentTab = 'files';
-                    } else {
+                    } else if (selected === 'functions') {
+                        // Leaving dashboard: stop auto refresh
+                        stopDashboardAutoRefresh();
                         // Save current file editor state
                         if (currentTab === 'files') {
                             fileEditorContent = editor.getValue();
                             fileEditorFileName = currentFileName;
+                        }
+                        // Save current dashboard state
+                        if (currentTab === 'dashboard') {
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editorContainer) {
+                                dashboardContent = editorContainer.innerHTML;
+                            }
+                        }
+                        // Restore Monaco editor if coming from dashboard
+                        if (currentTab === 'dashboard') {
+                            // Clear dashboard content and restore editor container
+                            const editorContainer = document.getElementById('editorContainer');
+                            editorContainer.innerHTML = '';
+                            setupMonacoEditor();
                         }
                         // Restore function editor state
                         functionsToolbar.classList.add('active');
@@ -1902,6 +2066,44 @@ const editorTemplate = `<!DOCTYPE html>
                         updateSaveButtonStates();
                         updateRunButtonState();
                         currentTab = 'functions';
+                    } else if (selected === 'dashboard') {
+                        // Save current editor state
+                        if (currentTab === 'files') {
+                            fileEditorContent = editor.getValue();
+                            fileEditorFileName = currentFileName;
+                        } else if (currentTab === 'functions') {
+                            functionEditorContent = editor.getValue();
+                            functionEditorFunctionName = document.getElementById('functionSelect').value;
+                        }
+                        // Show dashboard toolbar
+                        dashboardToolbar.classList.add('active');
+                        dashboardTab.classList.add('active');
+                        
+                        // Load or restore dashboard content
+                        if (dashboardLoaded && dashboardContent) {
+                            // Restore existing dashboard content
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editor) {
+                                editor.getModel()?.dispose();
+                                editor.dispose();
+                                editor = null;
+                            }
+                            editorContainer.innerHTML = dashboardContent;
+                            // Prefer WebSocket stream; it will fallback to polling on error
+                            connectDashboardWS();
+                        } else {
+                            // Load dashboard content for first time
+                            loadDashboardContent();
+                            // Prefer WebSocket stream; it will fallback to polling on error
+                            connectDashboardWS();
+                        }
+                        
+                        // Dashboard will replace the editor content entirely
+                        originalContent = '';
+                        isFileModified = false;
+                        updateSaveButtonStates();
+                        updateRunButtonState();
+                        currentTab = 'dashboard';
                     }
                 }
                 filesTab.addEventListener('click', function() {
@@ -1909,6 +2111,9 @@ const editorTemplate = `<!DOCTYPE html>
                 });
                 functionsTab.addEventListener('click', function() {
                     showToolbar('functions');
+                });
+                dashboardTab.addEventListener('click', function() {
+                    showToolbar('dashboard');
                 });
             }
         }        
@@ -2779,12 +2984,674 @@ const editorTemplate = `<!DOCTYPE html>
             }
         }
 
+        // Dashboard functions
+        function refreshDashboardData() {
+            // Show a message in the output panel about dashboard refresh
+            showOutput('Refreshing dashboard data...', 'info');
+            if (currentTab === 'dashboard' && dashboardLoaded) {
+                fetchAndUpdateDashboard();
+            }
+        }
+
+        // Load dashboard content into the editor area
+        async function loadDashboardContent() {
+            try {
+                const editorElement = document.getElementById('editorContainer');
+                if (!editorElement) {
+                    showOutput('Editor container not found', 'error');
+                    return;
+                }
+
+                // Hide Monaco editor when displaying dashboard
+                if (editor) {
+                    editor.getModel()?.dispose();
+                    editor.dispose();
+                    editor = null;
+                }
+
+                // Create dashboard HTML
+                const dashboardHTML = '<div class="dashboard-container" style="padding: 20px; color: #d4d4d4; background-color: #1e1e1e; height: 100%; overflow-y: auto; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">' +
+                    
+                    '<div id="dashboardError" style="display: none; background-color: #f44747; color: white; padding: 15px; border-radius: 4px; margin-bottom: 20px;"></div>' +
+                    
+                    '<div id="dashboardLoading" style="text-align: center; padding: 40px; color: #569cd6;">' +
+                        '<p>Loading dashboard data...</p>' +
+                    '</div>' +
+                    
+                    '<div id="dashboardContent" style="display: none;">' +
+                        '<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">' +
+                            '<div class="metric-card" style="background: #2d2d30; border: 1px solid #3e3e42; border-radius: 8px; padding: 20px;">' +
+                                '<h3 style="margin: 0 0 15px 0; color: #569cd6; font-size: 18px;">Active Sessions</h3>' +
+                                '<div id="activeSessions" style="font-size: 24px; font-weight: bold; color: #4ec9b0; margin-bottom: 10px;">0</div>' +
+                                '<div style="color: #cccccc; font-size: 14px;">Currently active user sessions</div>' +
+                            '</div>' +
+                            
+                            '<div class="metric-card" style="background: #2d2d30; border: 1px solid #3e3e42; border-radius: 8px; padding: 20px;">' +
+                                '<h3 style="margin: 0 0 15px 0; color: #569cd6; font-size: 18px;">Total Sessions</h3>' +
+                                '<div id="totalSessions" style="font-size: 24px; font-weight: bold; color: #4ec9b0; margin-bottom: 10px;">0</div>' +
+                                '<div style="color: #cccccc; font-size: 14px;">Total sessions since startup</div>' +
+                            '</div>' +
+                            
+                            '<div class="metric-card" style="background: #2d2d30; border: 1px solid #3e3e42; border-radius: 8px; padding: 20px;">' +
+                                '<h3 style="margin: 0 0 15px 0; color: #569cd6; font-size: 18px;">System Uptime</h3>' +
+                                '<div id="uptime" style="font-size: 24px; font-weight: bold; color: #4ec9b0; margin-bottom: 10px;">Unknown</div>' +
+                                '<div style="color: #cccccc; font-size: 14px;">Server uptime</div>' +
+                            '</div>' +
+                            
+                            '<div class="metric-card" style="background: #2d2d30; border: 1px solid #3e3e42; border-radius: 8px; padding: 20px;">' +
+                                '<h3 style="margin: 0 0 15px 0; color: #569cd6; font-size: 18px;">System Status</h3>' +
+                                '<div id="systemStatus" style="font-size: 24px; font-weight: bold; color: #4ec9b0; margin-bottom: 10px;">Unknown</div>' +
+                                '<div style="color: #cccccc; font-size: 14px;">Current system status</div>' +
+                            '</div>' +
+                        '</div>' +
+                        
+                        '<div class="sessions-section" style="background: #2d2d30; border: 1px solid #3e3e42; border-radius: 8px; padding: 20px;">' +
+                            '<h3 style="margin: 0 0 20px 0; color: #569cd6; font-size: 18px;">Active Sessions</h3>' +
+                            '<div style="overflow-x: auto;">' +
+                                '<table style="width: 100%; border-collapse: collapse; color: #d4d4d4;">' +
+                                    '<thead>' +
+                                        '<tr style="border-bottom: 1px solid #3e3e42;">' +
+                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Username</th>' +
+                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Session ID</th>' +
+                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Created</th>' +
+                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Last Access</th>' +
+                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Status</th>' +
+                                        '</tr>' +
+                                    '</thead>' +
+                                    '<tbody id="sessionsTableBody">' +
+                                        '<tr>' +
+                                            '<td colspan="5" style="text-align: center; padding: 20px; color: #888;">Loading sessions...</td>' +
+                                        '</tr>' +
+                                    '</tbody>' +
+                                '</table>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+
+                // Set the dashboard HTML
+                editorElement.innerHTML = dashboardHTML;
+                
+                // Save dashboard content for state management
+                dashboardContent = dashboardHTML;
+                dashboardLoaded = true;
+
+                // Load dashboard data
+                await fetchAndUpdateDashboard();
+
+            } catch (error) {
+                console.error('Error loading dashboard content:', error);
+                showOutput('Failed to load dashboard: ' + error.message, 'error');
+            }
+        }
+
+        // WebSocket client for dashboard stream
+        let dashboardWS = null;
+        let dashboardWSBackoffMs = 1000; // start at 1s, cap later
+        let dashboardWSForcedPolling = false; // only used if we truly can't WS at all
+
+        function showDashboardStatusBanner(text, kind) {
+            const elId = 'dashboardError';
+            let el = document.getElementById(elId);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = elId;
+                el.className = 'error-message';
+                const container = document.querySelector('.dashboard-container') || document.body;
+                container.insertBefore(el, container.firstChild);
+            }
+            // Hide when no text provided
+            if (!text) {
+                el.style.display = 'none';
+                el.textContent = '';
+                return;
+            }
+            // Otherwise show and set text
+            el.style.display = 'block';
+            el.textContent = text;
+        }
+
+    function connectDashboardWS() {
+            try {
+                // Determine WS URL based on current path and protocol
+                const proto = (window.location.protocol === 'https:') ? 'wss' : 'ws';
+                const basePath = window.location.pathname.startsWith('/charioteer/') ? '/charioteer' : '';
+        const token = (authToken || localStorage.getItem('chariot_token') || '').trim();
+        const qs = token ? ('?token=' + encodeURIComponent(token)) : '';
+        const wsURL = proto + '://' + window.location.host + basePath + '/ws/dashboard' + qs;
+                // Browser WebSocket cannot set custom headers; we rely on authMiddleware
+                // which reads Authorization header from the initial HTTP request. To supply it,
+                // we append it as a query parameter that our proxy ignores for security, but
+                // our authMiddleware still checks request headers. As browsers cannot set headers,
+                // we also support a cookie or localStorage-based transfer via a small fetch before WS.
+
+                // Attempt direct connect; server-side proxy will read Authorization from initial HTTP upgrade
+                dashboardWS = new WebSocket(wsURL);
+                dashboardWS.onopen = () => {
+                    console.log('Dashboard WS connected');
+                    dashboardWSBackoffMs = 1000; // reset backoff on success
+                    dashboardWSForcedPolling = false;
+                    showDashboardStatusBanner('', '');
+                };
+                dashboardWS.onmessage = (evt) => {
+                    try {
+                        const msg = JSON.parse(evt.data);
+                        if (msg && msg.result === 'OK') {
+                            updateDashboardUI(msg.data);
+                            const dl = document.getElementById('dashboardLoading');
+                            const dc = document.getElementById('dashboardContent');
+                            if (dl) dl.style.display = 'none';
+                            if (dc) dc.style.display = 'block';
+                        }
+                    } catch (e) {
+                        console.warn('WS message parse error', e);
+                    }
+                };
+                dashboardWS.onclose = (ev) => {
+                    console.log('Dashboard WS closed', ev && ev.code, ev && ev.reason);
+                    // If we have a token, prefer reconnect with backoff instead of polling
+                    const token = (authToken || localStorage.getItem('chariot_token') || '').trim();
+                    if (token && !dashboardWSForcedPolling) {
+                        showDashboardStatusBanner('Realtime link lost, retrying…', 'warn');
+                        setTimeout(() => connectDashboardWS(), Math.min(dashboardWSBackoffMs, 30000));
+                        dashboardWSBackoffMs = Math.min(dashboardWSBackoffMs * 2, 30000);
+                        return;
+                    }
+                    // No token? then use polling (read-only-ish view)
+                    startDashboardAutoRefresh();
+                };
+                dashboardWS.onerror = (e) => {
+                    console.log('Dashboard WS error', e);
+                    // Try reconnect with backoff when token exists
+                    const token = (authToken || localStorage.getItem('chariot_token') || '').trim();
+                    if (token && !dashboardWSForcedPolling) {
+                        showDashboardStatusBanner('Realtime error, retrying…', 'warn');
+                        try { dashboardWS.close(); } catch (e) {}
+                        setTimeout(() => connectDashboardWS(), Math.min(dashboardWSBackoffMs, 30000));
+                        dashboardWSBackoffMs = Math.min(dashboardWSBackoffMs * 2, 30000);
+                        return;
+                    }
+                    startDashboardAutoRefresh();
+                };
+            } catch (e) {
+                console.warn('WS connect failed, fallback to polling', e);
+                // If we truly cannot WS at all (e.g., environment restrictions), switch to polling
+                dashboardWSForcedPolling = true;
+                startDashboardAutoRefresh();
+            }
+        }
+
+        // Fetch and update dashboard data (HTTP fallback)
+        async function fetchAndUpdateDashboard() {
+            try {
+                const dashboardError = document.getElementById('dashboardError');
+                const dashboardLoading = document.getElementById('dashboardLoading');
+                const dashboardContent = document.getElementById('dashboardContent');
+
+                if (dashboardError) dashboardError.style.display = 'none';
+                if (dashboardLoading) dashboardLoading.style.display = 'block';
+                if (dashboardContent) dashboardContent.style.display = 'none';
+
+                // Get auth headers
+                const headers = getAuthHeaders();
+                headers['Content-Type'] = 'application/json';
+
+                const response = await fetch('/charioteer/api/dashboard/status', {
+                    method: 'GET',
+                    headers: headers
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch dashboard data: ' + response.statusText);
+                }
+
+                const result = await response.json();
+                if (result.result !== 'OK') {
+                    throw new Error('Dashboard API error: ' + (result.data || 'Unknown error'));
+                }
+
+                // Update dashboard with data
+                console.log('Dashboard API response:', result.data);
+                updateDashboardUI(result.data);
+
+                if (dashboardLoading) dashboardLoading.style.display = 'none';
+                if (dashboardContent) dashboardContent.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                
+                const dashboardError = document.getElementById('dashboardError');
+                const dashboardLoading = document.getElementById('dashboardLoading');
+                const dashboardContent = document.getElementById('dashboardContent');
+
+                if (dashboardError) {
+                    dashboardError.textContent = 'Failed to load dashboard data: ' + error.message;
+                    dashboardError.style.display = 'block';
+                }
+                if (dashboardLoading) dashboardLoading.style.display = 'none';
+                if (dashboardContent) dashboardContent.style.display = 'none';
+            }
+    }
+
+        // Function to format Go duration string to human readable format
+        function formatUptime(uptimeStr) {
+            if (!uptimeStr || uptimeStr === 'Unknown') return 'Unknown';
+            
+            // Parse Go duration string like "2h33m30.783968579s"
+            const timeUnits = {
+                'h': 'hour',
+                'm': 'minute', 
+                's': 'second'
+            };
+            
+            let result = [];
+            let remaining = uptimeStr;
+            
+            // Extract hours
+            const hourMatch = remaining.match(/(\d+)h/);
+            if (hourMatch) {
+                const hours = parseInt(hourMatch[1]);
+                if (hours > 0) {
+                    result.push(hours + ' ' + (hours === 1 ? 'hour' : 'hours'));
+                }
+                remaining = remaining.replace(/\d+h/, '');
+            }
+            
+            // Extract minutes
+            const minuteMatch = remaining.match(/(\d+)m/);
+            if (minuteMatch) {
+                const minutes = parseInt(minuteMatch[1]);
+                if (minutes > 0) {
+                    result.push(minutes + ' ' + (minutes === 1 ? 'minute' : 'minutes'));
+                }
+                remaining = remaining.replace(/\d+m/, '');
+            }
+            
+            // Extract seconds (only show if less than 1 hour)
+            const secondMatch = remaining.match(/(\d+(?:\.\d+)?)s/);
+            if (secondMatch && result.length === 0) {
+                const seconds = Math.floor(parseFloat(secondMatch[1]));
+                if (seconds > 0) {
+                    result.push(seconds + ' ' + (seconds === 1 ? 'second' : 'seconds'));
+                }
+            }
+            
+            return result.length > 0 ? result.slice(0, 2).join(', ') : 'Just started';
+        }
+
+        // Update dashboard UI with data
+        function updateDashboardUI(data) {
+            // Update metrics - map from actual API response structure
+            const activeSessions = document.getElementById('activeSessions');
+            const totalSessions = document.getElementById('totalSessions');
+            const uptime = document.getElementById('uptime');
+            const systemStatus = document.getElementById('systemStatus');
+
+            // Map from go-chariot API response structure
+            if (activeSessions) activeSessions.textContent = (data.session_stats && data.session_stats.active_count) || 0;
+            if (totalSessions) totalSessions.textContent = (data.session_stats && data.session_stats.active_count) || 0; // Using active_count as total for now
+            if (uptime) uptime.textContent = formatUptime((data.server_status && data.server_status.uptime) || 'Unknown');
+            if (systemStatus) systemStatus.textContent = (data.server_status && data.server_status.status) || 'Unknown';
+
+            // Update sessions table
+            const tbody = document.getElementById('sessionsTableBody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                console.log('Active sessions data:', data.active_sessions);
+                console.log('Active sessions length:', data.active_sessions ? data.active_sessions.length : 'undefined');
+
+                if (data.active_sessions && data.active_sessions.length > 0) {
+                    const fmt = (iso) => {
+                        if (!iso) return 'Unknown';
+                        const d = new Date(iso);
+                        if (isNaN(d)) return 'Unknown';
+                        return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: 'numeric', minute: '2-digit' });
+                    };
+
+                    data.active_sessions.forEach(session => {
+                        const row = document.createElement('tr');
+                        row.style.borderBottom = '1px solid #3e3e42';
+                        const sid = session.session_id || session.sessionId || session.id || 'Unknown';
+                        const status = session.status || ((session.expires_at && new Date(session.expires_at) > new Date()) ? 'active' : 'expired');
+                        row.innerHTML = 
+                            '<td style="padding: 12px;">' + escapeHtml(session.username || session.user_id || 'Unknown') + '</td>' +
+                            '<td style="padding: 12px;">' + escapeHtml(sid !== 'Unknown' ? (sid.substring(0, 8) + '...') : 'Unknown') + '</td>' +
+                            '<td style="padding: 12px;">' + escapeHtml(fmt(session.created)) + '</td>' +
+                            '<td style="padding: 12px;">' + escapeHtml(fmt(session.last_access || session.lastSeen || session.last_accessed)) + '</td>' +
+                            '<td style="padding: 12px; color: ' + (status === 'active' ? '#4ec9b0' : '#f44747') + ';">' + 
+                            (status === 'active' ? 'Active' : 'Expired') + '</td>';
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="5" style="text-align: center; padding: 20px; color: #888;">No sessions found</td>';
+                    tbody.appendChild(row);
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+    </script>
+</body>
+</html>`
+
+const dashboardTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charioteer Dashboard</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .dashboard-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .dashboard-header h1 {
+            color: #569cd6;
+            margin: 0;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .metric-card h3 {
+            margin: 0 0 15px 0;
+            color: #569cd6;
+            font-size: 18px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ec9b0;
+            margin-bottom: 10px;
+        }
+        .metric-label {
+            color: #cccccc;
+            font-size: 14px;
+        }
+        .sessions-table {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .sessions-table h3 {
+            margin: 0;
+            padding: 20px;
+            background: #383838;
+            color: #569cd6;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #3e3e42;
+        }
+        th {
+            background: #383838;
+            color: #cccccc;
+            font-weight: 600;
+        }
+        td {
+            color: #d4d4d4;
+        }
+        .status-active {
+            color: #4ec9b0;
+        }
+        .status-expired {
+            color: #f48771;
+        }
+        .refresh-button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .refresh-button:hover {
+            background: #1177bb;
+        }
+        .error-message {
+            background: #5a1d1d;
+            border: 1px solid #be1100;
+            color: #f48771;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .loading {
+            text-align: center;
+            color: #569cd6;
+            font-size: 18px;
+            margin: 40px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <button class="refresh-button" onclick="refreshDashboard()">🔄 Refresh</button>
+        </div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        <div id="loading" class="loading">Loading dashboard data...</div>
+        
+        <div id="dashboardContent" style="display: none;">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Active Sessions</h3>
+                    <div class="metric-value" id="activeSessions">-</div>
+                    <div class="metric-label">Currently logged in users</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Sessions</h3>
+                    <div class="metric-value" id="totalSessions">-</div>
+                    <div class="metric-label">All sessions (active + expired)</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Server Uptime</h3>
+                    <div class="metric-value" id="uptime">-</div>
+                    <div class="metric-label">Since last restart</div>
+                </div>
+                <div class="metric-card">
+                    <h3>System Status</h3>
+                    <div class="metric-value" id="systemStatus">-</div>
+                    <div class="metric-label">Current system state</div>
+                </div>
+            </div>
+            
+            <div class="sessions-table">
+                <h3>Active Sessions</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Session ID</th>
+                                <th>Created</th>
+                                <th>Last Access</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center;">Loading sessions...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = '{{.BackendURL}}';
+        let refreshInterval;
+        let authToken = null;
+
+        // Extract token from URL parameter
+        function getTokenFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('token');
+        }
+
+        // Initialize auth token
+        authToken = getTokenFromURL();
+
+        async function fetchDashboardData() {
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add authorization header if we have a token
+                if (authToken) {
+                    headers['Authorization'] = authToken;
+                }
+
+                const response = await fetch('/charioteer/api/dashboard/status', {
+                    method: 'GET',
+                    headers: headers
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch dashboard data: ' + response.statusText);
+                }
+
+                const result = await response.json();
+                if (result.result !== 'OK') {
+                    throw new Error('Dashboard API error: ' + (result.data || 'Unknown error'));
+                }
+
+                return result.data;
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                throw error;
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update metrics
+            document.getElementById('activeSessions').textContent = data.activeSessions || 0;
+            document.getElementById('totalSessions').textContent = data.totalSessions || 0;
+            document.getElementById('uptime').textContent = data.uptime || 'Unknown';
+            document.getElementById('systemStatus').textContent = data.systemStatus || 'Unknown';
+
+            // Update sessions table
+            const tbody = document.getElementById('sessionsTableBody');
+            tbody.innerHTML = '';
+
+            if (data.sessions && data.sessions.length > 0) {
+                data.sessions.forEach(session => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td>' + escapeHtml(session.username || 'Unknown') + '</td>' +
+                                   '<td>' + escapeHtml(session.sessionId ? session.sessionId.substring(0, 8) + '...' : 'Unknown') + '</td>' +
+                                   '<td>' + escapeHtml(session.created || 'Unknown') + '</td>' +
+                                   '<td>' + escapeHtml(session.lastAccess || 'Unknown') + '</td>' +
+                                   '<td class="' + (session.active ? 'status-active' : 'status-expired') + '">' + 
+                                   (session.active ? 'Active' : 'Expired') + '</td>';
+                    tbody.appendChild(row);
+                });
+            } else {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="5" style="text-align: center;">No sessions found</td>';
+                tbody.appendChild(row);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'none';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        async function refreshDashboard() {
+            try {
+                hideError();
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('dashboardContent').style.display = 'none';
+
+                const data = await fetchDashboardData();
+                updateDashboard(data);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboardContent').style.display = 'block';
+            } catch (error) {
+                showError('Failed to load dashboard data: ' + error.message);
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDashboard();
+            // Refresh every 30 seconds
+            refreshInterval = setInterval(refreshDashboard, 30000);
+        });
+
+        // Cleanup interval when page unloads
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
     </script>
 </body>
 </html>`
 
 type EditorData struct {
 	InitialCode string
+}
+
+type DashboardData struct {
+	BackendURL string
 }
 
 func editorHandler(w http.ResponseWriter, r *http.Request) {
@@ -2911,13 +3778,24 @@ func executeHandler(w http.ResponseWriter, r *http.Request) {
 	// Forward the response back to the client directly
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	w.Write(*responseBody)
+	if _, err := w.Write(*responseBody); err != nil {
+		log.Printf("error writing execute response: %v", err)
+	}
 }
 
 // Add authentication middleware
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
+
+		// For dashboard route, also check URL parameter
+		if token == "" && r.URL.Path == "/charioteer/dashboard" {
+			urlToken := r.URL.Query().Get("token")
+			if urlToken != "" {
+				token = urlToken
+			}
+		}
+
 		// if token == "" || !strings.HasPrefix(token, "Bearer ") {
 		if token == "" {
 			sendError(w, http.StatusUnauthorized, "Unauthorized")
@@ -3030,10 +3908,35 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If login succeeded and a token is present, set an HttpOnly cookie for WS auth
+	if resp.StatusCode == http.StatusOK {
+		var parsed struct {
+			Result string `json:"result"`
+			Data   struct {
+				Token string `json:"token"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(responseBody, &parsed); err == nil && strings.EqualFold(parsed.Result, "OK") && parsed.Data.Token != "" {
+			cookie := &http.Cookie{
+				Name:     "chariot_token",
+				Value:    parsed.Data.Token,
+				Path:     "/",
+				HttpOnly: true,
+				// Secure when behind TLS or reverse proxy indicating HTTPS
+				Secure:   r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"),
+				SameSite: http.SameSiteLaxMode,
+				// Session cookie; optionally set MaxAge if desired
+			}
+			http.SetCookie(w, cookie)
+		}
+	}
+
 	// Forward the response back to the client directly
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
-	w.Write(responseBody)
+	if _, err := w.Write(responseBody); err != nil {
+		log.Printf("error writing login response: %v", err)
+	}
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -3093,10 +3996,131 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Clear the auth cookie regardless of backend response
+	expired := &http.Cookie{
+		Name:     "chariot_token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"),
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, expired)
+
 	// Forward the response back to the client directly
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
-	w.Write(responseBody)
+	if _, err := w.Write(responseBody); err != nil {
+		log.Printf("error writing logout response: %v", err)
+	}
+}
+
+// Handler to serve the dashboard page
+func dashboardHandler(w http.ResponseWriter, r *http.Request) {
+	// Set proper content type
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Parse template
+	tmpl, err := template.New("dashboard").Parse(dashboardTemplate)
+	if err != nil {
+		http.Error(w, "Template parsing error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Prepare template data
+	data := DashboardData{
+		BackendURL: getBackendURL(),
+	}
+
+	// Execute template
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, "Template execution error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// Handler to proxy dashboard API requests to go-chariot
+func dashboardAPIHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Forward request to go-chariot backend
+	backendURL := getBackendURL() + "/api/dashboard/status"
+
+	// Create request with proper headers
+	req, err := http.NewRequest("GET", backendURL, nil)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to create request: "+err.Error())
+		return
+	}
+
+	// Get auth token from request header and forward it
+	authToken := r.Header.Get("Authorization")
+	if authToken != "" {
+		req.Header.Set("Authorization", authToken)
+	}
+
+	client := &http.Client{
+		Timeout: time.Duration(*timeoutSeconds) * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: *insecureSkipVerify},
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to connect to backend: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response from go-chariot server
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to read response")
+		return
+	}
+
+	// Check if go-chariot returned success
+	if resp.StatusCode != http.StatusOK {
+		sendError(w, resp.StatusCode, "Backend error: "+string(responseBody))
+		return
+	}
+
+	// Parse the go-chariot response to validate it's valid JSON
+	var dashboardData interface{}
+	if err := json.Unmarshal(responseBody, &dashboardData); err != nil {
+		sendError(w, http.StatusInternalServerError, "Invalid response from backend")
+		return
+	}
+
+	// Wrap the response in the expected format for the frontend
+	wrappedResponse := map[string]interface{}{
+		"result": "OK",
+		"data":   dashboardData,
+	}
+
+	// Send the wrapped response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(wrappedResponse); err != nil {
+		log.Printf("error encoding dashboard wrapped response: %v", err)
+	}
 }
 
 // Handler to save file content
@@ -3366,7 +4390,9 @@ func saveFunctionHandler(w http.ResponseWriter, r *http.Request) {
 	// Forward backend response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("error copying backend response: %v", err)
+	}
 }
 
 // Delete a function - delegates deleteFunction(<name>) to callExecute
@@ -3549,8 +4575,14 @@ func main() {
 	// Public routes
 	http.HandleFunc("/charioteer/health", healthHandler)
 	http.HandleFunc("/charioteer/editor", editorHandler)
+	http.HandleFunc("/charioteer/dashboard", authMiddleware(dashboardHandler))
 	http.HandleFunc("/charioteer/login", loginHandler)   // Implement loginHandler to handle login requests
 	http.HandleFunc("/charioteer/logout", logoutHandler) // Implement logoutHandler to handle logout requests
+
+	// Dashboard API proxy route
+	http.HandleFunc("/charioteer/api/dashboard/status", authMiddleware(dashboardAPIHandler))
+	// WebSocket proxy for dashboard stream (token passed as query param)
+	http.HandleFunc("/charioteer/ws/dashboard", dashboardWSProxyHandler)
 
 	log.Println("Current working directory:", func() string { dir, _ := os.Getwd(); return dir }())
 	log.Println("Chariot Editor server starting on :" + getPort())

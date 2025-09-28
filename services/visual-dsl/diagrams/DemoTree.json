@@ -1,0 +1,174 @@
+{
+  "name": "DemoTree",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 50
+      },
+      "data": {
+        "label": "Start",
+        "icon": "🚀",
+        "category": "control",
+        "properties": {
+          "name": "DemoTree"
+        }
+      },
+      "width": 100,
+      "height": 68,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "declare-1756481356150-1",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": true,
+          "variableName": "demoTree",
+          "typeSpecifier": "T"
+        }
+      },
+      "width": 100,
+      "height": 88,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "newTree-1756481412875-2",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 350
+      },
+      "data": {
+        "label": "New Tree",
+        "icon": "🌳",
+        "category": "tree",
+        "properties": {
+          "nodeName": "demoTree"
+        }
+      },
+      "width": 100,
+      "height": 68
+    },
+    {
+      "id": "addChild-1756481480966-3",
+      "type": "logicon",
+      "position": {
+        "x": 239,
+        "y": 208
+      },
+      "data": {
+        "label": "Add Child",
+        "icon": "➕",
+        "category": "node",
+        "properties": {
+          "parentNode": "demoTree",
+          "childNode": "routes"
+        }
+      },
+      "width": 100,
+      "height": 88,
+      "selected": true,
+      "positionAbsolute": {
+        "x": 239,
+        "y": 208
+      },
+      "dragging": false
+    },
+    {
+      "id": "parseJSON-1756481540803-4",
+      "type": "logicon",
+      "position": {
+        "x": 239,
+        "y": 358
+      },
+      "data": {
+        "label": "Parse JSON",
+        "icon": "📖",
+        "category": "json",
+        "properties": {
+          "jsonString": "{}",
+          "nodeName": "routes"
+        }
+      },
+      "width": 100,
+      "height": 68,
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-declare-1756481356150-1",
+      "source": "start",
+      "target": "declare-1756481356150-1",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "declare-1756481356150-1-newTree-1756481412875-2",
+      "source": "declare-1756481356150-1",
+      "target": "newTree-1756481412875-2",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    },
+    {
+      "id": "declare-1756481356150-1-addChild-1756481480966-3",
+      "source": "declare-1756481356150-1",
+      "target": "addChild-1756481480966-3",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "addChild-1756481480966-3-parseJSON-1756481540803-4",
+      "source": "addChild-1756481480966-3",
+      "target": "parseJSON-1756481540803-4",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    }
+  ],
+  "nestingRelations": [
+    {
+      "parentId": "declare-1756481356150-1",
+      "childId": "newTree-1756481412875-2",
+      "order": 0
+    },
+    {
+      "parentId": "addChild-1756481480966-3",
+      "childId": "parseJSON-1756481540803-4",
+      "order": 0
+    }
+  ],
+  "groupCount": 2,
+  "created": "2025-08-29T15:33:56.640Z",
+  "modified": "2025-08-29T15:33:56.640Z"
+}

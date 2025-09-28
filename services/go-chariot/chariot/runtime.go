@@ -200,6 +200,17 @@ func (rt *Runtime) ExecuteASTWithScope(node Node, scope *Scope) (Value, error) {
 	return result, err
 }
 
+/*
+func (rt *Runtime) ExecAST(ast *Block, env map[string]any) (Value, error) {
+    v, err := rt.execBlock(ast, env) // existing internal executor reused
+    if err != nil { return false, err }
+    b, ok := v.(bool)
+    if !ok {
+        return false, fmt.Errorf("expected bool result, got %T", v)
+    }
+    return b, nil
+}
+*/
 // Add these methods to runtime.go after line 187
 
 // SetVariable sets a variable in the current scope
@@ -351,6 +362,18 @@ func (rt *Runtime) ExecProgram(src string) (Value, error) {
 
 	// Execute with a proper scope
 	return ast.Exec(rt)
+}
+
+// ParseProgram parses source code, returning the AST.
+func (rt *Runtime) ParseProgram(src string) (*Block, error) {
+
+	ast, err := NewParser(src).parseProgram()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return abstract syntax tree
+	return ast, nil
 }
 
 // convertToGoValue converts a Chariot Value to a Go value of the expected type.

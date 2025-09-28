@@ -104,6 +104,7 @@ services:
       - ssl-certs:/app/ssl
       - ./config/go-chariot:/app/config:ro
       - ./logs/go-chariot:/app/logs
+      - ./data/go-chariot:/app/data
       - ~/.azure:/home/gochariot/.azure:rw
     environment:
       - GO_ENV=development

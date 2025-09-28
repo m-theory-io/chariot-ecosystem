@@ -24,4 +24,17 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	api.POST("/execute", h.Execute)
 	api.GET("/functions", h.ListFunctions)
 	api.POST("/function/save", h.SaveFunctionHandler)
+
+	// Protected dashboard routes (require authentication)
+	dashboard := e.Group("/dashboard")
+	dashboard.Use(h.SessionAuth)
+	dashboard.GET("", h.HandleDashboard)  // /dashboard
+	dashboard.GET("/", h.HandleDashboard) // /dashboard/ (with trailing slash)
+
+	// Protected dashboard API routes
+	dashboardAPI := e.Group("/api/dashboard")
+	dashboardAPI.Use(h.SessionAuth)
+	dashboardAPI.GET("/status", h.HandleDashboardAPI)
+	// WebSocket stream: auth is performed inside handler with non-extending lookup
+	e.GET("/api/dashboard/stream", h.HandleDashboardWS)
 }

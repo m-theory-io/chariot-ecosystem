@@ -55,7 +55,8 @@ func InitVaultClient() error {
 	const logName = "InitVaultClient"
 
 	if cfg.ChariotConfig.VaultName == "" {
-		return fmt.Errorf("%s - vault name not configured", logName)
+		cfg.ChariotConfig.VaultName = "chariot-vault"
+		// return fmt.Errorf("%s - vault name not configured", logName)
 	}
 
 	// Use DefaultAzureCredential - works for both local dev and Azure VMs

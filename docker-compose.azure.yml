@@ -70,7 +70,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - go_chariot_data_prod:/app/data
+      - ./data/go-chariot:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
       interval: 30s
@@ -98,7 +98,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - charioteer_files_prod:/app/files
+      - ./data/charioteer:/app/files
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/charioteer/health"]
       interval: 30s
@@ -203,10 +203,6 @@ volumes:
   mysql_data_prod:
     driver: local
   couchbase_data_prod:
-    driver: local
-  go_chariot_data_prod:
-    driver: local
-  charioteer_files_prod:
     driver: local
   certbot_certs:
     external: true

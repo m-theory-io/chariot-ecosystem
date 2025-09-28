@@ -22,9 +22,11 @@ type SessionManager struct {
 
 // Session represents a user's interaction context
 type Session struct {
-	ID            string
-	Logger        logs.Logger // Logger for the session
-	UserID        string
+	ID     string
+	Logger logs.Logger // Logger for the session
+	UserID string
+	// Optional: populated username (may mirror UserID). Can be set by auth layer
+	Username      string
 	Runtime       *Runtime
 	Resources     map[string]interface{} // Named resources to clean up
 	Created       time.Time
@@ -88,6 +90,7 @@ func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token st
 		ID:           token,
 		Logger:       logger,
 		UserID:       userID,
+		Username:     userID,
 		Runtime:      NewRuntime(),
 		Resources:    make(map[string]interface{}),
 		Created:      now,
@@ -163,11 +166,13 @@ func (sm *SessionManager) GetSession(token string) (*Session, error) {
 
 // EndSession explicitly terminates a session
 func (sm *SessionManager) EndSession(token string) error {
+	cfg.ChariotLogger.Info("Ending session", zap.String("token", token))
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	session, exists := sm.sessions[token]
 	if !exists {
+		cfg.ChariotLogger.Warn("EndSession: session not found", zap.String("token", token))
 		return errors.New("session not found")
 	}
 
@@ -181,6 +186,7 @@ func (sm *SessionManager) EndSession(token string) error {
 
 	// Remove from sessions map
 	delete(sm.sessions, token)
+	cfg.ChariotLogger.Info("Session removed", zap.String("token", token))
 
 	return nil
 }
@@ -217,6 +223,67 @@ func (sm *SessionManager) GetActiveSessions() int {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 	return len(sm.sessions)
+}
+
+// GetActiveSessionsInfo returns detailed information about all active sessions
+func (sm *SessionManager) GetActiveSessionsInfo() []map[string]interface{} {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	var sessions []map[string]interface{}
+	for _, session := range sm.sessions {
+		session.mu.RLock()
+		// Prefer explicit username if present in session.Username or Data
+		username := session.Username
+		if username == "" {
+			if v, ok := session.Data["username"].(string); ok && v != "" {
+				username = v
+			} else {
+				username = session.UserID
+			}
+		}
+
+		// Build comprehensive info map to avoid Unknowns on UI
+		info := map[string]interface{}{
+			"id":          session.ID,
+			"session_id":  session.ID,
+			"user_id":     session.UserID,
+			"username":    username,
+			"created":     session.Created,
+			"last_seen":   session.LastAccessed,
+			"last_access": session.LastAccessed,
+			"expires_at":  session.ExpiresAt,
+			"status": func() string {
+				if session.IsExpired() {
+					return "expired"
+				}
+				return "active"
+			}(),
+		}
+
+		sessions = append(sessions, info)
+		session.mu.RUnlock()
+	}
+	return sessions
+}
+
+// LookupSession retrieves a session by token without updating access times or expiration
+// Returns the session pointer and a boolean indicating existence. This should be used
+// for one-time auth checks (e.g., WebSocket upgrade) where we don't want to extend TTL.
+func (sm *SessionManager) LookupSession(token string) (*Session, bool) {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	s, ok := sm.sessions[token]
+	return s, ok
+}
+
+// SessionInfo represents session information for the dashboard
+type SessionInfo struct {
+	ID       string    `json:"id"`
+	UserID   string    `json:"user_id"`
+	Created  time.Time `json:"created"`
+	LastSeen time.Time `json:"last_seen"`
+	Status   string    `json:"status"`
 }
 
 // Cleanup for individual sessions
