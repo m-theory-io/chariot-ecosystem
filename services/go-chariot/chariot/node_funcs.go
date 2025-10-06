@@ -937,6 +937,13 @@ func RegisterNode(rt *Runtime) {
 				mn.Attributes[string(key)] = value
 				return mn, nil
 			}
+			if tr, ok := n.(*Transform); ok {
+				if tr.Attributes == nil {
+					tr.Attributes = make(map[string]Value)
+				}
+				tr.Attributes[string(key)] = value
+				return tr, nil
+			}
 			return nil, fmt.Errorf("unsupported TreeNode type: %T", n)
 
 		default:

@@ -443,7 +443,7 @@ func convertToInterface(val Value) interface{} {
 			obj[key] = convertToInterface(value)
 		}
 		return obj
-	case nil:
+	case *dbNullType, nil:
 		return nil
 	default:
 		return fmt.Sprintf("%v", v)

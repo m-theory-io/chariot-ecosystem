@@ -111,6 +111,74 @@ func getHTTPClient() *http.Client {
 	return &http.Client{Timeout: getTimeout()}
 }
 
+// ---- Listener API proxy helpers ----
+func proxyToBackendJSON(w http.ResponseWriter, r *http.Request, method, path string, body []byte) {
+	client := getHTTPClient()
+	req, err := http.NewRequest(method, getBackendURL()+path, bytes.NewBuffer(body))
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to create backend request: "+err.Error())
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	// Forward auth from cookie or header
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		if c, err := r.Cookie("chariot_token"); err == nil {
+			token = c.Value
+		}
+	}
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		sendError(w, http.StatusServiceUnavailable, "Failed to contact backend: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("proxy error copying body: %v", err)
+	}
+}
+
+func listenersListHandler(w http.ResponseWriter, r *http.Request) {
+	proxyToBackendJSON(w, r, http.MethodGet, "/api/listeners", nil)
+}
+
+func listenersCreateHandler(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	proxyToBackendJSON(w, r, http.MethodPost, "/api/listeners", body)
+}
+
+func listenersDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		sendError(w, http.StatusBadRequest, "missing name")
+		return
+	}
+	proxyToBackendJSON(w, r, http.MethodDelete, "/api/listeners/"+url.PathEscape(name), nil)
+}
+
+func listenersStartHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		sendError(w, http.StatusBadRequest, "missing name")
+		return
+	}
+	proxyToBackendJSON(w, r, http.MethodPost, "/api/listeners/"+url.PathEscape(name)+"/start", nil)
+}
+
+func listenersStopHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		sendError(w, http.StatusBadRequest, "missing name")
+		return
+	}
+	proxyToBackendJSON(w, r, http.MethodPost, "/api/listeners/"+url.PathEscape(name)+"/stop", nil)
+}
+
 // ---- WebSocket proxy support ----
 // We use gorilla/websocket for client/server WS in charioteer as well to proxy to backend
 // without relying on the http reverse proxy. This keeps the Authorization header on upgrade.
@@ -746,6 +814,7 @@ const editorTemplate = `<!DOCTYPE html>
         .monaco-editor .token.keyword.chariot.json { color: #fdcb6e !important; }
         .monaco-editor .token.keyword.chariot.math { color: #6c5ce7 !important; }
         .monaco-editor .token.keyword.chariot.node { color: #a29bfe !important; }
+        .monaco-editor .token.keyword.chariot.csv { color: #fdcb6e !important; }
         .monaco-editor .token.keyword.chariot.sql { color: #fd79a8 !important; }
         .monaco-editor .token.keyword.chariot.string { color: #00b894 !important; }
         .monaco-editor .token.keyword.chariot.system { color: #e17055 !important; }
@@ -881,6 +950,7 @@ const editorTemplate = `<!DOCTYPE html>
                     <button class="tab" data-tab="problems">Problems</button>
                 </div>
                 <div class="tab-content" id="outputContent">Please log in to use the editor...</div>
+                <div class="tab-content" id="problemsContent" style="display:none;"></div>
             </div>
         </div>
     </div>
@@ -929,6 +999,7 @@ const editorTemplate = `<!DOCTYPE html>
             [/\b(parseJSON|parseJSONValue|toJSON|toSimpleJSON)\b(?=\s*\()/, 'keyword.chariot.json'],
             [/\b(abs|add|amortize|apr|avg|balloon|ceil|ceiling|cos|depreciation|div|e|exp|floor|fv|int|irr|ln|loanBalance|log|log10|log2|max|min|mod|mul|nper|npv|pct|pi|pmt|pow|pv|random|randomSeed|randomString|rate|round|sin|sqrt|sub|sum|tan)\b(?=\s*\()/, 'keyword.chariot.math'],
             [/\b(addChild|childCount|clear|cloneNode|create|csvNode|findByName|firstChild|getAttribute|getChildAt|getChildByName|getDepth|getLevel|getName|getParent|getPath|getRoot|getSiblings|getText|hasAttribute|isLeaf|isRoot|jsonNode|lastChild|list|mapNode|nodeToString|queryNode|removeAttribute|removeChild|setAttribute|setAttributes|setChildByName|setName|setText|traverseNode|xmlNode|yamlNode)\b(?=\s*\()/, 'keyword.chariot.node'],
+            [/\b(csvHeaders|csvRowCount|csvColumnCount|csvGetRow|csvGetCell|csvToCSV|csvLoad)\b(?=\s*\()/, 'keyword.chariot.csv'],
             [/\b(generateCreateTable|sqlBegin|sqlConnect|sqlClose|sqlCommit|sqlExecute|sqlListTables|sqlQuery|sqlRollback)\b(?=\s*\()/, 'keyword.chariot.sql'],
             [/\b(append|ascii|atPos|char|charAt|concat|digits|format|hasPrefix|hasSuffix|interpolate|join|lastPos|lower|occurs|padLeft|padRight|repeat|replace|right|split|sprintf|string|strlen|substr|substring|trim|trimLeft|trimRight|upper)\b(?=\s*\()/, 'keyword.chariot.string'],
             [/\b(exit|getEnv|hasEnv|listen|logPrint|platform|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
@@ -950,17 +1021,25 @@ const editorTemplate = `<!DOCTYPE html>
         let fileEditorContent = '';         // Last content loaded in Files tab
         let fileEditorFileName = '';        // Last file loaded in Files tab
         let functionEditorContent = '';     // Last content loaded in Function Library tab
-        let functionEditorFunctionName = ''; // Last function loaded in Function Library tab
+    let functionEditorFunctionName = ''; // Last function loaded in Function Library tab
         let dashboardContent = '';          // Last dashboard HTML content
         let dashboardLoaded = false;        // Track if dashboard has been loaded
         let currentFileName = '';
         let currentTab = 'output';
     let dashboardAutoRefresh = null;    // Timer for auto-refreshing dashboard when visible
-        let isResizing = false;
+    let currentBottomTab = 'output';    // Tracks the bottom panel tab (output|problems)
+    // Throttle WS updates to avoid overwhelming UI
+    let dashboardWSUpdateTimer = null;
+    let pendingDashboardData = null;
+    // Persist listener row selections across updates
+    const selectedListeners = new Set();
+    let isResizing = false;
         let authToken = null;
         let currentUser = null;
         let isFileModified = false;
         let originalContent = '';
+    // Ensure toolbar handlers for Function Library are only initialized once across editor rebuilds
+    let functionsToolbarInitialized = false;
         // Session management variables
         let sessionTimer = null;
         let warningTimer = null;
@@ -1258,9 +1337,11 @@ const editorTemplate = `<!DOCTYPE html>
         }
         
         function initializeFunctionLibraryToolbar() {
+            if (functionsToolbarInitialized) return;
             const functionSelect = document.getElementById('functionSelect');
             const newFunctionButton = document.getElementById('newFunctionButton');
             const saveFunctionButton = document.getElementById('saveFunctionButton');
+            const saveAsFunctionButton = document.getElementById('saveAsFunctionButton');
             const deleteFunctionButton = document.getElementById('deleteFunctionButton');
             const saveLibraryButton = document.getElementById('saveLibraryButton');
 
@@ -1341,6 +1422,7 @@ const editorTemplate = `<!DOCTYPE html>
             saveAsFunctionButton.disabled = true; // Enable as needed
             deleteFunctionButton.disabled = true;
             saveLibraryButton.disabled = false; // Enable as needed
+            functionsToolbarInitialized = true;
         }
 
         function newFunction() {
@@ -1370,7 +1452,8 @@ const editorTemplate = `<!DOCTYPE html>
                 if (response.ok) {
                     const result = await response.json();
                     if (result.result === "OK" && Array.isArray(result.data)) {
-                        result.data.forEach(fn => {
+                        const unique = Array.from(new Set(result.data));
+                        unique.forEach(fn => {
                             const option = document.createElement('option');
                             option.value = fn;
                             option.textContent = fn;
@@ -1965,14 +2048,14 @@ const editorTemplate = `<!DOCTYPE html>
                 function startDashboardAutoRefresh() {
                     // Ensure only one timer is running
                     stopDashboardAutoRefresh();
-                    // Poll every 10 seconds to reflect session changes/timeouts
+                    // Poll every 30 seconds to reflect session changes/timeouts
                     dashboardAutoRefresh = setInterval(() => {
                         if (currentTab === 'dashboard' && typeof fetchAndUpdateDashboard === 'function') {
                             try { fetchAndUpdateDashboard(); } catch (e) { /* ignore */ }
                         } else {
                             stopDashboardAutoRefresh();
                         }
-                    }, 10000);
+                    }, 30000);
                 }
 
                 function showToolbar(selected) {
@@ -2091,6 +2174,8 @@ const editorTemplate = `<!DOCTYPE html>
                             editorContainer.innerHTML = dashboardContent;
                             // Prefer WebSocket stream; it will fallback to polling on error
                             connectDashboardWS();
+                            // Rebind listeners panel handlers after restoring DOM
+                            bindListenersPanelHandlers();
                         } else {
                             // Load dashboard content for first time
                             loadDashboardContent();
@@ -2123,15 +2208,27 @@ const editorTemplate = `<!DOCTYPE html>
                 tab.classList.remove('active');
             });
             document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
-            
-            currentTab = tabName;
+            // Toggle visible content for bottom panel
+            const out = document.getElementById('outputContent');
+            const probs = document.getElementById('problemsContent');
+            if (out && probs) {
+                if (tabName === 'problems') {
+                    out.style.display = 'none';
+                    probs.style.display = 'block';
+                } else {
+                    out.style.display = 'block';
+                    probs.style.display = 'none';
+                    tabName = 'output';
+                }
+            }
+            currentBottomTab = tabName;
             updateTabContent();
         }
         
         // Update tab content based on current tab
         function updateTabContent() {
             const content = document.getElementById('tabContent');
-            // Content will be updated by specific functions (showOutput, showProblems, etc.)
+            // Content will be updated by specific functions (showOutput, showProblem, etc.)
         }
 
         // Recursively render a JS object as a tree
@@ -2395,12 +2492,23 @@ const editorTemplate = `<!DOCTYPE html>
             return html;
         }
 
-        // Escape HTML for safe display
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }        
+        // Problems tab logger
+        function showProblem(text, level) {
+            const content = document.getElementById('problemsContent');
+            if (!content) return;
+            const timestamp = new Date().toLocaleTimeString();
+            let color = '#d4d4d4';
+            if (level === 'error') color = '#f44747';
+            else if (level === 'warn' || level === 'warning') color = '#d7ba7d';
+            else if (level === 'info') color = '#4fc1ff';
+            const line = document.createElement('div');
+            line.style.padding = '6px 8px';
+            line.style.borderBottom = '1px solid #3e3e42';
+            line.innerHTML = '[' + timestamp + '] <span style="color:' + color + '">' + escapeHtml(text) + '</span>';
+            content.appendChild(line);
+            // Auto-scroll to latest
+            content.scrollTop = content.scrollHeight;
+        }
         
         // Update Run button state based on editor content
         function updateRunButtonState() {
@@ -3094,11 +3202,10 @@ const editorTemplate = `<!DOCTYPE html>
             const elId = 'dashboardError';
             let el = document.getElementById(elId);
             if (!el) {
+                // Create hidden placeholder but we will not inject into DOM prominently
                 el = document.createElement('div');
                 el.id = elId;
-                el.className = 'error-message';
-                const container = document.querySelector('.dashboard-container') || document.body;
-                container.insertBefore(el, container.firstChild);
+                el.style.display = 'none';
             }
             // Hide when no text provided
             if (!text) {
@@ -3106,9 +3213,9 @@ const editorTemplate = `<!DOCTYPE html>
                 el.textContent = '';
                 return;
             }
-            // Otherwise show and set text
-            el.style.display = 'block';
-            el.textContent = text;
+            // Route transient alerts to Problems tab instead of visible banner
+            const level = (kind === 'warn' || kind === 'warning') ? 'warn' : (kind === 'error' ? 'error' : 'info');
+            showProblem(text, level);
         }
 
     function connectDashboardWS() {
@@ -3137,11 +3244,20 @@ const editorTemplate = `<!DOCTYPE html>
                     try {
                         const msg = JSON.parse(evt.data);
                         if (msg && msg.result === 'OK') {
-                            updateDashboardUI(msg.data);
-                            const dl = document.getElementById('dashboardLoading');
-                            const dc = document.getElementById('dashboardContent');
-                            if (dl) dl.style.display = 'none';
-                            if (dc) dc.style.display = 'block';
+                            // Throttle UI updates
+                            pendingDashboardData = msg.data;
+                            if (!dashboardWSUpdateTimer) {
+                                dashboardWSUpdateTimer = setTimeout(() => {
+                                    dashboardWSUpdateTimer = null;
+                                    const data = pendingDashboardData;
+                                    pendingDashboardData = null;
+                                    if (data) updateDashboardUI(data);
+                                    const dl = document.getElementById('dashboardLoading');
+                                    const dc = document.getElementById('dashboardContent');
+                                    if (dl) dl.style.display = 'none';
+                                    if (dc) dc.style.display = 'block';
+                                }, 500);
+                            }
                         }
                     } catch (e) {
                         console.warn('WS message parse error', e);
@@ -3224,10 +3340,9 @@ const editorTemplate = `<!DOCTYPE html>
                 const dashboardLoading = document.getElementById('dashboardLoading');
                 const dashboardContent = document.getElementById('dashboardContent');
 
-                if (dashboardError) {
-                    dashboardError.textContent = 'Failed to load dashboard data: ' + error.message;
-                    dashboardError.style.display = 'block';
-                }
+                // Route error to Problems tab, keep banner hidden
+                showProblem('Failed to load dashboard data: ' + error.message, 'error');
+                if (dashboardError) { dashboardError.style.display = 'none'; }
                 if (dashboardLoading) dashboardLoading.style.display = 'none';
                 if (dashboardContent) dashboardContent.style.display = 'none';
             }
@@ -3329,6 +3444,253 @@ const editorTemplate = `<!DOCTYPE html>
                     tbody.appendChild(row);
                 }
             }
+
+                        // Render listeners grid under sessions
+            const existing = document.getElementById('listenersSection');
+            if (!existing) {
+                const container = document.querySelector('.dashboard-container');
+                if (container) {
+                                        const section = document.createElement('div');
+                                        section.id = 'listenersSection';
+                                        // Match the Sessions panel styling exactly
+                                        section.className = 'sessions-section';
+                                        section.style.cssText = 'background: #2d2d30; border: 1px solid #3e3e42; border-radius: 8px; padding: 20px; margin-top: 20px;';
+                                        section.innerHTML = ''+
+                                            '<div style="display:flex; align-items:center; justify-content:space-between; margin: 0 0 20px 0;">' +
+                                                '<h3 style="margin: 0; color: #569cd6; font-size: 18px;">Listeners</h3>' +
+                                                '<div style="display:flex; gap:8px;">' +
+                                                    '<button id="createListenerBtn" class="toolbar-button">Create</button>' +
+                                                    '<button id="deleteListenerBtn" class="toolbar-button">Delete</button>' +
+                                                '</div>' +
+                                            '</div>' +
+                                            '<div style="overflow-x: auto;">' +
+                                                '<table style="width: 100%; border-collapse: collapse; color: #d4d4d4;">' +
+                                                    '<thead>' +
+                                                        '<tr style="border-bottom: 1px solid #3e3e42;">' +
+                                                            '<th style="text-align: left; padding: 12px; vertical-align: middle; width: 34px;">' +
+                                                                '<div style="display:flex; align-items:center;">' +
+                                                                    '<input type="checkbox" id="listenersSelectAll" style="margin:0;"/>' +
+                                                                '</div>' +
+                                                            '</th>' +
+                                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Name</th>' +
+                                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Status</th>' +
+                                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Auto Start</th>' +
+                                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Health</th>' +
+                                                            '<th style="text-align: left; padding: 12px; color: #569cd6;">Actions</th>' +
+                                                        '</tr>' +
+                                                    '</thead>' +
+                                                    '<tbody id="listenersTableBody">' +
+                                                    '</tbody>' +
+                                                '</table>' +
+                                            '</div>' +
+                                                // Delete confirm modal
+                                                '<div id="listenerDeleteConfirmOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">'+
+                                                    '<div style="background:#252526; color:#d4d4d4; border:1px solid #3e3e42; border-radius:6px; width:420px; max-width:90vw; box-shadow:0 6px 18px rgba(0,0,0,0.4);">'+
+                                                        '<div style="padding:14px 16px; border-bottom:1px solid #3e3e42; font-weight:600;">Confirm Delete</div>'+ 
+                                                        '<div style="padding:16px;">Delete selected Listeners?</div>'+ 
+                                                        '<div style="padding:12px 16px; border-top:1px solid #3e3e42; display:flex; justify-content:flex-end; gap:8px;">'+ 
+                                                            '<button id="listenerDeleteCancel" class="toolbar-button">Cancel</button>'+ 
+                                                            '<button id="listenerDeleteOk" class="toolbar-button" style="background-color:#dc3545;">OK</button>'+ 
+                                                        '</div>'+ 
+                                                    '</div>'+ 
+                                                '</div>'+
+                                                // Modal root
+                                                '<div id="listenerModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">'+
+                                                    '<div id="listenerModal" style="background:#252526; color:#d4d4d4; border:1px solid #3e3e42; border-radius:6px; width:520px; max-width:90vw; box-shadow:0 6px 18px rgba(0,0,0,0.4);">'+
+                                                        '<div style="padding:12px 16px; border-bottom:1px solid #3e3e42; display:flex; justify-content:space-between; align-items:center;">'+
+                                                            '<div id="listenerModalTitle" style="font-weight:600;">Create Listener</div>'+
+                                                            '<button id="listenerModalClose" class="toolbar-button">Close</button>'+ 
+                                                        '</div>'+ 
+                                                        '<div style="padding:16px; display:flex; flex-direction:column; gap:10px;">'+
+                                                            '<label style="display:flex; flex-direction:column; gap:4px;">Name<input id="listenerName" placeholder="orders-listener" style="padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #3e3e42; border-radius:4px;"/></label>'+ 
+                                                            '<label style="display:flex; flex-direction:column; gap:4px;">On Start<select id="listenerOnStartSelect" style="padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #3e3e42; border-radius:4px;"></select></label>'+ 
+                                                            '<label style="display:flex; flex-direction:column; gap:4px;">On Exit<select id="listenerOnExitSelect" style="padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #3e3e42; border-radius:4px;"></select></label>'+ 
+                                                            '<label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="listenerAutoStart"/> Auto Start</label>'+ 
+                                                        '</div>'+ 
+                                                        '<div style="padding:12px 16px; border-top:1px solid #3e3e42; display:flex; justify-content:flex-end; gap:8px;">'+ 
+                                                            '<button id="listenerModalCancel" class="toolbar-button">Cancel</button>'+ 
+                                                            '<button id="listenerModalSave" class="toolbar-button">Save</button>'+ 
+                                                        '</div>'+ 
+                                                    '</div>'+ 
+                                                '</div>';
+                                        container.appendChild(section);
+                                        // Bind all Listeners panel handlers once elements exist
+                                        bindListenersPanelHandlers();
+                }
+            }
+            const lbody = document.getElementById('listenersTableBody');
+            if (lbody) {
+                lbody.innerHTML = '';
+                const listeners = (data && data.listeners) || [];
+                if (listeners.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="6" style="text-align:center; padding:20px; color:#888;">No listeners</td>';
+                    lbody.appendChild(row);
+                } else {
+                    listeners.forEach(ls => {
+                        const row = document.createElement('tr');
+                        row.style.borderBottom = '1px solid #3e3e42';
+                        const status = ls.status || 'stopped';
+                        const health = ls.is_healthy ? 'Healthy' : 'Unhealthy';
+                        const isChecked = selectedListeners.has(ls.name || '');
+                        row.innerHTML =
+                            '<td style="padding:12px; width:34px; vertical-align:middle;">' +
+                                '<div style="display:flex; align-items:center;">' +
+                                    '<input type="checkbox" class="listenerRowChk" data-name="' + (ls.name || '') + '" style="margin:0;" ' + (isChecked ? 'checked' : '') + '/>' +
+                                '</div>' +
+                            '</td>'+
+                            '<td style="padding:12px;">' + escapeHtml(ls.name || '') + '</td>'+
+                            '<td style="padding:12px;">' + '<span style="color:' + (status==='running'?'#4ec9b0':'#f44747') + '">' + status + '</span></td>'+
+                            '<td style="padding:12px;">' + (ls.auto_start ? 'Yes' : 'No') + '</td>'+ 
+                            '<td style="padding:12px;">' + health + '</td>'+ 
+                            '<td style="padding:12px;">' +
+                                '<button class="toolbar-button" data-act="start">Start</button> ' +
+                                '<button class="toolbar-button" data-act="stop">Exit</button>' +
+                            '</td>';
+                        // Wire actions
+                        setTimeout(() => {
+                            const startBtn = row.querySelector('button[data-act="start"]');
+                            const stopBtn = row.querySelector('button[data-act="stop"]');
+                            const chk = row.querySelector('input.listenerRowChk');
+                            if (chk) {
+                                chk.addEventListener('change', (ev) => {
+                                    const name = chk.getAttribute('data-name') || '';
+                                    if (chk.checked) selectedListeners.add(name); else selectedListeners.delete(name);
+                                    // Update header checkbox tri-state
+                                    updateListenersHeaderCheckboxState(listeners);
+                                });
+                            }
+                            if (startBtn) startBtn.onclick = async () => {
+                                const resp = await fetch('/charioteer/api/listener/start?name=' + encodeURIComponent(ls.name), { method:'POST', headers: getAuthHeaders() });
+                                if (!resp.ok) { const t = await resp.text(); return alert('Start failed: ' + t); }
+                                fetchAndUpdateDashboard();
+                            };
+                            if (stopBtn) stopBtn.onclick = async () => {
+                                const resp = await fetch('/charioteer/api/listener/stop?name=' + encodeURIComponent(ls.name), { method:'POST', headers: getAuthHeaders() });
+                                if (!resp.ok) { const t = await resp.text(); return alert('Stop failed: ' + t); }
+                                fetchAndUpdateDashboard();
+                            };
+                        }, 0);
+                        lbody.appendChild(row);
+                    });
+                    // Update header checkbox based on selection
+                    updateListenersHeaderCheckboxState(listeners);
+                }
+            }
+        }
+
+        function updateListenersHeaderCheckboxState(listeners) {
+            const selAll = document.getElementById('listenersSelectAll');
+            if (!selAll) return;
+            const names = (listeners || []).map(ls => ls.name || '');
+            const allSelected = names.length > 0 && names.every(n => selectedListeners.has(n));
+            const noneSelected = names.every(n => !selectedListeners.has(n));
+            selAll.indeterminate = !allSelected && !noneSelected;
+            selAll.checked = allSelected;
+        }
+
+        function bindListenersPanelHandlers() {
+            const openModal = () => { const o = document.getElementById('listenerModalOverlay'); if (o) { o.style.display='flex'; }};
+            const closeModal = () => { const o = document.getElementById('listenerModalOverlay'); if (o) { o.style.display='none'; }};
+            const createBtn = document.getElementById('createListenerBtn');
+            const deleteBtn = document.getElementById('deleteListenerBtn');
+            const modalClose = document.getElementById('listenerModalClose');
+            const modalCancel = document.getElementById('listenerModalCancel');
+            const modalSave = document.getElementById('listenerModalSave');
+            const selAll = document.getElementById('listenersSelectAll');
+            const delOverlay = document.getElementById('listenerDeleteConfirmOverlay');
+            const delCancel = document.getElementById('listenerDeleteCancel');
+            const delOk = document.getElementById('listenerDeleteOk');
+
+            if (modalClose) modalClose.onclick = closeModal;
+            if (modalCancel) modalCancel.onclick = closeModal;
+            if (modalSave) modalSave.onclick = async () => {
+                const name = (document.getElementById('listenerName').value || '').trim();
+                const onStartSelect = document.getElementById('listenerOnStartSelect');
+                const onExitSelect = document.getElementById('listenerOnExitSelect');
+                const autoStart = !!(document.getElementById('listenerAutoStart') && document.getElementById('listenerAutoStart').checked);
+                const onStart = onStartSelect ? (onStartSelect.value || '').trim() : '';
+                const onExit = onExitSelect ? (onExitSelect.value || '').trim() : '';
+                if (!name) { alert('Name is required'); return; }
+                const resp = await fetch('/charioteer/api/listeners', {
+                    method: 'POST',
+                    headers: Object.assign({'Content-Type':'application/json'}, getAuthHeaders()),
+                    body: JSON.stringify({ name, on_start: onStart, on_exit: onExit, auto_start: autoStart })
+                });
+                if (!resp.ok) { const t = await resp.text(); alert('Create failed: ' + t); return; }
+                closeModal();
+                fetchAndUpdateDashboard();
+            };
+
+            if (createBtn) createBtn.onclick = async () => {
+                const t = document.getElementById('listenerModalTitle'); if (t) t.textContent = 'Create Listener';
+                const fields = ['listenerName'];
+                fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+                // Populate dropdowns from Files list
+                try {
+                    const url = getAPIPath('/api/files?folder=' + encodeURIComponent(CHARIOT_FILES_FOLDER));
+                    const response = await fetch(url, { headers: getAuthHeaders() });
+                    if (response.ok) {
+                        const result = await response.json();
+                        const files = (result && result.result === 'OK') ? result.data : [];
+                        const startSel = document.getElementById('listenerOnStartSelect');
+                        const exitSel = document.getElementById('listenerOnExitSelect');
+                        if (startSel) { startSel.innerHTML = '<option value="">Select a file...</option>'; }
+                        if (exitSel) { exitSel.innerHTML = '<option value="">Select a file...</option>'; }
+                        (files || []).forEach(file => {
+                            const opt1 = document.createElement('option'); opt1.value = file; opt1.textContent = file; if (startSel) startSel.appendChild(opt1);
+                            const opt2 = document.createElement('option'); opt2.value = file; opt2.textContent = file; if (exitSel) exitSel.appendChild(opt2);
+                        });
+                    }
+                } catch (e) { /* ignore */ }
+                openModal();
+            };
+            if (deleteBtn) deleteBtn.onclick = () => {
+                const names = Array.from(selectedListeners);
+                if (names.length === 0) { alert('Select one or more listeners to delete.'); return; }
+                if (delOverlay) delOverlay.style.display = 'flex';
+            };
+            if (delCancel) delCancel.onclick = () => { if (delOverlay) delOverlay.style.display = 'none'; };
+            if (delOk) delOk.onclick = async () => {
+                const names = Array.from(selectedListeners);
+                if (names.length === 0) { if (delOverlay) delOverlay.style.display = 'none'; return; }
+                // Optimistically remove from UI first
+                const lbody = document.getElementById('listenersTableBody');
+                if (lbody) {
+                    names.forEach(n => {
+                        const row = lbody.querySelector('input.listenerRowChk[data-name="' + CSS.escape(n) + '"]');
+                        if (row) {
+                            const tr = row.closest('tr');
+                            if (tr) tr.remove();
+                        }
+                    });
+                }
+                // Call backend to delete from registry JSON
+                for (const n of names) {
+                    const resp = await fetch('/charioteer/api/listener/delete?name=' + encodeURIComponent(n), { method: 'POST', headers: getAuthHeaders() });
+                    if (!resp.ok) {
+                        const t = await resp.text();
+                        alert('Delete failed for ' + n + ': ' + t);
+                        if (delOverlay) delOverlay.style.display = 'none';
+                        return;
+                    }
+                    selectedListeners.delete(n);
+                }
+                if (delOverlay) delOverlay.style.display = 'none';
+                // Refresh to reflect backend state
+                fetchAndUpdateDashboard();
+            };
+            if (selAll) selAll.onclick = () => {
+                const lbody = document.getElementById('listenersTableBody');
+                const checks = lbody ? Array.from(lbody.querySelectorAll('.listenerRowChk')) : [];
+                if (selAll.checked) {
+                    checks.forEach(chk => { chk.checked = true; selectedListeners.add(chk.getAttribute('data-name') || ''); });
+                } else {
+                    checks.forEach(chk => { chk.checked = false; selectedListeners.delete(chk.getAttribute('data-name') || ''); });
+                }
+                // Update indeterminate explicitly
+                selAll.indeterminate = false;
+            };
         }
 
         function escapeHtml(text) {
@@ -4581,6 +4943,20 @@ func main() {
 
 	// Dashboard API proxy route
 	http.HandleFunc("/charioteer/api/dashboard/status", authMiddleware(dashboardAPIHandler))
+	// Listener API proxy routes
+	http.HandleFunc("/charioteer/api/listeners", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			listenersListHandler(w, r)
+		case http.MethodPost:
+			listenersCreateHandler(w, r)
+		default:
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	}))
+	http.HandleFunc("/charioteer/api/listener/delete", authMiddleware(listenersDeleteHandler))
+	http.HandleFunc("/charioteer/api/listener/start", authMiddleware(listenersStartHandler))
+	http.HandleFunc("/charioteer/api/listener/stop", authMiddleware(listenersStopHandler))
 	// WebSocket proxy for dashboard stream (token passed as query param)
 	http.HandleFunc("/charioteer/ws/dashboard", dashboardWSProxyHandler)
 

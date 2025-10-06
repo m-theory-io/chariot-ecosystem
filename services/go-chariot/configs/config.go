@@ -13,13 +13,14 @@ const (
 )
 
 type Config struct {
-	Headless bool   `evar:"headless"` // Headless mode for the application
-	Port     int    `evar:"port"`     // Port for the application to listen on
-	Timeout  int    `evar:"timeout"`  // Timeout for operations in seconds
-	Verbose  bool   `evar:"verbose"`  // Verbose logging mode
-	SSL      bool   `evar:"ssl"`      // Enable SSL/TLS (false for nginx termination)
-	OnStart  string `evar:"on_start"` // Command to execute on start
-	OnExit   string `evar:"on_exit"`  // Command to execute on exit
+	Headless       bool   `evar:"headless"`         // Headless mode for the application
+	DevRESTEnabled bool   `evar:"dev_rest_enabled"` // Enable Dev REST API server (can run with or without headless)
+	Port           int    `evar:"port"`             // Port for the application to listen on
+	Timeout        int    `evar:"timeout"`          // Timeout for operations in seconds
+	Verbose        bool   `evar:"verbose"`          // Verbose logging mode
+	SSL            bool   `evar:"ssl"`              // Enable SSL/TLS (false for nginx termination)
+	OnStart        string `evar:"on_start"`         // Command to execute on start
+	OnExit         string `evar:"on_exit"`          // Command to execute on exit
 	// Couchbase
 	CBUrl      string `evar:"couchbase_url"`      // Couchbase connection URL
 	CBUser     string `evar:"couchbase_user"`     // Couchbase username
@@ -47,7 +48,8 @@ type Config struct {
 	// Function library
 	FunctionLib string `evar:"function_lib"` // Filename of the function library
 	Bootstrap   string `evar:"bootstrap"`    // Bootstrap script to run on startup
-
+	// Listeners registry persistence file (under data path)
+	ListenersFile string `evar:"listeners_file"`
 }
 
 var ChariotConfig = &Config{}

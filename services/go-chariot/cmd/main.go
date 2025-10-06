@@ -8,6 +8,7 @@ import (
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/listeners"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 	"go.uber.org/zap"
@@ -25,6 +26,8 @@ func init() {
 
 	// Read configuration from environment variables
 	cfg.ChariotConfig.BoolVar("headless", &cfg.ChariotConfig.Headless, false)
+	// Dev REST can be toggled independently of headless; default true to preserve current behavior
+	cfg.ChariotConfig.BoolVar("dev_rest_enabled", &cfg.ChariotConfig.DevRESTEnabled, true)
 	cfg.ChariotConfig.IntVar("port", &cfg.ChariotConfig.Port, 8087)
 	cfg.ChariotConfig.IntVar("timeout", &cfg.ChariotConfig.Timeout, 30)
 	cfg.ChariotConfig.BoolVar("verbose", &cfg.ChariotConfig.Verbose, false)
@@ -57,6 +60,8 @@ func init() {
 	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stlib.json")
 	// Bootstrap script
 	cfg.ChariotConfig.StringVar("bootstrap", &cfg.ChariotConfig.Bootstrap, "bootstrap.ch")
+	// Listeners registry file (under data path by default)
+	cfg.ChariotConfig.StringVar("listeners_file", &cfg.ChariotConfig.ListenersFile, "listeners.json")
 
 	// Bind evars
 	kissflag.BindAllEVars(cfg.ChariotConfig)
@@ -76,17 +81,56 @@ func main() {
 		return
 	}
 
+	// Optionally start headless session (does not block if Dev REST is also enabled)
 	if cfg.ChariotConfig.Headless {
-		token := "headless-session"
-		userID := "system"
-		session := sessionManager.NewSession(userID, slogger, token)
-		session.SetOnStart(cfg.ChariotConfig.OnStart) // e.g., "runDecisionService.ch"
-		session.SetOnExit(cfg.ChariotConfig.OnExit)   // e.g., "exitDecisionService.ch"
-		session.Run()
+		// Initialize a bootstrap runtime that mirrors the REST handlers runtime
+		bootstrapRuntime := chariot.NewRuntime()
+		chariot.RegisterAll(bootstrapRuntime)
 
-		// Wait for the session to finish (block main goroutine)
-		select {}
-	} else {
+		// Load stdlib functions from configured library and register them
+		if cfg.ChariotConfig.FunctionLib != "" {
+			if funcs, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
+				for name, fn := range funcs {
+					bootstrapRuntime.RegisterFunction(name, fn)
+				}
+			} else {
+				cfg.ChariotLogger.Warn("Failed to load function library", zap.String("file", cfg.ChariotConfig.FunctionLib), zap.Error(err))
+			}
+		}
+
+		// Optionally load bootstrap script (users, helpers, etc.)
+		if cfg.ChariotConfig.Bootstrap != "" {
+			if fullPath, err := chariot.GetSecureFilePath(cfg.ChariotConfig.Bootstrap, "data"); err == nil {
+				if content, err := os.ReadFile(fullPath); err == nil {
+					if _, err := bootstrapRuntime.ExecProgram(string(content)); err != nil {
+						cfg.ChariotLogger.Warn("Failed to execute bootstrap script in headless mode", zap.Error(err))
+					}
+				} else {
+					cfg.ChariotLogger.Warn("Failed to read bootstrap script in headless mode", zap.Error(err))
+				}
+			} else {
+				cfg.ChariotLogger.Warn("Failed to resolve bootstrap path in headless mode", zap.Error(err))
+			}
+		}
+
+		// Initialize listeners manager and auto-start listeners marked AutoStart
+		lman := listeners.NewManager(bootstrapRuntime)
+		if err := lman.Load(); err != nil {
+			cfg.ChariotLogger.Warn("Failed to load listeners registry in headless mode", zap.Error(err))
+		}
+		for _, l := range lman.List() {
+			if l.AutoStart {
+				if _, err := lman.Start(l.Name, cfg.ChariotConfig.Port); err != nil {
+					cfg.ChariotLogger.Warn("Failed to auto-start listener (headless)", zap.String("name", l.Name), zap.Error(err))
+				} else {
+					cfg.ChariotLogger.Info("Auto-started listener (headless)", zap.String("name", l.Name))
+				}
+			}
+		}
+	}
+
+	// Optionally start Dev REST API server
+	if cfg.ChariotConfig.DevRESTEnabled {
 		h := handlers.NewHandlers(sessionManager)
 		e := echo.New()
 		routes.RegisterRoutes(e, h)
@@ -122,13 +166,18 @@ func main() {
 		fmt.Println("Looking for cert at:", fullPathCrt)
 		fmt.Println("Looking for key at:", fullPathKey)
 
-		// Start server with or without SSL
+		// Start server with or without SSL (this call blocks)
 		if cfg.ChariotConfig.SSL {
 			fmt.Printf("Starting TLS server on port %d\n", cfg.ChariotConfig.Port)
 			e.Logger.Fatal(e.StartTLS(fmt.Sprintf(":%d", cfg.ChariotConfig.Port), fullPathCrt, fullPathKey))
 		} else {
 			fmt.Printf("Starting HTTP server on port %d (SSL disabled for nginx termination)\n", cfg.ChariotConfig.Port)
 			e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.ChariotConfig.Port)))
+		}
+	} else {
+		// If REST is disabled and headless is enabled, keep the process alive
+		if cfg.ChariotConfig.Headless {
+			select {}
 		}
 	}
 }

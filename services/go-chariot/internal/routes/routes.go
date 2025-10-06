@@ -24,6 +24,15 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	api.POST("/execute", h.Execute)
 	api.GET("/functions", h.ListFunctions)
 	api.POST("/function/save", h.SaveFunctionHandler)
+	api.POST("/functions/save-library", h.SaveFunctionLibraryHandler)
+
+	// Listener registry APIs
+	listeners := api.Group("/listeners")
+	listeners.GET("", h.ListListeners)              // GET /api/listeners
+	listeners.POST("", h.CreateListener)            // POST /api/listeners
+	listeners.DELETE("/:name", h.DeleteListener)    // DELETE /api/listeners/:name
+	listeners.POST("/:name/start", h.StartListener) // POST /api/listeners/:name/start
+	listeners.POST("/:name/stop", h.StopListener)   // POST /api/listeners/:name/stop
 
 	// Protected dashboard routes (require authentication)
 	dashboard := e.Group("/dashboard")

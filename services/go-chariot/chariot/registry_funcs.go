@@ -35,6 +35,7 @@ func RegisterAll(rt *Runtime) {
 	RegisterCryptoFunctions(rt)         // Registers crypto functions
 	RegisterAuthFuncs(rt)               // Registers auth functions
 	RegisterRBACFuncs(rt)               // Registers RBAC functions
+	RegisterCSVFunctions(rt)            // Registers CSV functions
 	RegisterTypeDispatchedFunctions(rt) // Registers polymorphic functions LAST
 
 	// Populate master registry from the runtime

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/listeners"
 	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
@@ -23,9 +25,10 @@ type ResultJSON struct {
 // Handlers holds all HTTP handlers and their dependencies
 type Handlers struct {
 	sessionManager   *chariot.SessionManager
-	bootstrapRuntime *chariot.Runtime // Global runtime for system operations
-	startTime        time.Time        // Service start time for uptime metrics
-	bootstrapLoaded  bool             // Indicates whether bootstrap script loaded successfully
+	bootstrapRuntime *chariot.Runtime   // Global runtime for system operations
+	startTime        time.Time          // Service start time for uptime metrics
+	bootstrapLoaded  bool               // Indicates whether bootstrap script loaded successfully
+	listenerManager  *listeners.Manager // Manages configured listeners
 }
 
 // NewHandlers creates a new Handlers instance with dependencies
@@ -56,12 +59,187 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 		}
 	}
 
+	// Initialize a listeners manager using the bootstrap runtime
+	lman := listeners.NewManager(bootstrapRuntime)
+	if err := lman.Load(); err != nil {
+		cfg.ChariotLogger.Warn("Failed to load listeners registry", zap.Error(err))
+	}
+	// In REST mode, do NOT auto-start listeners. Headless mode is responsible for starting
+	// listeners with auto_start=true (handled in cmd/main.go).
+
 	return &Handlers{
 		sessionManager:   sessionManager,
 		bootstrapRuntime: bootstrapRuntime,
 		startTime:        time.Now(),
 		bootstrapLoaded:  bootstrapLoaded,
+		listenerManager:  lman,
 	}
+}
+
+// Listener APIs
+type listenerCreateReq struct {
+	Name      string `json:"name"`
+	Script    string `json:"script"`
+	OnStart   string `json:"on_start"`
+	OnExit    string `json:"on_exit"`
+	AutoStart bool   `json:"auto_start"`
+}
+
+func (h *Handlers) ListListeners(c echo.Context) error {
+	ls := h.listenerManager.List()
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: ls})
+}
+
+func (h *Handlers) CreateListener(c echo.Context) error {
+	var req listenerCreateReq
+	if err := c.Bind(&req); err != nil || req.Name == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
+	}
+
+	// Convert selected files to stdlib functions and set hook names
+	toAdd := make(map[string]*chariot.FunctionValue)
+	processFile := func(fname string) (string, error) {
+		if fname == "" {
+			return "", nil
+		}
+		base := filepath.Base(fname)
+		name := strings.TrimSuffix(base, filepath.Ext(base))
+		// Files are under data/files; secure resolve
+		fullRel := filepath.Join("files", fname)
+		fullPath, err := chariot.GetSecureFilePath(fullRel, "data")
+		if err != nil {
+			return "", fmt.Errorf("resolve file: %w", err)
+		}
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			return "", fmt.Errorf("read file: %w", err)
+		}
+		if err := h.bootstrapRuntime.SaveFunction(name, string(content), ""); err != nil {
+			return "", fmt.Errorf("parse function: %w", err)
+		}
+		if fn, ok := h.bootstrapRuntime.GetFunction(name); ok {
+			toAdd[name] = fn
+		} else {
+			return "", fmt.Errorf("function not found after save: %s", name)
+		}
+		return name, nil
+	}
+
+	if newName, err := processFile(req.OnStart); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("on_start: %v", err)})
+	} else if newName != "" {
+		req.OnStart = newName
+	}
+	if newName, err := processFile(req.OnExit); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("on_exit: %v", err)})
+	} else if newName != "" {
+		req.OnExit = newName
+	}
+
+	if len(toAdd) > 0 {
+		funcs := make(map[string]*chariot.FunctionValue)
+		if cfg.ChariotConfig.FunctionLib != "" {
+			if existing, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
+				for k, v := range existing {
+					funcs[k] = v
+				}
+			}
+			for k, v := range toAdd {
+				funcs[k] = v
+			}
+			if err := chariot.SaveFunctionsToFile(funcs, cfg.ChariotConfig.FunctionLib); err != nil {
+				return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("save stdlib: %v", err)})
+			}
+			for name, fn := range toAdd {
+				h.bootstrapRuntime.RegisterFunction(name, fn)
+			}
+		}
+	}
+
+	l, err := h.listenerManager.Create(req.Name, req.Script, req.OnStart, req.OnExit, req.AutoStart)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: l})
+}
+
+// SaveFunctionLibraryHandler saves multiple functions into the shared stdlib file
+// Expects JSON: { "functions": { "name": { /* FunctionValue map form */ } } }
+func (h *Handlers) SaveFunctionLibraryHandler(c echo.Context) error {
+	// Parse body
+	var req struct {
+		Functions map[string]map[string]interface{} `json:"functions"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
+	}
+	if len(req.Functions) == 0 {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "no functions provided"})
+	}
+	// Merge with existing library (load, then overwrite keys)
+	funcs := make(map[string]*chariot.FunctionValue)
+	if cfg.ChariotConfig.FunctionLib != "" {
+		if existing, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
+			for k, v := range existing {
+				funcs[k] = v
+			}
+		}
+	}
+	// Convert incoming maps to FunctionValue via deserializer
+	for name, m := range req.Functions {
+		if fv, err := chariot.MapToFunctionValue(m); err == nil {
+			funcs[name] = fv
+		} else {
+			return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("invalid function '%s': %v", name, err)})
+		}
+	}
+	// Save back to stdlib file
+	if cfg.ChariotConfig.FunctionLib == "" {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: "function_lib not configured"})
+	}
+	if err := chariot.SaveFunctionsToFile(funcs, cfg.ChariotConfig.FunctionLib); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	// Also refresh bootstrap runtime registered functions for immediate availability
+	for name, fn := range funcs {
+		h.bootstrapRuntime.RegisterFunction(name, fn)
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: "library saved"})
+}
+
+func (h *Handlers) DeleteListener(c echo.Context) error {
+	name := c.Param("name")
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
+	}
+	if err := h.listenerManager.Delete(name); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]string{"deleted": name}})
+}
+
+func (h *Handlers) StartListener(c echo.Context) error {
+	name := c.Param("name")
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
+	}
+	l, err := h.listenerManager.Start(name, cfg.ChariotConfig.Port)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: l})
+}
+
+func (h *Handlers) StopListener(c echo.Context) error {
+	name := c.Param("name")
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
+	}
+	l, err := h.listenerManager.Stop(name, cfg.ChariotConfig.Port)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: l})
 }
 
 func (h *Handlers) Execute(c echo.Context) error {

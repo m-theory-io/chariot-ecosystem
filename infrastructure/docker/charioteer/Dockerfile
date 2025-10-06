@@ -41,9 +41,10 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     curl \
-    openssl
+    openssl \
+    su-exec
 
-# Create non-root user
+# Create non-root user (we will drop privileges in entrypoint)
 RUN addgroup -g 1001 charioteer && \
     adduser -D -s /bin/sh -u 1001 -G charioteer charioteer
 
@@ -64,8 +65,8 @@ COPY --chown=charioteer:charioteer services/charioteer/files/ /app/files/
 COPY --chown=charioteer:charioteer services/charioteer/entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh
 
-# Switch to non-root user
-USER charioteer
+# NOTE: Do not switch user here; entrypoint runs as root to fix permissions
+# and then drops privileges to UID 1001 using su-exec.
 
 # Expose port 8080
 EXPOSE 8080
