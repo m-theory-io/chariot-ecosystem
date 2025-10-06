@@ -177,7 +177,7 @@ func (n *CSVNode) StreamProcess(chunkSize int, processor func([][]string) error)
 
 // Metadata-based accessors (memory efficient)
 func (n *CSVNode) GetHeaders() []string {
-	if headersAttr, exists := n.GetAttribute("headers"); exists {
+	if headersAttr, exists := n.GetMeta("headers"); exists {
 		if h, ok := convertValueToNative(headersAttr).([]interface{}); ok {
 			headers := make([]string, len(h))
 			for i, v := range h {

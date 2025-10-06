@@ -40,3 +40,7 @@ certs/
 *.key
 
 *.zip
+cookie_secret
+services/go-chariot/cmd/cmd
+services/charioteer/charioteer
+

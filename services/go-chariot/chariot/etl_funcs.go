@@ -1049,6 +1049,7 @@ func ProcessETLJob(rt *Runtime, etlJob TreeNode) error {
 						case "sql":
 							// Cast to SQL node and insert
 							if sqlNode, ok := actualTargetNode.(*SQLNode); ok {
+								// fmt.Printf("sqlRow: %v", sqlRow)
 								err := sqlNode.Insert(sqlRow)
 								if err != nil {
 									errorMsg := fmt.Sprintf("SQL insert failed for row %d: %v", globalRowIndex+i, err)

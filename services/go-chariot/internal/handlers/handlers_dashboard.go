@@ -130,7 +130,7 @@ func (h *Handlers) HandleDashboard(c echo.Context) error {
             </div>
             
             <div class="card">
-                <h3>🎯 Listeners</h3>
+				<h3>Listeners</h3>
                 <div id="listeners" class="loading">Loading...</div>
             </div>
             
@@ -379,6 +379,21 @@ func (h *Handlers) collectDashboardData() DashboardData {
 		activeSessions = append(activeSessions, si)
 	}
 
+	// Pull listeners from registry
+	var lInfos []ListenerInfo
+	if h.listenerManager != nil {
+		for _, l := range h.listenerManager.List() {
+			lInfos = append(lInfos, ListenerInfo{
+				Name:       l.Name,
+				Status:     l.Status,
+				StartTime:  l.StartTime,
+				Script:     l.Script,
+				LastActive: l.LastActive,
+				IsHealthy:  l.IsHealthy,
+			})
+		}
+	}
+
 	return DashboardData{
 		ServerStatus: ServerStatus{
 			Status:    "running",
@@ -417,6 +432,6 @@ func (h *Handlers) collectDashboardData() DashboardData {
 			CBBucket:   cfg.ChariotConfig.CBBucket,
 		},
 		ActiveSessions: activeSessions,
-		Listeners:      []ListenerInfo{}, // For now, empty - we'll add listener support later
+		Listeners:      lInfos,
 	}
 }

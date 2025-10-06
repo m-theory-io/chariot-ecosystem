@@ -667,6 +667,15 @@ func (rt *Runtime) ListFunctions() *ArrayValue {
 	return &ArrayValue{Elements: functions}
 }
 
+// ListUserFunctionsMap returns a shallow copy of the runtime's user-defined functions map
+func (rt *Runtime) ListUserFunctionsMap() map[string]*FunctionValue {
+	out := make(map[string]*FunctionValue, len(rt.functions))
+	for k, v := range rt.functions {
+		out[k] = v
+	}
+	return out
+}
+
 func (rt *Runtime) LoadConfiguredFunctionLib() error {
 	libFile := cfg.ChariotConfig.FunctionLib
 	if libFile == "" {
@@ -787,11 +796,19 @@ func (e *Evaluator) Evaluate(node TreeNode) (Value, error) {
 	return nil, fmt.Errorf("unsupported node type: %v", nodeType)
 }
 
-func (rt *Runtime) RunProgram(onstart string, port int) error {
-	// This is a placeholder for running a program with an onstart function and port
-	// In a real implementation, this would set up the environment and start the program
-	fmt.Printf("Running program with onstart: %s on port %d\n", onstart, port)
-	return nil
+func (rt *Runtime) RunProgram(entry string, port int) error {
+	// Execute a registered stdlib function by name if present; otherwise treat as code string
+	if entry == "" {
+		return nil
+	}
+	if fn, ok := rt.functions[entry]; ok {
+		// Call with one argument: port (optional for functions that accept it)
+		_, err := executeFunctionValue(rt, fn, []Value{Number(port)})
+		return err
+	}
+	// Fallback: attempt to execute raw code string
+	_, err := rt.ExecProgram(entry)
+	return err
 }
 
 // SetDefaultDocPath changes the default path for document operations

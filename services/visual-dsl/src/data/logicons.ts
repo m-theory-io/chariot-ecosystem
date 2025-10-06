@@ -3,7 +3,7 @@ export interface LogiconData {
   label: string;
   icon: string;
   description: string;
-  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'node' | 'sql' | 'string' | 'system' | 'tree' | 'value';
+  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
 }
 
 export const logiconDefinitions: LogiconData[] = [
@@ -704,6 +704,57 @@ export const logiconDefinitions: LogiconData[] = [
     icon: '📄',
     description: 'Create YAML node',
     category: 'node'
+  },
+
+  // CSV Functions
+  {
+    id: 'csvHeaders',
+    label: 'CSV Headers',
+    icon: '📄',
+    description: 'Get CSV Headers',
+    category: 'csv'
+  },
+  {
+    id: 'csvRowCount',
+    label: 'CSV Row Count',
+    icon: '📄',
+    description: 'Get CSV Row Count',
+    category: 'csv'
+  },
+  {
+    id: 'csvColumnCount',
+    label: 'CSV Column Count',
+    icon: '📄',
+    description: 'Get CSV Column Count',
+    category: 'csv'
+  },
+  {
+    id: 'csvGetRow',
+    label: 'CSV Get Row',
+    icon: '📄',
+    description: 'Get CSV Row at row number',
+    category: 'csv'
+  },
+  {
+    id: 'csvGetCell',
+    label: 'CSV Get Cell',
+    icon: '📄',
+    description: 'Get CSV Cell from file by row and col numbers',
+    category: 'csv'
+  },
+  {
+    id: 'csvToCSV',
+    label: 'CSV to CSV',
+    icon: '📄',
+    description: 'Read CSV file and return normalized string',
+    category: 'csv'
+  },
+  {
+    id: 'csvLoad',
+    label: 'CSV node load from file',
+    icon: '📄',
+    description: 'Read CSV file into CSVNode',
+    category: 'csv'
   },
 
   // SQL Functions

@@ -1,6 +1,7 @@
 package chariot
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -458,7 +459,12 @@ func (t *Transform) convertToSQLType(value Value, dataType string) (interface{},
 		// Fallback: convert to native and then to string
 		stringValue = fmt.Sprintf("%v", convertValueToNative(value))
 	}
-
+	// Trim at left paren
+	tparts := strings.Split(dataType, "(")
+	if len(tparts) > 1 {
+		dataType = tparts[0]
+	}
+	// Evaluate type for value conversion
 	switch strings.ToUpper(dataType) {
 	case "INT", "INTEGER":
 		if num, ok := value.(Number); ok {
@@ -466,17 +472,36 @@ func (t *Transform) convertToSQLType(value Value, dataType string) (interface{},
 		}
 		return strconv.Atoi(stringValue)
 
+	case "INT UNSIGNED", "UNSIGNED INT":
+		if num, ok := value.(Number); ok {
+			return uint(num), nil
+		}
+		if isNumeric(stringValue) {
+			ui, err := strconv.ParseUint(stringValue, 10, 64)
+			return ui, err
+		}
+		return 0, nil
+
 	case "DECIMAL", "FLOAT":
 		if num, ok := value.(Number); ok {
 			return float64(num), nil
 		}
 		return strconv.ParseFloat(stringValue, 64)
 
-	case "VARCHAR", "TEXT", "STRING":
+	case "VARCHAR", "TEXT", "STRING", "CHAR":
 		return stringValue, nil
 
 	case "DATETIME", "TIMESTAMP":
+		if stringValue == "" {
+			return sql.NullTime{Valid: false}, nil
+		}
 		return time.Parse("2006-01-02 15:04:05", stringValue)
+
+	case "DATE":
+		if stringValue == "" {
+			return sql.NullTime{Valid: false}, nil
+		}
+		return time.Parse("2006-01-02", stringValue)
 
 	case "BOOL", "BOOLEAN":
 		if b, ok := value.(Bool); ok {

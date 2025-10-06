@@ -1,0 +1,6 @@
+- Clarify use of tables with database queries
+- Make result caching switchable with a SQLNode meta flag
+- Also make result caching switchabe for Couchbase nodes
+- Write an isValidProgram function to validate submitted code
+- Write a test case that demonstrates no-cache, lightweight database queries for general DB work
+- Write a test case that uses DB result caching to load a body of data that is then accessed from cache for high-speed analytics 
