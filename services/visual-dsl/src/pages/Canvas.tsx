@@ -6,6 +6,7 @@ import "reactflow/dist/style.css";
 import { LogiconPalette } from "../components/LogiconPalette";
 import { LogiconNode } from "../components/LogiconNode";
 import { GroupNode } from "../components/GroupNode";
+import SubflowFrame from "../components/SubflowFrame";
 import { ContextMenu } from "../components/ContextMenu";
 import { DiagramToolbar } from "../components/DiagramToolbar";
 import { StartNodePropertiesDialog, StartNodeProperties } from "../components/dialogs/StartNodeProperties";
@@ -30,6 +31,7 @@ import { NestingToggle } from "../components/NestingToggle";
 import { useTheme } from "../contexts/ThemeContext";
 import { useFlowControl } from "../contexts/FlowControlContext";
 import { useNesting } from "../contexts/NestingContext";
+import type { Subflow } from "../contexts/NestingContext";
 import { LogiconData } from "../data/logicons";
 
 // Diagram persistence types
@@ -38,6 +40,7 @@ interface DiagramData {
   nodes: Node[];
   edges: Edge[];
   nestingRelations: any[];
+  subflows?: Record<string, Subflow>;
   groupCount: number;
   created: string;
   modified: string;
@@ -67,7 +70,7 @@ const nodeTypes = {
 export default function VisualDSLPrototype() {
   const { theme } = useTheme();
   const { direction, selectedNodeId, setSelectedNodeId } = useFlowControl();
-  const { nestingMode, selectedParentId, setSelectedParentId, nestingRelations, addNestingRelation, getChildrenOf, removeNestingRelation, setNestingMode } = useNesting();
+  const { nestingMode, selectedParentId, setSelectedParentId, nestingRelations, addNestingRelation, getChildrenOf, removeNestingRelation, setNestingMode, wrapGroupAsSubflow, isSubflow, getSubflow, getAllSubflows, replaceAllSubflows } = useNesting();
   const [nodes, setNodes] = React.useState<Node[]>(initialNodes);
   const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
   
@@ -96,6 +99,8 @@ export default function VisualDSLPrototype() {
     properties: any;
   } | null>(null);
 
+  // No auto-subflow wrapping; manual only
+
   // Diagram persistence functions
   const createDiagramData = (): DiagramData => {
     return {
@@ -103,6 +108,7 @@ export default function VisualDSLPrototype() {
       nodes,
       edges,
       nestingRelations,
+      subflows: getAllSubflows(),
       groupCount,
       created: new Date().toISOString(),
       modified: new Date().toISOString()
@@ -165,7 +171,7 @@ export default function VisualDSLPrototype() {
         console.warn(`Removed ${originalEdges.length - uniqueEdges.length} duplicate edges during diagram load`);
       }
       
-      setNodes(uniqueNodes);
+  setNodes(uniqueNodes);
       setEdges(uniqueEdges);
       setGroupCount(diagramData.groupCount || 0);
       
@@ -182,6 +188,14 @@ export default function VisualDSLPrototype() {
         diagramData.nestingRelations.forEach(rel => {
           addNestingRelation(rel);
         });
+      }
+
+      // Restore subflows (metadata like names/collapsed state)
+      if (diagramData.subflows) {
+        replaceAllSubflows(diagramData.subflows);
+      } else {
+        // If none saved, let auto-sync rebuild from nestingRelations
+        replaceAllSubflows({});
       }
       
       // Clear selections
@@ -272,6 +286,43 @@ export default function VisualDSLPrototype() {
     
     alert(`Diagram "${currentDiagramName}" downloaded to your Downloads folder.\n\nTip: To save to the diagrams/ folder, manually move the file from Downloads to your project's diagrams/ directory.`);
   };
+
+  // Subflow: wrap selected context as a subflow
+  const wrapSelectedGroupAsSubflow = React.useCallback(() => {
+    // Determine parent candidate from multiple contexts
+    let candidateParentId: string | null = null;
+    if (nestingMode && selectedParentId) {
+      candidateParentId = selectedParentId;
+    } else if (selectedNodeId) {
+      if (selectedNodeId.startsWith('group-')) {
+        candidateParentId = selectedNodeId.replace(/^group-/, '');
+      } else if (nestingRelations.some(rel => rel.parentId === selectedNodeId)) {
+        candidateParentId = selectedNodeId;
+      } else {
+        const parentRel = nestingRelations.find(rel => rel.childId === selectedNodeId);
+        if (parentRel) candidateParentId = parentRel.parentId;
+      }
+    }
+    if (!candidateParentId) {
+      console.warn('Wrap as Subflow: no valid parent context found');
+      return;
+    }
+    const groupId = `group-${candidateParentId}`;
+    if (isSubflow(groupId)) return;
+
+    // Ensure a group container node exists so the frame has bounds to anchor to
+    const groupExists = nodes.some(n => n.id === groupId);
+    if (!groupExists) {
+      const kids = getChildrenOf(candidateParentId);
+      if (kids.length > 0) {
+        // create group based on current layout of parent+children
+        createGroupForNesting(candidateParentId, kids[0].childId);
+      }
+    }
+
+    console.log('Wrapping as subflow:', { parentId: candidateParentId, groupId });
+    wrapGroupAsSubflow(groupId, { name: `${candidateParentId} Subflow` });
+  }, [nestingMode, selectedParentId, selectedNodeId, nestingRelations, isSubflow, wrapGroupAsSubflow, nodes]);
 
   // Delete node and handle nesting group logic
   const deleteNode = (nodeId: string) => {
@@ -433,12 +484,10 @@ export default function VisualDSLPrototype() {
       nodes.map((node) => {
         if (node.id === nodeId) {
           const updatedNode = { ...node, data: { ...node.data, properties } };
-          
           // If this is a Start node, sync the diagram name with the Start node's name
-          if (node.data.label === 'Start' && properties.name) {
-            setCurrentDiagramName(properties.name);
+          if (node.data.label === 'Start' && (properties as any).name) {
+            setCurrentDiagramName((properties as any).name);
           }
-          
           return updatedNode;
         }
         return node;
@@ -471,8 +520,69 @@ export default function VisualDSLPrototype() {
   }, []);
 
   const onNodesChange = React.useCallback(
-    (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
+    (changes: NodeChange[]) => {
+      setNodes((prev) => {
+        // First, apply the default changes
+        let next = applyNodeChanges(changes, prev);
+        // Then, if a group node moved, move its parent and children by the same delta
+        const positionChanges = changes.filter((c: any) => c.type === 'position' && typeof c.id === 'string' && c.id.startsWith('group-')) as any[];
+        for (const ch of positionChanges) {
+          const groupId = ch.id as string;
+          const parentId = groupId.replace(/^group-/, '');
+          const prevGroup = prev.find(n => n.id === groupId);
+          const newGroup = next.find(n => n.id === groupId);
+          if (!prevGroup || !newGroup) continue;
+          const dx = (newGroup.position.x - prevGroup.position.x);
+          const dy = (newGroup.position.y - prevGroup.position.y);
+          if (dx === 0 && dy === 0) continue;
+          const children = getChildrenOf(parentId).map(c => c.childId);
+          const affectedIds = new Set<string>([parentId, ...children]);
+          next = next.map(n => {
+            if (affectedIds.has(n.id)) {
+              return { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } };
+            }
+            return n;
+          });
+        }
+
+        // Also: if a parent or child in a subflow moved, treat it as dragging the entire subflow
+        const nodePositionChanges = changes.filter((c: any) => c.type === 'position' && typeof c.id === 'string' && !String(c.id).startsWith('group-')) as any[];
+        for (const ch of nodePositionChanges) {
+          const movedId = ch.id as string;
+          // Determine if this node is a parent or a child in a nesting group
+          let parentId: string | null = null;
+          const isParent = getChildrenOf(movedId).length > 0;
+          if (isParent) {
+            parentId = movedId;
+          } else {
+            const rel = nestingRelations.find(r => r.childId === movedId);
+            parentId = rel ? rel.parentId : null;
+          }
+          if (!parentId) continue;
+          const groupId = `group-${parentId}`;
+          const prevNode = prev.find(n => n.id === movedId);
+          const nextNode = next.find(n => n.id === movedId);
+          if (!prevNode || !nextNode) continue;
+          const dx = (nextNode.position.x - prevNode.position.x);
+          const dy = (nextNode.position.y - prevNode.position.y);
+          if (dx === 0 && dy === 0) continue;
+
+          const children = getChildrenOf(parentId).map(c => c.childId);
+          const affectedIds = new Set<string>([parentId, ...children]);
+          next = next.map(n => {
+            if (n.id === groupId) {
+              return { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } };
+            }
+            if (affectedIds.has(n.id) && n.id !== movedId) {
+              return { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } };
+            }
+            return n;
+          });
+        }
+        return next;
+      });
+    },
+    [getChildrenOf, nestingRelations]
   );
   const onEdgesChange = React.useCallback(
     (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
@@ -530,15 +640,17 @@ export default function VisualDSLPrototype() {
         const groupBounds = calculateGroupBoundsForNodes(currentNodes, parentId);
         if (!groupBounds) return currentNodes;
         
-        const padding = 30;
+        const padding = 15; // exact desired margin
         return currentNodes.map(node => {
           if (node.id === existingGroupId) {
+            const containerWidth = groupBounds.width + (padding * 2);
+            const containerHeight = groupBounds.height + (padding * 2);
             return {
               ...node,
-              position: { x: groupBounds.minX - padding, y: groupBounds.minY - padding },
+              position: { x: (groupBounds.minX - padding), y: (groupBounds.minY - padding) },
               style: {
-                width: groupBounds.width + (padding * 2),
-                height: groupBounds.height + (padding * 2),
+                width: containerWidth,
+                height: containerHeight,
               }
             };
           }
@@ -549,21 +661,21 @@ export default function VisualDSLPrototype() {
         const groupBounds = calculateGroupBoundsForNodes(currentNodes, parentId);
         if (!groupBounds) return currentNodes;
         
-        const padding = 30;
+        const padding = 15;
         const groupId = `group-${parentId}`;
         const groupNode: Node = {
           id: groupId,
           type: 'group',
-          position: { x: groupBounds.minX - padding, y: groupBounds.minY - padding },
+          position: { x: (groupBounds.minX - padding), y: (groupBounds.minY - padding) },
           style: {
-            width: groupBounds.width + (padding * 2),
+            width: (groupBounds.width + (padding * 2)),
             height: groupBounds.height + (padding * 2),
           },
           data: {
             label: `${parentNode.data.label}(...)`,
           },
           zIndex: 0,
-          draggable: false,
+          draggable: true,
         };
         
         return [...currentNodes, groupNode];
@@ -576,17 +688,19 @@ export default function VisualDSLPrototype() {
     const groupBounds = calculateGroupBounds(parentId);
     if (!groupBounds) return;
     
-    const padding = 30;
+    const padding = 15;
     const groupId = `group-${parentId}`;
     
     setNodes(nds => nds.map(node => {
       if (node.id === groupId) {
+        const containerWidth = groupBounds.width + (padding * 2);
+        const containerHeight2 = groupBounds.height + (padding * 2);
         return {
           ...node,
-          position: { x: groupBounds.minX - padding, y: groupBounds.minY - padding },
+          position: { x: (groupBounds.minX - padding), y: (groupBounds.minY - padding) },
           style: {
-            width: groupBounds.width + (padding * 2),
-            height: groupBounds.height + (padding * 2),
+            width: containerWidth,
+            height: containerHeight2,
           }
         };
       }
@@ -725,11 +839,17 @@ export default function VisualDSLPrototype() {
     
     if (groupNodes.length === 0) return null;
     
-    // Calculate bounds
+    // Calculate bounds using measured node sizes when available
+  const DEFAULT_W = 140;
+  const DEFAULT_H = 90;
     const minX = Math.min(...groupNodes.map(n => n.position.x));
-    const maxX = Math.max(...groupNodes.map(n => n.position.x + 150)); // Assuming node width ~150
+    const maxX = Math.max(
+      ...groupNodes.map(n => n.position.x + (typeof (n as any).width === 'number' ? (n as any).width : DEFAULT_W))
+    );
     const minY = Math.min(...groupNodes.map(n => n.position.y));
-    const maxY = Math.max(...groupNodes.map(n => n.position.y + 80)); // Assuming node height ~80
+    const maxY = Math.max(
+      ...groupNodes.map(n => n.position.y + (typeof (n as any).height === 'number' ? (n as any).height : DEFAULT_H))
+    );
     
     return {
       minX,
@@ -760,11 +880,17 @@ export default function VisualDSLPrototype() {
       return null;
     }
     
-    // Calculate bounds
+    // Calculate bounds using measured node sizes when available
+  const DEFAULT_W = 140;
+  const DEFAULT_H = 90;
     const minX = Math.min(...groupNodes.map(n => n.position.x));
-    const maxX = Math.max(...groupNodes.map(n => n.position.x + 150)); // Assuming node width ~150
+    const maxX = Math.max(
+      ...groupNodes.map(n => n.position.x + (typeof (n as any).width === 'number' ? (n as any).width : DEFAULT_W))
+    );
     const minY = Math.min(...groupNodes.map(n => n.position.y));
-    const maxY = Math.max(...groupNodes.map(n => n.position.y + 80)); // Assuming node height ~80
+    const maxY = Math.max(
+      ...groupNodes.map(n => n.position.y + (typeof (n as any).height === 'number' ? (n as any).height : DEFAULT_H))
+    );
     
     return {
       minX,
@@ -910,6 +1036,12 @@ export default function VisualDSLPrototype() {
       // Simple approach - just add the nodes and edges, visual grouping handled by CSS
       setNodes((nds) => [...nds, newNode]);
       setEdges((eds) => [...eds, newEdge]);
+      // Auto-create/update the group container for subflow visuals
+      if (isFirstChild) {
+        setTimeout(() => createGroupForNesting(selectedParentId, id), 0);
+      } else {
+        setTimeout(() => updateGroupBounds(selectedParentId), 0);
+      }
       
       return;
     }
@@ -959,8 +1091,10 @@ export default function VisualDSLPrototype() {
             break;
           case 'right':
             newPosition = {
-              x: groupBounds.maxX + 150,
-              y: groupBounds.centerY
+              // place outside the group plus the group padding (15)
+              x: groupBounds.maxX + 150 + 15,
+              // keep the same vertical placement as the selected/reference node
+              y: referenceNode.position.y
             };
             break;
           case 'up':
@@ -1037,9 +1171,11 @@ export default function VisualDSLPrototype() {
         targetHandle = 'top';
     }
 
+    // If reference node is a nesting parent, connect from the group's right edge logically
+    const parentForEdge = referenceNode.id;
     const newEdge: Edge = {
-      id: `${referenceNode.id}-${id}`,
-      source: referenceNode.id,
+      id: `${parentForEdge}-${id}`,
+      source: parentForEdge,
       target: id,
       sourceHandle,
       targetHandle,
@@ -1082,6 +1218,31 @@ export default function VisualDSLPrototype() {
           <div className="flex-shrink-0">
             <NestingToggle />
           </div>
+
+          {/* Subflow actions */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={wrapSelectedGroupAsSubflow}
+              className="w-full mt-2 h-8 text-xs px-3 rounded bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-indigo-800 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-600"
+              title="Wrap selected group as Subflow"
+              disabled={(() => {
+                let candidateParentId: string | null = null;
+                if (nestingMode && selectedParentId) candidateParentId = selectedParentId;
+                else if (selectedNodeId) {
+                  if (selectedNodeId.startsWith('group-')) candidateParentId = selectedNodeId.replace(/^group-/, '');
+                  else if (nestingRelations.some(rel => rel.parentId === selectedNodeId)) candidateParentId = selectedNodeId;
+                  else {
+                    const parentRel = nestingRelations.find(rel => rel.childId === selectedNodeId);
+                    if (parentRel) candidateParentId = parentRel.parentId;
+                  }
+                }
+                if (!candidateParentId) return true;
+                return isSubflow(`group-${candidateParentId}`);
+              })()}
+            >
+              🧩 Wrap as Subflow
+            </button>
+          </div>
           
           {/* Debug info */}
           <div className="text-xs text-gray-500 dark:text-gray-400 p-2 bg-gray-100 dark:bg-gray-800 rounded flex-shrink-0">
@@ -1106,7 +1267,7 @@ export default function VisualDSLPrototype() {
         </div>
 
         {/* Canvas - Restore proper sizing */}
-        <div className="flex-1 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+  <div className="flex-1 bg-gray-100 dark:bg-gray-900 relative overflow-hidden">
           {nestingMode && selectedParentId && (
             <div className="absolute top-4 right-4 z-10 bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 shadow-lg max-w-xs">
               <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
@@ -1187,7 +1348,7 @@ export default function VisualDSLPrototype() {
             nodeTypes={nodeTypes}
             defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
             fitView={false}
-            className="bg-gray-50 dark:bg-gray-900"
+            className="bg-gray-100 dark:bg-gray-900"
           >
             <MiniMap 
               nodeColor={(node) => {
@@ -1223,6 +1384,22 @@ export default function VisualDSLPrototype() {
               color={theme === 'dark' ? '#374151' : '#e5e7eb'}
             />
           </ReactFlow>
+
+          {/* Subflow overlays for group nodes */}
+          {nodes.filter(n => n.type === 'group').map(g => {
+            const sf = getSubflow(g.id);
+            if (!sf) return null;
+            const style: any = g.style || {};
+            const bounds = {
+              x: g.position.x,
+              y: g.position.y,
+              width: Number(style.width || 300),
+              height: Number(style.height || 200),
+            };
+            return (
+              <SubflowFrame key={`sf-${g.id}`} groupId={g.id} bounds={bounds} />
+            );
+          })}
           {contextMenu && (
             <ContextMenu
               x={contextMenu.x}

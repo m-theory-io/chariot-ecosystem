@@ -13,7 +13,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
     // Structural/Architectural functions first
     'tree', 'node', 'control', 'array', 
     // Data manipulation and construction
-    'value', 'json', 'file', 'couchbase', 'sql',
+    'value', 'json', 'csv', 'file', 'couchbase', 'sql',
     // Infrastructure and system
     'system', 'host', 'dispatcher', 'etl',
     // Procedural/leaf functions last
@@ -56,6 +56,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
       'host': 'Host',
       'json': 'JSON',
       'node': 'Node',
+      'csv': 'CSV',
       'sql': 'SQL',
       'tree': 'Tree'
     };
