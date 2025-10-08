@@ -47,6 +47,8 @@ export class ChariotCodeGenerator {
     
     // Build node map
     diagram.nodes.forEach(node => {
+      // Ignore visual-only group nodes
+      if (node.type === 'group') return;
       this.nodeMap.set(node.id, node);
     });
     
@@ -147,7 +149,10 @@ export class ChariotCodeGenerator {
     if (!startNode) {
       // If no start node, use first node
       if (this.diagram.nodes.length > 0) {
-        this.executionOrder = this.diagram.nodes.map(n => n.id);
+        // Exclude visual-only group nodes
+        this.executionOrder = this.diagram.nodes
+          .filter(n => n.type !== 'group')
+          .map(n => n.id);
       }
       return;
     }
@@ -207,6 +212,7 @@ export class ChariotCodeGenerator {
     
     // Add any unvisited nodes (isolated nodes) at the end
     this.diagram.nodes.forEach(node => {
+      if (node.type === 'group') return; // skip visual-only nodes
       if (!visited.has(node.id)) {
         this.executionOrder.push(node.id);
       }
@@ -581,7 +587,11 @@ export class ChariotCodeGenerator {
   }
 
   private generateGenericFunctionCode(node: VisualDSLNode): string {
-    let functionName = node.data.label.toLowerCase().replace(/\s+/g, '');
+    // Sanitize the label to avoid artifacts like "declare(...)" from visual labels
+    const rawLabel = node.data.label.toLowerCase();
+    // Remove any non-alphanumeric/space characters (e.g., parentheses, punctuation)
+    const sanitizedLabel = rawLabel.replace(/[^a-z0-9\s]/g, '');
+    let functionName = sanitizedLabel.replace(/\s+/g, '');
     
     // Special handling for known camelCase functions that shouldn't be lowercased
     const camelCaseFunctions: Record<string, string> = {
@@ -614,7 +624,7 @@ export class ChariotCodeGenerator {
     };
     
     // Check if we have a known camelCase mapping
-    const labelKey = node.data.label.toLowerCase();
+  const labelKey = sanitizedLabel; // already lowercased and cleaned
     if (camelCaseFunctions[labelKey]) {
       functionName = camelCaseFunctions[labelKey];
     } else if (camelCaseFunctions[functionName]) {
