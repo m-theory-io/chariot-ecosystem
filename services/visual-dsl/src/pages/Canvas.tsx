@@ -724,6 +724,10 @@ export default function VisualDSLPrototype() {
       
       // Normal mode - handle group selection behavior
       let nodeToSelect = node.id;
+      // If clicking on a group container, select the underlying parent node instead
+      if (node.type === 'group' && node.id.startsWith('group-')) {
+        nodeToSelect = node.id.replace(/^group-/, '');
+      }
       
       // If clicking on a child node in a nesting group, select the parent instead
       const parentRelation = nestingRelations.find(rel => rel.childId === node.id);
@@ -1054,6 +1058,14 @@ export default function VisualDSLPrototype() {
       
       // If the selected node is part of a nesting group, find the root of that group
       if (referenceNode && !nestingMode) {
+        // If a group container is selected, use its parent logicon as the reference
+        if (referenceNode.type === 'group' && referenceNode.id.startsWith('group-')) {
+          const parentId = referenceNode.id.replace(/^group-/, '');
+          const parentNode = nodes.find(n => n.id === parentId) || null;
+          if (parentNode) {
+            referenceNode = parentNode;
+          }
+        }
         const parentRelation = nestingRelations.find(rel => rel.childId === selectedNodeId);
         if (parentRelation) {
           // This node is a child in a nesting - use the parent as reference
@@ -1171,8 +1183,8 @@ export default function VisualDSLPrototype() {
         targetHandle = 'top';
     }
 
-    // If reference node is a nesting parent, connect from the group's right edge logically
-    const parentForEdge = referenceNode.id;
+  // If reference was a group, we already mapped to its parent above; use that id
+  const parentForEdge = referenceNode.id;
     const newEdge: Edge = {
       id: `${parentForEdge}-${id}`,
       source: parentForEdge,
