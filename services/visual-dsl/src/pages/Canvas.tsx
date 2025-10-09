@@ -21,6 +21,8 @@ import CreateTransformNodeProperties, { CreateTransformNodeProperties as CreateT
 import AddMappingNodeProperties, { AddMappingNodeProperties as AddMappingProperties } from "../components/dialogs/AddMappingNodeProperties";
 import { TreeSaveNodePropertiesDialog, TreeSaveNodeProperties } from "../components/dialogs/TreeSaveNodeProperties";
 import { TreeLoadNodePropertiesDialog, TreeLoadNodeProperties } from "../components/dialogs/TreeLoadNodeProperties";
+import { TreeFindNodePropertiesDialog, TreeFindNodeProperties } from "../components/dialogs/TreeFindNodeProperties";
+import { TreeSearchNodePropertiesDialog, TreeSearchNodeProperties } from "../components/dialogs/TreeSearchNodeProperties";
 import { IfNodePropertiesDialog, IfNodeProperties } from "../components/dialogs/IfNodeProperties";
 import { IifNodePropertiesDialog, IifNodeProperties } from "../components/dialogs/IifNodeProperties";
 import { WhileNodePropertiesDialog, WhileNodeProperties } from "../components/dialogs/WhileNodeProperties";
@@ -452,6 +454,10 @@ export default function VisualDSLPrototype() {
         nodeType = 'treeSave';
       } else if ((label === 'Tree Load' || label === 'treeLoad') && category === 'tree') {
         nodeType = 'treeLoad';
+      } else if ((label === 'Tree Find' || label === 'treeFind') && category === 'tree') {
+        nodeType = 'treeFind';
+      } else if ((label === 'Tree Search' || label === 'treeSearch') && category === 'tree') {
+        nodeType = 'treeSearch';
       } else if ((label === 'Add To' || label === 'addTo') && category === 'array') {
         nodeType = 'addTo';
       } else if ((label === 'Log Print' || label === 'LogPrint' || label === 'logPrint') && category === 'system') {
@@ -1582,6 +1588,44 @@ export default function VisualDSLPrototype() {
               }}
               initialProperties={propertiesDialog.properties as TreeLoadNodeProperties || { 
                 filename: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeFind' && (
+            <TreeFindNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeFindNodeProperties || { 
+                treeVariable: '',
+                fieldName: 'id',
+                value: '',
+                operator: '',
+                searchAll: false
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeSearch' && (
+            <TreeSearchNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeSearchNodeProperties || { 
+                treeVariable: 'tree',
+                fieldName: 'name',
+                value: '',
+                operator: '',
+                existsOnly: false
               }}
             />
           )}

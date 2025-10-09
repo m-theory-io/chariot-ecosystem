@@ -246,6 +246,12 @@ export class ChariotCodeGenerator {
       case 'Tree Load':
         return this.generateTreeLoadCode(node);
         
+      case 'Tree Find':
+        return this.generateTreeFindCode(node);
+        
+      case 'Tree Search':
+        return this.generateTreeSearchCode(node);
+        
       case 'Add To':
         return this.generateAddToCode(node);
         
@@ -447,6 +453,49 @@ export class ChariotCodeGenerator {
     return `treeLoad('${filename}')`;
   }
 
+  private generateTreeFindCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const treeVar = (props.treeVariable ?? '').trim();
+    const fieldName = props.fieldName || 'id';
+    const value = props.value ?? '';
+    const operator = props.operator || '';
+    const searchAll = !!props.searchAll;
+    const valueArg = typeof value === 'string' && !/^[0-9]+(\.[0-9]+)?$/.test(value)
+      ? `'${value}'`
+      : String(value);
+
+    // If searchAll is enabled or no tree var provided, emit implicit form
+    if (searchAll || treeVar === '') {
+      const args = [`'${fieldName}'`, valueArg];
+      if (operator) args.push(`'${operator}'`);
+      return `treeFind(${args.join(', ')})`;
+    }
+
+    const args = [treeVar, `'${fieldName}'`, valueArg];
+    if (operator) args.push(`'${operator}'`);
+    return `treeFind(${args.join(', ')})`;
+  }
+
+  private generateTreeSearchCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const treeVar = props.treeVariable || 'tree';
+    const fieldName = props.fieldName || 'name';
+    const value = props.value ?? '';
+    const operator = props.operator || '';
+    const existsOnly = !!props.existsOnly;
+    const valueArg = typeof value === 'string' && !/^[0-9]+(\.[0-9]+)?$/.test(value)
+      ? `'${value}'`
+      : String(value);
+    const args = [treeVar, `'${fieldName}'`, valueArg];
+    if (operator) args.push(`'${operator}'`);
+    if (existsOnly) {
+      // ensure operator slot exists if we need to pass 5th arg
+      if (!operator) args.push(`'='`);
+      args.push('true');
+    }
+    return `treeSearch(${args.join(', ')})`;
+  }
+
   private generateAddToCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     const collectionName = props.collectionName || 'collection';
@@ -613,6 +662,10 @@ export class ChariotCodeGenerator {
       'tree save': 'treeSave',
       'treeLoad': 'treeLoad',
       'tree load': 'treeLoad',
+      'treeFind': 'treeFind',
+      'tree find': 'treeFind',
+      'treeSearch': 'treeSearch',
+      'tree search': 'treeSearch',
       'getValue': 'getValue',
       'get value': 'getValue',
       'setValue': 'setValue',

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -418,111 +419,155 @@ func RegisterTreeFunctions(rt *Runtime) {
 
 	// treeFind function - returns all matching records
 	rt.Register("treeFind", func(args ...Value) (Value, error) {
-		if len(args) != 3 {
-			return nil, errors.New("treeFind requires 3 arguments: node, attributeName, value")
+		// New semantics:
+		// treeFind(forest, attrName, value [, operator])
+		// treeFind(attrName, value [, operator])  // implicit forest from runtime variables
+		if len(args) < 2 || len(args) > 4 {
+			return nil, errors.New("treeFind requires 2-4 arguments: [forest,] attributeName, value, [operator]")
 		}
 
-		// Unwrap arguments
+		// Unwrap scope entries
 		for i, arg := range args {
 			if tvar, ok := arg.(ScopeEntry); ok {
 				args[i] = tvar.Value
 			}
 		}
 
-		// Get the root node/data
-		rootData := args[0]
+		var (
+			forest    Value
+			attrName  Str
+			searchVal Value
+			operator  = "="
+		)
 
-		// Get attribute name to search for
-		attrName, ok := args[1].(Str)
-		if !ok {
-			return nil, fmt.Errorf("attribute name must be a string, got %T", args[1])
-		}
+		// Determine signature
+		if s, ok := args[0].(Str); ok {
+			// No forest provided; build forest from runtime variables
+			attrName = s
+			if len(args) < 2 {
+				return nil, errors.New("missing value argument")
+			}
+			searchVal = args[1]
+			if len(args) > 2 {
+				if op, ok := args[2].(Str); ok {
+					operator = string(op)
+				}
+			}
 
-		// Get value to search for
-		searchValue := args[2]
-
-		// Results array to collect all matches
-		results := NewArray()
-
-		// Recursive search function that collects all matches
-		var searchInValue func(Value)
-		searchInValue = func(val Value) {
-			switch v := val.(type) {
-			case *JSONNode:
-				// First check JSONNode attributes
-				if attrValue, exists := v.GetAttribute(string(attrName)); exists {
-					if valuesEqual(attrValue, searchValue) {
-						results.Append(v)
+			// Collect all tree-like candidates from runtime variables
+			vars := rt.ListVariables()
+			forestArr := NewArray()
+			var collectTrees func(Value)
+			collectTrees = func(v Value) {
+				if v == nil {
+					return
+				}
+				switch tv := v.(type) {
+				case ScopeEntry:
+					collectTrees(tv.Value)
+				case *ArrayValue:
+					for i := 0; i < tv.Length(); i++ {
+						collectTrees(tv.Get(i))
 					}
-				}
-
-				// Check JSONNode array data (e.g., "_users")
-				aKey := "_" + v.Name()
-				if arrayValue, exists := v.GetAttribute(aKey); exists {
-					searchInValue(arrayValue)
-				}
-
-				// Also search through all other attributes for nested data
-				for attrKey, attrVal := range v.GetAttributes() {
-					if attrKey != aKey { // Don't double-search the array key
-						searchInValue(attrVal)
+				case []Value:
+					for _, e := range tv {
+						collectTrees(e)
 					}
-				}
-
-				// Search in children
-				for _, child := range v.GetChildren() {
-					searchInValue(child)
-				}
-
-			case *ArrayValue:
-				// Search in array elements
-				for i := 0; i < v.Length(); i++ {
-					elem := v.Get(i)
-					searchInValue(elem)
-				}
-
-			case map[string]Value:
-				// Check if this map has the attribute we're looking for
-				if attrValue, exists := v[string(attrName)]; exists {
-					if valuesEqual(attrValue, searchValue) {
-						results.Append(v) // Add the entire map as a match
+				case map[string]Value:
+					for _, mv := range tv {
+						collectTrees(mv)
 					}
-				}
-
-				// Also search recursively in map values
-				for _, mapVal := range v {
-					searchInValue(mapVal)
-				}
-
-			case TreeNode:
-				// Search in TreeNode attributes
-				if attrValue, exists := v.GetAttribute(string(attrName)); exists {
-					if valuesEqual(attrValue, searchValue) {
-						results.Append(v)
+				case *JSONNode:
+					forestArr.Append(tv)
+					for _, ch := range tv.GetChildren() {
+						collectTrees(ch)
 					}
+				case TreeNode:
+					forestArr.Append(tv)
+					for _, ch := range tv.GetChildren() {
+						collectTrees(ch)
+					}
+				default:
+					// Ignore other types
 				}
-
-				// Search in all TreeNode attributes
-				for _, attrVal := range v.GetAttributes() {
-					searchInValue(attrVal)
-				}
-
-				// Search in TreeNode children
-				for _, child := range v.GetChildren() {
-					searchInValue(child)
-				}
-
-			case []Value:
-				// Handle native Go slice
-				for _, elem := range v {
-					searchInValue(elem)
+			}
+			for _, val := range vars {
+				collectTrees(val)
+			}
+			forest = forestArr
+		} else {
+			// forest is provided explicitly
+			forest = args[0]
+			if s2, ok := args[1].(Str); ok {
+				attrName = s2
+			} else {
+				return nil, fmt.Errorf("attribute name must be a string, got %T", args[1])
+			}
+			if len(args) < 3 {
+				return nil, errors.New("missing value argument")
+			}
+			searchVal = args[2]
+			if len(args) > 3 {
+				if op, ok := args[3].(Str); ok {
+					operator = string(op)
 				}
 			}
 		}
 
-		// Perform the search
-		searchInValue(rootData)
+		results := NewArray()
 
+		// Deduplicate by pointer identity where possible
+		seen := make(map[uintptr]struct{})
+		ptrKey := func(v Value) (uintptr, bool) {
+			switch tv := v.(type) {
+			case *JSONNode:
+				return reflect.ValueOf(tv).Pointer(), true
+			case TreeNode:
+				rv := reflect.ValueOf(tv)
+				if rv.Kind() == reflect.Ptr {
+					return rv.Pointer(), true
+				}
+			}
+			return 0, false
+		}
+
+		tryAdd := func(candidate Value) {
+			// Only consider top-level tree-like candidates
+			switch candidate.(type) {
+			case *JSONNode, TreeNode:
+				if anyMatchInValue(candidate, string(attrName), searchVal, operator) {
+					if key, ok := ptrKey(candidate); ok {
+						if _, exists := seen[key]; exists {
+							return
+						}
+						seen[key] = struct{}{}
+					}
+					results.Append(candidate)
+				}
+			}
+		}
+
+		var walkForest func(Value)
+		walkForest = func(f Value) {
+			switch t := f.(type) {
+			case *ArrayValue:
+				for i := 0; i < t.Length(); i++ {
+					walkForest(t.Get(i))
+				}
+			case []Value:
+				for _, e := range t {
+					walkForest(e)
+				}
+			case map[string]Value:
+				for _, v := range t {
+					walkForest(v)
+				}
+			default:
+				tryAdd(t)
+			}
+		}
+
+		walkForest(forest)
 		return results, nil
 	})
 
@@ -635,8 +680,8 @@ func RegisterTreeFunctions(rt *Runtime) {
 
 	// Update the treeSearch function in tree_funcs.go
 	rt.Register("treeSearch", func(args ...Value) (Value, error) {
-		if len(args) < 3 || len(args) > 4 {
-			return nil, errors.New("treeSearch requires 3-4 arguments: node, attributeName, value, [operator]")
+		if len(args) < 3 || len(args) > 5 {
+			return nil, errors.New("treeSearch requires 3-5 arguments: node, attributeName, value, [operator], [existsOnly]")
 		}
 
 		// Unwrap arguments
@@ -660,6 +705,20 @@ func RegisterTreeFunctions(rt *Runtime) {
 			if op, ok := args[3].(Str); ok {
 				operator = string(op)
 			}
+		}
+
+		// Optional existsOnly short-circuit (5th arg)
+		existsOnly := false
+		if len(args) > 4 {
+			if b, ok := args[4].(Bool); ok {
+				existsOnly = bool(b)
+			}
+		}
+		if existsOnly {
+			if anyMatchInValue(rootData, string(attrName), searchValue, operator) {
+				return Bool(true), nil
+			}
+			return Bool(false), nil
 		}
 
 		results := NewArray()
@@ -826,6 +885,75 @@ func stringEndsWith(a, b Value) bool {
 	strB, okB := b.(Str)
 	if okA && okB {
 		return strings.HasSuffix(string(strA), string(strB))
+	}
+	return false
+}
+
+// Helper: determine if any nested value in val satisfies attrName OP searchValue, with short-circuit
+func anyMatchInValue(val Value, attrName string, searchValue Value, operator string) bool {
+	switch v := val.(type) {
+	case map[string]Value:
+		if attrValue, exists := v[attrName]; exists {
+			if compareValuesOp(attrValue, searchValue, operator) {
+				return true
+			}
+		}
+		for _, mv := range v {
+			if anyMatchInValue(mv, attrName, searchValue, operator) {
+				return true
+			}
+		}
+	case *ArrayValue:
+		for i := 0; i < v.Length(); i++ {
+			if anyMatchInValue(v.Get(i), attrName, searchValue, operator) {
+				return true
+			}
+		}
+	case *JSONNode:
+		if attrValue, exists := v.GetAttribute(attrName); exists {
+			if compareValuesOp(attrValue, searchValue, operator) {
+				return true
+			}
+		}
+		if arrayValue, exists := v.GetAttribute("_" + v.Name()); exists {
+			if anyMatchInValue(arrayValue, attrName, searchValue, operator) {
+				return true
+			}
+		}
+		for k, av := range v.GetAttributes() {
+			if k != "_"+v.Name() {
+				if anyMatchInValue(av, attrName, searchValue, operator) {
+					return true
+				}
+			}
+		}
+		for _, ch := range v.GetChildren() {
+			if anyMatchInValue(ch, attrName, searchValue, operator) {
+				return true
+			}
+		}
+	case TreeNode:
+		if attrValue, exists := v.GetAttribute(attrName); exists {
+			if compareValuesOp(attrValue, searchValue, operator) {
+				return true
+			}
+		}
+		for _, av := range v.GetAttributes() {
+			if anyMatchInValue(av, attrName, searchValue, operator) {
+				return true
+			}
+		}
+		for _, ch := range v.GetChildren() {
+			if anyMatchInValue(ch, attrName, searchValue, operator) {
+				return true
+			}
+		}
+	case []Value:
+		for _, e := range v {
+			if anyMatchInValue(e, attrName, searchValue, operator) {
+				return true
+			}
+		}
 	}
 	return false
 }
