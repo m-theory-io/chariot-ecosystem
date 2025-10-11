@@ -245,12 +245,21 @@ export class ChariotCodeGenerator {
         
       case 'Tree Load':
         return this.generateTreeLoadCode(node);
+      
+      case 'Tree Save Secure':
+        return this.generateTreeSaveSecureCode(node);
+      
+      case 'Tree Load Secure':
+        return this.generateTreeLoadSecureCode(node);
         
       case 'Tree Find':
         return this.generateTreeFindCode(node);
         
       case 'Tree Search':
         return this.generateTreeSearchCode(node);
+      
+      case 'Tree Walk':
+        return this.generateTreeWalkCode(node);
         
       case 'Add To':
         return this.generateAddToCode(node);
@@ -453,6 +462,50 @@ export class ChariotCodeGenerator {
     return `treeLoad('${filename}')`;
   }
 
+  private generateTreeSaveSecureCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let treeVar = props.treeVariable || 'tree';
+
+    // Try infer from incoming edge declare if not set
+    if (!props.treeVariable) {
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          treeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    const filename = props.filename || 'secure.json';
+    const encryptionKeyID = props.encryptionKeyID || 'encKey';
+    const signingKeyID = props.signingKeyID || 'signKey';
+    const watermark = props.watermark || 'watermark';
+
+    const args = [treeVar, `'${filename}'`, `'${encryptionKeyID}'`, `'${signingKeyID}'`, `'${watermark}'`];
+
+    // Optional options map
+    const options: string[] = [];
+    if (props.verificationKeyID) options.push(`'verificationKeyID', '${props.verificationKeyID}'`);
+    if (typeof props.checksum === 'boolean') options.push(`'checksum', ${props.checksum}`);
+    if (typeof props.auditTrail === 'boolean') options.push(`'auditTrail', ${props.auditTrail}`);
+    if (typeof props.compressionLevel === 'number') options.push(`'compressionLevel', ${props.compressionLevel}`);
+
+    if (options.length > 0) {
+      args.push(`map(${options.join(', ')})`);
+    }
+
+    return `treeSaveSecure(${args.join(', ')})`;
+  }
+
+  private generateTreeLoadSecureCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const filename = props.filename || 'secure.json';
+    const decryptionKeyID = props.decryptionKeyID || 'decKey';
+    const verificationKeyID = props.verificationKeyID || 'verifyKey';
+    return `treeLoadSecure('${filename}', '${decryptionKeyID}', '${verificationKeyID}')`;
+  }
+
   private generateTreeFindCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     const treeVar = (props.treeVariable ?? '').trim();
@@ -494,6 +547,13 @@ export class ChariotCodeGenerator {
       args.push('true');
     }
     return `treeSearch(${args.join(', ')})`;
+  }
+
+  private generateTreeWalkCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const treeVar = props.treeVariable || 'tree';
+    const functionName = props.functionName || 'myFunc';
+    return `treeWalk(${treeVar}, ${functionName})`;
   }
 
   private generateAddToCode(node: VisualDSLNode): string {
@@ -666,6 +726,12 @@ export class ChariotCodeGenerator {
       'tree find': 'treeFind',
       'treeSearch': 'treeSearch',
       'tree search': 'treeSearch',
+  'treeSaveSecure': 'treeSaveSecure',
+  'tree save secure': 'treeSaveSecure',
+  'treeLoadSecure': 'treeLoadSecure',
+  'tree load secure': 'treeLoadSecure',
+  'treeWalk': 'treeWalk',
+  'tree walk': 'treeWalk',
       'getValue': 'getValue',
       'get value': 'getValue',
       'setValue': 'setValue',

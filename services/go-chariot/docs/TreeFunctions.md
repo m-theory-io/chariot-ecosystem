@@ -19,8 +19,8 @@ Chariot tree functions provide creation, serialization, secure storage, metadata
 | `treeLoadSecure(filename, decryptionKeyID, verificationKeyID)` | Load a secure tree node with decryption and verification |
 | `treeValidateSecure(filename, verificationKeyID)` | Validate the signature of a secure tree file          |
 | `treeGetMetadata(filename)`   | Get metadata from a tree file without loading/decrypting         |
-| `treeFind(node, attributeName, value)` | Find all nodes with attribute equal to value           |
-| `treeSearch(node, attributeName, value [, operator])` | Search nodes with attribute matching value and operator |
+| `treeFind([forest,] attributeName, value [, operator])` | Find trees where any element matches the expression; supports implicit runtime search when forest omitted |
+| `treeSearch(node, attributeName, value [, operator [, existsOnly]])` | Search nodes with attribute matching value and operator; optional existsOnly short-circuits to boolean |
 | `treeWalk(node, fn)`          | Recursively apply a function to all nodes and values             |
 
 ---
@@ -108,22 +108,40 @@ Gets metadata from a tree file without loading or decrypting the full tree.
 treeGetMetadata('agent.json') // returns map of metadata
 ```
 
-#### `treeFind(node, attributeName, value)`
+#### `treeFind([forest,] attributeName, value [, operator])`
 
-Finds all nodes (recursively) with the given attribute equal to the value.
+Finds and returns an array of trees (TreeNode/JSONNode) for which the expression holds true for at least one element somewhere inside the tree. If the first argument is omitted, the function searches across all tree-like values found in the runtime's local and global variables (implicit "forest"). Results are de-duplicated.
+
+- `forest` (optional): A container of candidates (array, map) or a single tree; if omitted, all runtime trees are considered.
+- `attributeName`: String name of the attribute to match.
+- `value`: Value to compare against.
+- `operator` (optional): Same operators supported as `treeSearch` ("=", "!=", ">", ">=", "<", "<=", "contains", "startswith", "endswith"). Defaults to "=".
+
+Examples:
 
 ```chariot
-treeFind(agent, 'status', 'active')
+// Implicit runtime search (no forest argument)
+treeFind('status', 'active')
+treeFind('price', 100, '>')
+
+// Explicit forest
+treeFind(agents, 'region', 'EMEA')
+treeFind(fleet, 'odometer', 50000, '>=')
+
+// Single tree argument still supported
+treeFind(agent, 'name', 'Smith', 'contains')
 ```
 
-#### `treeSearch(node, attributeName, value [, operator])`
+#### `treeSearch(node, attributeName, value [, operator [, existsOnly]])`
 
 Searches nodes recursively with attribute matching value using operator.
-- Supported operators: `"="`, `"!="`, `">"`, `">="`, `"<"`, `"<="`, `"contains"`, `"startswith"`, `"endswith"`
+ - Supported operators: "=", "!=", ">", ">=", "<", "<=", "contains", "startswith", "endswith"
+ - `existsOnly` (optional): When `true`, returns a boolean and short-circuits on first match; default `false` returns an array of matches.
 
 ```chariot
 treeSearch(agent, 'score', 90, '>=')
 treeSearch(agent, 'name', 'Smith', 'contains')
+treeSearch(agent, 'status', 'active', '=', true)
 ```
 
 #### `treeWalk(node, fn)`

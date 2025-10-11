@@ -23,6 +23,9 @@ import { TreeSaveNodePropertiesDialog, TreeSaveNodeProperties } from "../compone
 import { TreeLoadNodePropertiesDialog, TreeLoadNodeProperties } from "../components/dialogs/TreeLoadNodeProperties";
 import { TreeFindNodePropertiesDialog, TreeFindNodeProperties } from "../components/dialogs/TreeFindNodeProperties";
 import { TreeSearchNodePropertiesDialog, TreeSearchNodeProperties } from "../components/dialogs/TreeSearchNodeProperties";
+import { TreeSaveSecureNodePropertiesDialog, TreeSaveSecureNodeProperties } from "../components/dialogs/TreeSaveSecureNodeProperties";
+import { TreeLoadSecureNodePropertiesDialog, TreeLoadSecureNodeProperties } from "../components/dialogs/TreeLoadSecureNodeProperties";
+import { TreeWalkNodePropertiesDialog, TreeWalkNodeProperties } from "../components/dialogs/TreeWalkNodeProperties";
 import { IfNodePropertiesDialog, IfNodeProperties } from "../components/dialogs/IfNodeProperties";
 import { IifNodePropertiesDialog, IifNodeProperties } from "../components/dialogs/IifNodeProperties";
 import { WhileNodePropertiesDialog, WhileNodeProperties } from "../components/dialogs/WhileNodeProperties";
@@ -458,6 +461,12 @@ export default function VisualDSLPrototype() {
         nodeType = 'treeFind';
       } else if ((label === 'Tree Search' || label === 'treeSearch') && category === 'tree') {
         nodeType = 'treeSearch';
+      } else if ((label === 'Tree Save Secure' || label === 'treeSaveSecure') && category === 'tree') {
+        nodeType = 'treeSaveSecure';
+      } else if ((label === 'Tree Load Secure' || label === 'treeLoadSecure') && category === 'tree') {
+        nodeType = 'treeLoadSecure';
+      } else if ((label === 'Tree Walk' || label === 'treeWalk') && category === 'tree') {
+        nodeType = 'treeWalk';
       } else if ((label === 'Add To' || label === 'addTo') && category === 'array') {
         nodeType = 'addTo';
       } else if ((label === 'Log Print' || label === 'LogPrint' || label === 'logPrint') && category === 'system') {
@@ -1588,6 +1597,61 @@ export default function VisualDSLPrototype() {
               }}
               initialProperties={propertiesDialog.properties as TreeLoadNodeProperties || { 
                 filename: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeSaveSecure' && (
+            <TreeSaveSecureNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeSaveSecureNodeProperties || {
+                treeVariable: 'tree',
+                filename: 'secure.json',
+                encryptionKeyID: 'encKey',
+                signingKeyID: 'signKey',
+                watermark: 'watermark',
+                checksum: true,
+                auditTrail: true,
+                compressionLevel: 9,
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeLoadSecure' && (
+            <TreeLoadSecureNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeLoadSecureNodeProperties || {
+                filename: 'secure.json',
+                decryptionKeyID: 'decKey',
+                verificationKeyID: 'verifyKey',
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeWalk' && (
+            <TreeWalkNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeWalkNodeProperties || {
+                treeVariable: 'tree',
+                functionName: 'myFunc',
               }}
             />
           )}

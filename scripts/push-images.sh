@@ -119,6 +119,7 @@ push_visual_dsl() {
 push_nginx() {
     local local_image="nginx:$TAG"
     local remote_image="$REGISTRY_NAME.azurecr.io/nginx:$TAG"
+    local remote_image_default="$REGISTRY_NAME.azurecr.io/nginx:amd64"
     
     print_pushing "Checking if $local_image exists locally..."
     if ! docker image inspect $local_image >/dev/null 2>&1; then
@@ -131,8 +132,19 @@ push_nginx() {
     
     print_pushing "Pushing $remote_image..."
     docker push $remote_image
+
+    # Also push/update the default tag used by docker-compose.azure.yml
+    if [ "$TAG" != "amd64" ]; then
+        print_pushing "Tagging $local_image as $remote_image_default (compose default) ..."
+        docker tag $local_image $remote_image_default
+        print_pushing "Pushing $remote_image_default..."
+        docker push $remote_image_default
+    fi
     
     print_status "✅ Successfully pushed $remote_image"
+    if [ "$TAG" != "amd64" ]; then
+        print_status "✅ Successfully pushed $remote_image_default"
+    fi
 }
 
 # Track successful pushes and failures
