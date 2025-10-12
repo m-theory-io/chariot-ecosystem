@@ -2,38 +2,41 @@ import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-interface CreateNodePropertiesProps {
+interface RemoveChildNodePropertiesProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (properties: CreateNodeProperties) => void;
+  onSave: (properties: RemoveChildNodeProperties) => void;
   onDelete: () => void;
-  initialProperties: CreateNodeProperties;
+  initialProperties: RemoveChildNodeProperties;
 }
 
-export interface CreateNodeProperties {
-  nodeName: string;
+export interface RemoveChildNodeProperties {
+  parentNode: string; // The parent node variable
+  childNode: string;  // The child node variable to remove
 }
 
-export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = ({
+export const RemoveChildNodePropertiesDialog: React.FC<RemoveChildNodePropertiesProps> = ({
   isOpen,
   onClose,
   onSave,
   onDelete,
   initialProperties
 }) => {
-  const [nodeName, setNodeName] = useState(initialProperties.nodeName || '');
+  const [parentNode, setParentNode] = useState(initialProperties.parentNode || '');
+  const [childNode, setChildNode] = useState(initialProperties.childNode || '');
 
   const handleSave = () => {
     onSave({
-      nodeName: nodeName.trim()
+      parentNode: parentNode.trim(),
+      childNode: childNode.trim()
     });
     onClose();
   };
 
   const handleClose = () => {
-    // Save properties when closing
     onSave({
-      nodeName: nodeName.trim()
+      parentNode: parentNode.trim(),
+      childNode: childNode.trim()
     });
     onClose();
   };
@@ -51,7 +54,7 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
         {/* Title Bar */}
         <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-800 dark:border-gray-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Create Properties
+            Remove Child Properties
           </h3>
           <button
             onClick={handleClose}
@@ -63,20 +66,37 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
         
         {/* Content */}
         <div className="p-6">
-          {/* Node Name (optional) */}
-          <div className="mb-6">
+          {/* Parent Node */}
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              TreeNode Name (optional):
+              Parent Node:
             </label>
             <Input
               type="text"
-              value={nodeName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNodeName(e.target.value)}
+              value={parentNode}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParentNode(e.target.value)}
               className="w-full"
-              placeholder="e.g. MyNode — leave blank to use default"
+              placeholder="usersAgent"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              If left blank, codegen will emit create() with no arguments (backend defaults the name).
+              The parent node variable from which the child will be removed.
+            </p>
+          </div>
+
+          {/* Child Node */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Child Node:
+            </label>
+            <Input
+              type="text"
+              value={childNode}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setChildNode(e.target.value)}
+              className="w-full"
+              placeholder="rules"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              The child node variable to remove.
             </p>
           </div>
           
@@ -101,16 +121,17 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
       {/* Explanatory text */}
       <div className="absolute top-1/2 left-1/2 transform translate-x-64 -translate-y-1/2 max-w-sm p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg shadow-lg">
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          The Create logicon creates a new TreeNode in Chariot with an optional name.
+          Removes a child node from a parent node in the tree structure.
         </p>
         <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-          <strong>Parameter:</strong>
+          <strong>Parameters:</strong>
         </p>
         <ul className="text-xs text-gray-600 dark:text-gray-400 mt-1 space-y-1">
-          <li>1. TreeNode name (string, optional)</li>
+          <li>1. Parent Node - The parent node variable</li>
+          <li>2. Child Node - The child node variable to remove</li>
         </ul>
         <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 italic">
-          💡 Leave the name blank to emit create() and let the runtime choose the default name.
+          💡 Example: removeChild(usersAgent, rules)
         </p>
       </div>
     </div>

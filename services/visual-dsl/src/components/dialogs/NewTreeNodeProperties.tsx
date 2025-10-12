@@ -1,20 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-interface CreateNodePropertiesProps {
+interface NewTreeNodePropertiesProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (properties: CreateNodeProperties) => void;
+  onSave: (properties: NewTreeNodeProperties) => void;
   onDelete: () => void;
-  initialProperties: CreateNodeProperties;
+  initialProperties: NewTreeNodeProperties;
 }
 
-export interface CreateNodeProperties {
+export interface NewTreeNodeProperties {
   nodeName: string;
 }
 
-export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = ({
+export const NewTreeNodePropertiesDialog: React.FC<NewTreeNodePropertiesProps> = ({
   isOpen,
   onClose,
   onSave,
@@ -22,19 +22,23 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
   initialProperties
 }) => {
   const [nodeName, setNodeName] = useState(initialProperties.nodeName || '');
+  const [canSave, setCanSave] = useState(false);
+
+  useEffect(() => {
+    setCanSave(nodeName.trim().length > 0);
+  }, [nodeName]);
 
   const handleSave = () => {
-    onSave({
-      nodeName: nodeName.trim()
-    });
+    if (!canSave) return;
+    onSave({ nodeName: nodeName.trim() });
     onClose();
   };
 
   const handleClose = () => {
-    // Save properties when closing
-    onSave({
-      nodeName: nodeName.trim()
-    });
+    // Only save if valid, otherwise just close without persisting invalid state
+    if (canSave) {
+      onSave({ nodeName: nodeName.trim() });
+    }
     onClose();
   };
 
@@ -51,7 +55,7 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
         {/* Title Bar */}
         <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-800 dark:border-gray-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Create Properties
+            New Tree Properties
           </h3>
           <button
             onClick={handleClose}
@@ -63,28 +67,29 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
         
         {/* Content */}
         <div className="p-6">
-          {/* Node Name (optional) */}
+          {/* Node Name (required) */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              TreeNode Name (optional):
+              TreeNode Name (required):
             </label>
             <Input
               type="text"
               value={nodeName}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNodeName(e.target.value)}
               className="w-full"
-              placeholder="e.g. MyNode — leave blank to use default"
+              placeholder="e.g. MyTree"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              If left blank, codegen will emit create() with no arguments (backend defaults the name).
+              You must provide a name. This emits newTree('name').
             </p>
           </div>
           
           {/* Buttons */}
           <div className="flex gap-3">
             <Button
-              onClick={handleClose}
-              className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200"
+              onClick={handleSave}
+              disabled={!canSave}
+              className={`px-6 py-2 ${canSave ? 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600' : 'bg-gray-200 dark:bg-gray-600 opacity-60 cursor-not-allowed'} text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200`}
             >
               Save Properties
             </Button>
@@ -101,16 +106,16 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
       {/* Explanatory text */}
       <div className="absolute top-1/2 left-1/2 transform translate-x-64 -translate-y-1/2 max-w-sm p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg shadow-lg">
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          The Create logicon creates a new TreeNode in Chariot with an optional name.
+          The New Tree logicon creates a new Tree with the required name.
         </p>
         <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
           <strong>Parameter:</strong>
         </p>
         <ul className="text-xs text-gray-600 dark:text-gray-400 mt-1 space-y-1">
-          <li>1. TreeNode name (string, optional)</li>
+          <li>1. TreeNode name (string, required)</li>
         </ul>
         <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 italic">
-          💡 Leave the name blank to emit create() and let the runtime choose the default name.
+          💡 Save is disabled until a non-empty name is provided.
         </p>
       </div>
     </div>

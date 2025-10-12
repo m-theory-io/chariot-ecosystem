@@ -80,27 +80,31 @@ export const TreeSaveSecureNodePropertiesDialog: React.FC<TreeSaveSecureNodeProp
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filename:</label>
             <Input type="text" value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="secure.json" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Encryption Key ID:</label>
-              <Input type="text" value={encryptionKeyID} onChange={(e) => setEncryptionKeyID(e.target.value)} placeholder="encKey" />
+              <Input className="w-full" type="text" value={encryptionKeyID} onChange={(e) => setEncryptionKeyID(e.target.value)} placeholder="encKey" />
             </div>
+          </div>
+          <div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Signing Key ID:</label>
-              <Input type="text" value={signingKeyID} onChange={(e) => setSigningKeyID(e.target.value)} placeholder="signKey" />
+              <Input className="w-full" type="text" value={signingKeyID} onChange={(e) => setSigningKeyID(e.target.value)} placeholder="signKey" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Watermark:</label>
-            <Input type="text" value={watermark} onChange={(e) => setWatermark(e.target.value)} placeholder="confidential" />
+            <Input className="w-full" type="text" value={watermark} onChange={(e) => setWatermark(e.target.value)} placeholder="confidential" />
           </div>
           <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Advanced Options (optional)</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Verification Key ID:</label>
-                <Input type="text" value={verificationKeyID} onChange={(e) => setVerificationKeyID(e.target.value)} placeholder="verifyKey (defaults to signingKeyID)" />
+                <Input className="w-full" type="text" value={verificationKeyID} onChange={(e) => setVerificationKeyID(e.target.value)} placeholder="verifyKey (defaults to signingKeyID)" />
               </div>
+            </div>
+            <div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Compression Level (0-9):</label>
                 <input
@@ -109,7 +113,7 @@ export const TreeSaveSecureNodePropertiesDialog: React.FC<TreeSaveSecureNodeProp
                   max={9}
                   value={compressionLevel}
                   onChange={(e) => setCompressionLevel(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                  className="w-30 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
             </div>

@@ -12,9 +12,41 @@ import { DiagramToolbar } from "../components/DiagramToolbar";
 import { StartNodePropertiesDialog, StartNodeProperties } from "../components/dialogs/StartNodeProperties";
 import { DeclareNodePropertiesDialog, DeclareNodeProperties } from "../components/dialogs/DeclareNodeProperties";
 import { CreateNodePropertiesDialog, CreateNodeProperties } from "../components/dialogs/CreateNodeProperties";
+import { NewTreeNodePropertiesDialog, NewTreeNodeProperties } from "../components/dialogs/NewTreeNodeProperties";
+import { CSVNodePropertiesDialog, CSVNodeProperties } from "../components/dialogs/CSVNodeProperties";
+import { JSONNodePropertiesDialog, JSONNodeProperties } from "../components/dialogs/JSONNodeProperties";
+import { MapNodePropertiesDialog, MapNodeProperties } from "../components/dialogs/MapNodeProperties";
+import { NodeToStringNodePropertiesDialog, NodeToStringNodeProperties } from "../components/dialogs/NodeToStringNodeProperties";
+import { QueryNodePropertiesDialog, QueryNodeProperties } from "../components/dialogs/QueryNodeProperties";
+import { ListNodePropertiesDialog, ListNodeProperties } from "../components/dialogs/ListNodeProperties";
+import { FindByNameNodePropertiesDialog, FindByNameNodeProperties } from "../components/dialogs/FindByNameNodeProperties";
+import { FirstChildNodePropertiesDialog, FirstChildNodeProperties } from "../components/dialogs/FirstChildNodeProperties";
+import { LastChildNodePropertiesDialog, LastChildNodeProperties } from "../components/dialogs/LastChildNodeProperties";
+import { GetAttributeNodePropertiesDialog, GetAttributeNodeProperties } from "../components/dialogs/GetAttributeNodeProperties";
+import { RemoveAttributeNodePropertiesDialog, RemoveAttributeNodeProperties } from "../components/dialogs/RemoveAttributeNodeProperties";
+import SetAttributeNodePropertiesDialog, { SetAttributeNodeProperties as SetAttributeProps } from "../components/dialogs/SetAttributeNodeProperties";
+import { SetAttributesNodePropertiesDialog, SetAttributesNodeProperties } from "../components/dialogs/SetAttributesNodeProperties";
+import { GetChildAtNodePropertiesDialog, GetChildAtNodeProperties } from "../components/dialogs/GetChildAtNodeProperties";
+import { GetChildByNameNodePropertiesDialog, GetChildByNameNodeProperties } from "../components/dialogs/GetChildByNameNodeProperties";
+import { GetDepthNodePropertiesDialog, GetDepthNodeProperties } from "../components/dialogs/GetDepthNodeProperties";
+import { GetLevelNodePropertiesDialog, GetLevelNodeProperties } from "../components/dialogs/GetLevelNodeProperties";
+import { GetNameNodePropertiesDialog, GetNameNodeProperties } from "../components/dialogs/GetNameNodeProperties";
+import { SetNameNodePropertiesDialog, SetNameNodeProperties } from "../components/dialogs/SetNameNodeProperties";
+import { GetParentNodePropertiesDialog, GetParentNodeProperties } from "../components/dialogs/GetParentNodeProperties";
+import { GetPathNodePropertiesDialog, GetPathNodeProperties } from "../components/dialogs/GetPathNodeProperties";
+import { GetRootNodePropertiesDialog, GetRootNodeProperties } from "../components/dialogs/GetRootNodeProperties";
+import { GetSiblingsNodePropertiesDialog, GetSiblingsNodeProperties } from "../components/dialogs/GetSiblingsNodeProperties";
+import { GetTextNodePropertiesDialog, GetTextNodeProperties } from "../components/dialogs/GetTextNodeProperties";
+import { SetTextNodePropertiesDialog, SetTextNodeProperties } from "../components/dialogs/SetTextNodeProperties";
+import { HasAttributeNodePropertiesDialog, HasAttributeNodeProperties } from "../components/dialogs/HasAttributeNodeProperties";
+import { IsLeafNodePropertiesDialog, IsLeafNodeProperties } from "../components/dialogs/IsLeafNodeProperties";
+import { IsRootNodePropertiesDialog, IsRootNodeProperties } from "../components/dialogs/IsRootNodeProperties";
 import { ParseJSONNodePropertiesDialog, ParseJSONNodeProperties } from "../components/dialogs/ParseJSONNodeProperties";
 import { ArrayNodePropertiesDialog, ArrayNodeProperties } from "../components/dialogs/ArrayNodeProperties";
 import { AddChildNodePropertiesDialog, AddChildNodeProperties } from "../components/dialogs/AddChildNodeProperties";
+import { RemoveChildNodePropertiesDialog, RemoveChildNodeProperties } from "../components/dialogs/RemoveChildNodeProperties";
+import { ChildCountNodePropertiesDialog, ChildCountNodeProperties } from "../components/dialogs/ChildCountNodeProperties";
+import { ClearNodePropertiesDialog, ClearNodeProperties } from "../components/dialogs/ClearNodeProperties";
 import { AddToNodePropertiesDialog, AddToNodeProperties } from "../components/dialogs/AddToNodeProperties";
 import LogPrintNodeProperties, { LogPrintNodeProperties as LogPrintProperties } from "../components/dialogs/LogPrintNodeProperties";
 import CreateTransformNodeProperties, { CreateTransformNodeProperties as CreateTransformProperties } from "../components/dialogs/CreateTransformNodeProperties";
@@ -25,7 +57,14 @@ import { TreeFindNodePropertiesDialog, TreeFindNodeProperties } from "../compone
 import { TreeSearchNodePropertiesDialog, TreeSearchNodeProperties } from "../components/dialogs/TreeSearchNodeProperties";
 import { TreeSaveSecureNodePropertiesDialog, TreeSaveSecureNodeProperties } from "../components/dialogs/TreeSaveSecureNodeProperties";
 import { TreeLoadSecureNodePropertiesDialog, TreeLoadSecureNodeProperties } from "../components/dialogs/TreeLoadSecureNodeProperties";
+import { TreeValidateSecureNodePropertiesDialog, TreeValidateSecureNodeProperties } from "../components/dialogs/TreeValidateSecureNodeProperties";
+import { TreeGetMetadataNodePropertiesDialog, TreeGetMetadataNodeProperties } from "../components/dialogs/TreeGetMetadataNodeProperties";
 import { TreeWalkNodePropertiesDialog, TreeWalkNodeProperties } from "../components/dialogs/TreeWalkNodeProperties";
+import { TraverseNodePropertiesDialog, TraverseNodeProperties } from "../components/dialogs/TraverseNodeProperties";
+import { TreeToXMLNodePropertiesDialog, TreeToXMLNodeProperties } from "../components/dialogs/TreeToXMLNodeProperties";
+import { TreeToYAMLNodePropertiesDialog, TreeToYAMLNodeProperties } from "../components/dialogs/TreeToYAMLNodeProperties";
+import { XMLNodePropertiesDialog, XMLNodeProperties } from "../components/dialogs/XMLNodeProperties";
+import { YAMLNodePropertiesDialog, YAMLNodeProperties } from "../components/dialogs/YAMLNodeProperties";
 import { IfNodePropertiesDialog, IfNodeProperties } from "../components/dialogs/IfNodeProperties";
 import { IifNodePropertiesDialog, IifNodeProperties } from "../components/dialogs/IifNodeProperties";
 import { WhileNodePropertiesDialog, WhileNodeProperties } from "../components/dialogs/WhileNodeProperties";
@@ -453,6 +492,74 @@ export default function VisualDSLPrototype() {
         nodeType = 'cbQuery';
       } else if ((label === 'Add Child' || label === 'addChild') && category === 'node') {
         nodeType = 'addChild';
+      } else if ((label === 'Remove Child' || label === 'removeChild') && category === 'node') {
+        nodeType = 'removeChild';
+      } else if ((label === 'Child Count' || label === 'childCount') && category === 'node') {
+        nodeType = 'childCount';
+      } else if ((label === 'Clear' || label === 'clear') && category === 'node') {
+        nodeType = 'clear';
+      } else if ((label === 'First Child' || label === 'firstChild') && category === 'node') {
+        nodeType = 'firstChild';
+      } else if ((label === 'Last Child' || label === 'lastChild') && category === 'node') {
+        nodeType = 'lastChild';
+      } else if ((label === 'CSV Node' || label === 'csvNode') && category === 'node') {
+        nodeType = 'csvNode';
+      } else if ((label === 'JSON Node' || label === 'jsonNode') && category === 'node') {
+        nodeType = 'jsonNode';
+      } else if ((label === 'XML Node' || label === 'xmlNode') && category === 'node') {
+        nodeType = 'xmlNode';
+      } else if ((label === 'YAML Node' || label === 'yamlNode') && category === 'node') {
+        nodeType = 'yamlNode';
+      } else if ((label === 'Map Node' || label === 'mapNode') && category === 'node') {
+        nodeType = 'mapNode';
+      } else if ((label === 'List' || label === 'list') && category === 'node') {
+        nodeType = 'list';
+      } else if ((label === 'Node To String' || label === 'nodeToString') && category === 'node') {
+        nodeType = 'nodeToString';
+      } else if ((label === 'Find By Name' || label === 'findByName') && category === 'node') {
+        nodeType = 'findByName';
+      } else if ((label === 'Traverse Node' || label === 'traverseNode') && category === 'node') {
+        nodeType = 'traverseNode';
+      } else if ((label === 'Query Node' || label === 'queryNode') && category === 'node') {
+        nodeType = 'queryNode';
+      } else if ((label === 'Get Attribute' || label === 'getAttribute') && category === 'node') {
+        nodeType = 'getAttribute';
+      } else if ((label === 'Set Attribute' || label === 'setAttribute') && category === 'node') {
+        nodeType = 'setAttribute';
+      } else if ((label === 'Set Attributes' || label === 'setAttributes') && category === 'node') {
+        nodeType = 'setAttributes';
+      } else if ((label === 'Remove Attribute' || label === 'removeAttribute') && category === 'node') {
+        nodeType = 'removeAttribute';
+      } else if ((label === 'Get Child At' || label === 'getChildAt') && category === 'node') {
+        nodeType = 'getChildAt';
+      } else if ((label === 'Get Child By Name' || label === 'getChildByName') && category === 'node') {
+        nodeType = 'getChildByName';
+      } else if ((label === 'Get Depth' || label === 'getDepth') && category === 'node') {
+        nodeType = 'getDepth';
+      } else if ((label === 'Get Level' || label === 'getLevel') && category === 'node') {
+        nodeType = 'getLevel';
+      } else if ((label === 'Get Name' || label === 'getName') && category === 'node') {
+        nodeType = 'getName';
+      } else if ((label === 'Set Name' || label === 'setName') && category === 'node') {
+        nodeType = 'setName';
+      } else if ((label === 'Get Parent' || label === 'getParent') && category === 'node') {
+        nodeType = 'getParent';
+      } else if ((label === 'Get Path' || label === 'getPath') && category === 'node') {
+        nodeType = 'getPath';
+      } else if ((label === 'Get Root' || label === 'getRoot') && category === 'node') {
+        nodeType = 'getRoot';
+      } else if ((label === 'Get Siblings' || label === 'getSiblings') && category === 'node') {
+        nodeType = 'getSiblings';
+      } else if ((label === 'Get Text' || label === 'getText') && category === 'node') {
+        nodeType = 'getText';
+      } else if ((label === 'Set Text' || label === 'setText') && category === 'node') {
+        nodeType = 'setText';
+      } else if ((label === 'Has Attribute' || label === 'hasAttribute') && category === 'node') {
+        nodeType = 'hasAttribute';
+      } else if ((label === 'Is Leaf' || label === 'isLeaf') && category === 'node') {
+        nodeType = 'isLeaf';
+      } else if ((label === 'Is Root' || label === 'isRoot') && category === 'node') {
+        nodeType = 'isRoot';
       } else if ((label === 'Tree Save' || label === 'treeSave') && category === 'tree') {
         nodeType = 'treeSave';
       } else if ((label === 'Tree Load' || label === 'treeLoad') && category === 'tree') {
@@ -465,6 +572,14 @@ export default function VisualDSLPrototype() {
         nodeType = 'treeSaveSecure';
       } else if ((label === 'Tree Load Secure' || label === 'treeLoadSecure') && category === 'tree') {
         nodeType = 'treeLoadSecure';
+      } else if ((label === 'Tree Validate Secure' || label === 'treeValidateSecure') && category === 'tree') {
+        nodeType = 'treeValidateSecure';
+      } else if ((label === 'Tree Get Metadata' || label === 'treeGetMetadata') && category === 'tree') {
+        nodeType = 'treeGetMetadata';
+      } else if ((label === 'Tree To XML' || label === 'treeToXML') && category === 'tree') {
+        nodeType = 'treeToXML';
+      } else if ((label === 'Tree To YAML' || label === 'treeToYAML') && category === 'tree') {
+        nodeType = 'treeToYAML';
       } else if ((label === 'Tree Walk' || label === 'treeWalk') && category === 'tree') {
         nodeType = 'treeWalk';
       } else if ((label === 'Add To' || label === 'addTo') && category === 'array') {
@@ -475,7 +590,9 @@ export default function VisualDSLPrototype() {
         nodeType = 'createTransform';
       } else if ((label === 'Add Mapping' || label === 'AddMapping' || label === 'addMapping') && category === 'etl') {
         nodeType = 'addMapping';
-      } else if ((label === 'Create' || label === 'New Tree') && category === 'tree') {
+      } else if (label === 'New Tree' && category === 'tree') {
+        nodeType = 'newTree';
+      } else if (label === 'Create' && (category === 'node' || category === 'tree')) {
         nodeType = 'create';
       } else if ((label === 'Parse JSON' || category === 'parseJSON' || category === 'json')) {
         nodeType = 'parseJSON';
@@ -1516,7 +1633,502 @@ export default function VisualDSLPrototype() {
                 setPropertiesDialog(null);
               }}
               initialProperties={propertiesDialog.properties as CreateNodeProperties || { 
-                nodeName: 'MyNode' 
+                nodeName: '' 
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'newTree' && (
+            <NewTreeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as NewTreeNodeProperties || {
+                nodeName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvNode' && (
+            <CSVNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVNodeProperties || {
+                filename: '',
+                delimiter: ',',
+                hasHeaders: true
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'jsonNode' && (
+            <JSONNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: JSONNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as JSONNodeProperties || {
+                jsonOrName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'xmlNode' && (
+            <XMLNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: XMLNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as XMLNodeProperties || {
+                xmlString: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'yamlNode' && (
+            <YAMLNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: YAMLNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as YAMLNodeProperties || {
+                yamlString: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'mapNode' && (
+            <MapNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: MapNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as MapNodeProperties || {
+                mapString: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'list' && (
+            <ListNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: ListNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ListNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'nodeToString' && (
+            <NodeToStringNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: NodeToStringNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as NodeToStringNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'findByName' && (
+            <FindByNameNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as FindByNameNodeProperties || {
+                node: '',
+                name: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'traverseNode' && (
+            <TraverseNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: TraverseNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TraverseNodeProperties || {
+                node: '',
+                functionName: 'visitFn'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'queryNode' && (
+            <QueryNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: QueryNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as QueryNodeProperties || {
+                node: '',
+                functionName: 'predicateFn'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'firstChild' && (
+            <FirstChildNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as FirstChildNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'lastChild' && (
+            <LastChildNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as LastChildNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getAttribute' && (
+            <GetAttributeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetAttributeNodeProperties || {
+                variableName: '',
+                attributeName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setAttribute' && (
+            <SetAttributeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SetAttributeProps) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SetAttributeProps || {
+                variableName: '',
+                attributeName: '',
+                value: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'removeAttribute' && (
+            <RemoveAttributeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: RemoveAttributeNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RemoveAttributeNodeProperties || {
+                variableName: '',
+                attributeName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setAttributes' && (
+            <SetAttributesNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SetAttributesNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SetAttributesNodeProperties || {
+                variableName: '',
+                attributesMap: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getChildAt' && (
+            <GetChildAtNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetChildAtNodeProperties || {
+                node: '',
+                index: 0
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getChildByName' && (
+            <GetChildByNameNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetChildByNameNodeProperties || {
+                node: '',
+                name: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getDepth' && (
+            <GetDepthNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetDepthNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetDepthNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getLevel' && (
+            <GetLevelNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetLevelNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetLevelNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getName' && (
+            <GetNameNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetNameNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetNameNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setName' && (
+            <SetNameNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SetNameNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SetNameNodeProperties || {
+                variableName: '',
+                name: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getParent' && (
+            <GetParentNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetParentNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetParentNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'getPath' && (
+            <GetPathNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetPathNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetPathNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getRoot' && (
+            <GetRootNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetRootNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetRootNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getSiblings' && (
+            <GetSiblingsNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetSiblingsNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetSiblingsNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getText' && (
+            <GetTextNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: GetTextNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetTextNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setText' && (
+            <SetTextNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SetTextNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SetTextNodeProperties || {
+                variableName: '',
+                text: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'hasAttribute' && (
+            <HasAttributeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: HasAttributeNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as HasAttributeNodeProperties || {
+                variableName: '',
+                attributeName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'isLeaf' && (
+            <IsLeafNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: IsLeafNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as IsLeafNodeProperties || {
+                node: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'isRoot' && (
+            <IsRootNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: IsRootNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as IsRootNodeProperties || {
+                node: ''
               }}
             />
           )}
@@ -1564,6 +2176,52 @@ export default function VisualDSLPrototype() {
               initialProperties={propertiesDialog.properties as AddChildNodeProperties || { 
                 parentNode: '',
                 childNode: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'removeChild' && (
+            <RemoveChildNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: RemoveChildNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RemoveChildNodeProperties || { 
+                parentNode: '',
+                childNode: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'childCount' && (
+            <ChildCountNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ChildCountNodeProperties || {
+                node: 'node',
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'clear' && (
+            <ClearNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ClearNodeProperties || {
+                node: 'node',
               }}
             />
           )}
@@ -1640,6 +2298,37 @@ export default function VisualDSLPrototype() {
             />
           )}
 
+          {propertiesDialog && propertiesDialog.nodeType === 'treeValidateSecure' && (
+            <TreeValidateSecureNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeValidateSecureNodeProperties || {
+                filename: 'secure.json',
+                verificationKeyID: 'verifyKey',
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeGetMetadata' && (
+            <TreeGetMetadataNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeGetMetadataNodeProperties || {
+                filename: 'data.json',
+              }}
+            />
+          )}
+
           {propertiesDialog && propertiesDialog.nodeType === 'treeWalk' && (
             <TreeWalkNodePropertiesDialog
               isOpen={true}
@@ -1690,6 +2379,37 @@ export default function VisualDSLPrototype() {
                 value: '',
                 operator: '',
                 existsOnly: false
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeToYAML' && (
+            <TreeToYAMLNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeToYAMLNodeProperties || {
+                treeVariable: 'tree',
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'treeToXML' && (
+            <TreeToXMLNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TreeToXMLNodeProperties || {
+                treeVariable: 'tree',
+                prettyPrint: true,
               }}
             />
           )}

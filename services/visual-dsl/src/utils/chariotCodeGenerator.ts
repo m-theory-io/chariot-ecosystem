@@ -231,14 +231,66 @@ export class ChariotCodeGenerator {
         return this.generateDeclareCode(node);
         
       case 'Create':
-      case 'New Tree':
         return this.generateCreateCode(node);
+      case 'New Tree':
+        return this.generateNewTreeCode(node);
         
       case 'Parse JSON':
         return this.generateParseJSONCode(node);
         
       case 'Add Child':
         return this.generateAddChildCode(node);
+      case 'Remove Child':
+        return this.generateRemoveChildCode(node);
+      
+          return this.generateGetNameCode(node);
+        return this.generateClearCode(node);
+      
+      case 'Child Count':
+        return this.generateChildCountCode(node);
+      case 'First Child':
+        return this.generateFirstChildCode(node);
+      case 'Last Child':
+        return this.generateLastChildCode(node);
+      case 'Get Child At':
+        return this.generateGetChildAtCode(node);
+      case 'CSV Node':
+        return this.generateCSVNodeCode(node);
+      case 'JSON Node':
+        return this.generateJSONNodeCode(node);
+      case 'XML Node':
+        return this.generateXMLNodeCode(node);
+      case 'YAML Node':
+        return this.generateYAMLNodeCode(node);
+      case 'Map Node':
+        return this.generateMapNodeCode(node);
+      case 'Find By Name':
+        return this.generateFindByNameCode(node);
+      case 'Traverse Node':
+        return this.generateTraverseNodeCode(node);
+      case 'Query Node':
+        return this.generateQueryNodeCode(node);
+      case 'Get Child By Name':
+        return this.generateGetChildByNameCode(node);
+      case 'Get Depth':
+        return this.generateGetDepthCode(node);
+      case 'Get Level':
+        return this.generateGetLevelCode(node);
+      case 'Get Parent':
+        return this.generateGetParentCode(node);
+      case 'Get Path':
+        return this.generateGetPathCode(node);
+      case 'Get Root':
+        return this.generateGetRootCode(node);
+      case 'Get Siblings':
+        return this.generateGetSiblingsCode(node);
+      case 'Get Text':
+        return this.generateGetTextCode(node);
+      case 'Is Leaf':
+        return this.generateIsLeafCode(node);
+      case 'Is Root':
+        return this.generateIsRootCode(node);
+
         
       case 'Tree Save':
         return this.generateTreeSaveCode(node);
@@ -251,6 +303,9 @@ export class ChariotCodeGenerator {
       
       case 'Tree Load Secure':
         return this.generateTreeLoadSecureCode(node);
+      
+      case 'Tree Validate Secure':
+        return this.generateTreeValidateSecureCode(node);
         
       case 'Tree Find':
         return this.generateTreeFindCode(node);
@@ -260,6 +315,14 @@ export class ChariotCodeGenerator {
       
       case 'Tree Walk':
         return this.generateTreeWalkCode(node);
+      
+      case 'Tree To YAML':
+        return this.generateTreeToYAMLCode(node);
+      case 'Tree To XML':
+        return this.generateTreeToXMLCode(node);
+      
+      case 'Tree Get Metadata':
+        return this.generateTreeGetMetadataCode(node);
         
       case 'Add To':
         return this.generateAddToCode(node);
@@ -283,9 +346,23 @@ export class ChariotCodeGenerator {
         
       case 'Get Attribute':
         return this.generateGetAttributeCode(node);
+      case 'Remove Attribute':
+        return this.generateRemoveAttributeCode(node);
+      case 'Has Attribute':
+        return this.generateHasAttributeCode(node);
+      case 'List':
+        return this.generateListCode(node);
+      case 'Node To String':
+        return this.generateNodeToStringCode(node);
+      case 'Set Name':
+        return this.generateSetNameCode(node);
         
       case 'Set Attribute':
         return this.generateSetAttributeCode(node);
+      case 'Set Attributes':
+        return this.generateSetAttributesCode(node);
+      case 'Set Text':
+        return this.generateSetTextCode(node);
         
       default:
         // Generic function call
@@ -298,6 +375,7 @@ export class ChariotCodeGenerator {
     const varName = props.variableName || this.inferVariableName(node);
     const typeSpec = props.typeSpecifier || 'T';
     const isGlobal = props.isGlobal || false;
+
     
     // Check if this declare has a nested child (like create or parseJSON)
     const nestedChildren = this.nestingMap.get(node.id) || [];
@@ -332,8 +410,25 @@ export class ChariotCodeGenerator {
 
   private generateCreateCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
-    const nodeName = props.nodeName || this.diagram.name || 'newNode';
-    return `create('${nodeName}')`;
+    // Support zero-arg create() when name is intentionally left blank
+    if (Object.prototype.hasOwnProperty.call(props, 'nodeName')) {
+      const raw = (props.nodeName ?? '').toString().trim();
+      if (raw === '') {
+        return 'create()';
+      }
+      return `create('${raw}')`;
+    }
+    // If no property set at all, fall back to diagram name (legacy behavior)
+    const fallback = (this.diagram.name && this.diagram.name.trim() !== '') ? this.diagram.name : 'newNode';
+    return `create('${fallback}')`;
+  }
+
+  private generateNewTreeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    // newTree requires exactly one string argument (name)
+    const raw = (props.nodeName ?? '').toString().trim();
+    const name = raw !== '' ? raw : this.inferNodeNameFromContext(node);
+    return `newTree('${name}')`;
   }
 
   private generateParseJSONCode(node: VisualDSLNode): string {
@@ -353,7 +448,6 @@ export class ChariotCodeGenerator {
 
   private generateAddChildCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
-    
     // Use the properties if available
     if (props.parentNode && props.childNode) {
       return `addChild(${props.parentNode}, ${props.childNode})`;
@@ -404,6 +498,132 @@ export class ChariotCodeGenerator {
     }
     
     return `addChild(parent, child)`;
+  }
+
+  private generateRemoveChildCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    // Use the properties if available
+    if (props.parentNode && props.childNode) {
+      return `removeChild(${props.parentNode}, ${props.childNode})`;
+    }
+
+    // Try to infer sensible defaults similar to addChild
+    const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+    if (incomingEdges.length > 0) {
+      const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+      if (sourceNode) {
+        if (sourceNode.data.label === 'Declare' && sourceNode.data.properties?.variableName) {
+          const parentVar = sourceNode.data.properties.variableName;
+          const recentChild = this.findMostRecentDeclaredVariable(node);
+          if (recentChild) {
+            return `removeChild(${parentVar}, ${recentChild})`;
+          }
+        }
+      }
+    }
+
+    return `removeChild(parent, child)`;
+  }
+
+  private generateClearCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = props.node || '';
+
+    if (!nodeVar) {
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `clear(${nodeVar})`;
+  }
+
+  private generateChildCountCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = props.node || '';
+
+    if (!nodeVar) {
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `childCount(${nodeVar})`;
+  }
+
+  private generateFirstChildCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = props.node || '';
+
+    if (!nodeVar) {
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `firstChild(${nodeVar})`;
+  }
+
+  private generateLastChildCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = props.node || '';
+
+    if (!nodeVar) {
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `lastChild(${nodeVar})`;
+  }
+
+  private generateGetChildAtCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+    let indexVal: any = props.index;
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+    if (!nodeVar) nodeVar = 'node';
+
+    // Ensure index is a non-negative integer; fallback to 0
+    let indexNum = 0;
+    if (typeof indexVal === 'number' && Number.isInteger(indexVal) && indexVal >= 0) {
+      indexNum = indexVal;
+    } else if (typeof indexVal === 'string' && indexVal.trim() !== '') {
+      const parsed = Number(indexVal);
+      if (Number.isInteger(parsed) && parsed >= 0) indexNum = parsed;
+    }
+
+    return `getChildAt(${nodeVar}, ${indexNum})`;
   }
 
   private generateTreeSaveCode(node: VisualDSLNode): string {
@@ -506,6 +726,12 @@ export class ChariotCodeGenerator {
     return `treeLoadSecure('${filename}', '${decryptionKeyID}', '${verificationKeyID}')`;
   }
 
+  private generateTreeValidateSecureCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const filename = props.filename || 'secure.json';
+    const verificationKeyID = props.verificationKeyID || 'verifyKey';
+    return `treeValidateSecure('${filename}', '${verificationKeyID}')`;
+  }
   private generateTreeFindCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     const treeVar = (props.treeVariable ?? '').trim();
@@ -716,6 +942,16 @@ export class ChariotCodeGenerator {
       'add mapping': 'addMapping',
       'addChild': 'addChild',
       'add child': 'addChild',
+      'childCount': 'childCount',
+      'child count': 'childCount',
+      'firstchild': 'firstChild',
+      'first child': 'firstChild',
+      'lastchild': 'lastChild',
+      'last child': 'lastChild',
+      'getchildat': 'getChildAt',
+      'get child at': 'getChildAt',
+      'clear': 'clear',
+      'clear ': 'clear',
       'addTo': 'addTo',
       'add to': 'addTo',
       'treeSave': 'treeSave',
@@ -726,20 +962,79 @@ export class ChariotCodeGenerator {
       'tree find': 'treeFind',
       'treeSearch': 'treeSearch',
       'tree search': 'treeSearch',
-  'treeSaveSecure': 'treeSaveSecure',
-  'tree save secure': 'treeSaveSecure',
-  'treeLoadSecure': 'treeLoadSecure',
-  'tree load secure': 'treeLoadSecure',
-  'treeWalk': 'treeWalk',
-  'tree walk': 'treeWalk',
+      'treeSaveSecure': 'treeSaveSecure',
+      'tree save secure': 'treeSaveSecure',
+      'treeLoadSecure': 'treeLoadSecure',
+      'tree load secure': 'treeLoadSecure',
+      'treeValidateSecure': 'treeValidateSecure',
+      'tree validate secure': 'treeValidateSecure',
+      'treeWalk': 'treeWalk',
+      'tree walk': 'treeWalk',
+      'treeToYAML': 'treeToYAML',
+      'tree to yaml': 'treeToYAML',
+      'treeToXML': 'treeToXML',
+      'tree to xml': 'treeToXML',
+      'treeGetMetadata': 'treeGetMetadata',
+      'tree get metadata': 'treeGetMetadata',
       'getValue': 'getValue',
       'get value': 'getValue',
       'setValue': 'setValue',
       'set value': 'setValue',
       'getAttribute': 'getAttribute',
       'get attribute': 'getAttribute',
+  'removeattribute': 'removeAttribute',
+  'remove attribute': 'removeAttribute',
       'setAttribute': 'setAttribute',
-      'set attribute': 'setAttribute'
+      'set attribute': 'setAttribute',
+      'csvnode': 'csvNode',
+      'csv node': 'csvNode',
+  'jsonnode': 'jsonNode',
+  'json node': 'jsonNode',
+  'xmlnode': 'xmlNode',
+  'xml node': 'xmlNode',
+  'yamlnode': 'yamlNode',
+  'yaml node': 'yamlNode',
+  'mapnode': 'mapNode',
+  'map node': 'mapNode',
+    'findbyname': 'findByName',
+      'find by name': 'findByName',
+  'traversenode': 'traverseNode',
+  'traverse node': 'traverseNode',
+  'querynode': 'queryNode',
+  'query node': 'queryNode',
+      'getchildbyname': 'getChildByName',
+      'get child by name': 'getChildByName',
+  'list': 'list',
+      'getdepth': 'getDepth',
+      'get depth': 'getDepth',
+      'getlevel': 'getLevel',
+      'get level': 'getLevel',
+      'getname': 'getName',
+      'get name': 'getName',
+  'setname': 'setName',
+  'set name': 'setName',
+      'getparent': 'getParent',
+      'get parent': 'getParent',
+      'getpath': 'getPath',
+      'get path': 'getPath',
+      'getroot': 'getRoot',
+      'get root': 'getRoot',
+      'getsiblings': 'getSiblings',
+      'get siblings': 'getSiblings'
+      ,
+      'gettext': 'getText',
+      'get text': 'getText'
+      ,
+      'hasattribute': 'hasAttribute',
+      'has attribute': 'hasAttribute'
+      ,
+      'isleaf': 'isLeaf',
+      'is leaf': 'isLeaf',
+      'isroot': 'isRoot',
+      'is root': 'isRoot'
+      ,
+      'nodetostring': 'nodeToString',
+      'node to string': 'nodeToString'
     };
     
     // Check if we have a known camelCase mapping
@@ -774,6 +1069,44 @@ export class ChariotCodeGenerator {
     return `setValue(${varName}, ${value})`;
   }
 
+  private generateListCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `list(${nodeVar})`;
+  }
+
+  private generateNodeToStringCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `nodeToString(${nodeVar})`;
+  }
+
   private generateGetAttributeCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     const varName = props.variableName || 'var';
@@ -784,21 +1117,460 @@ export class ChariotCodeGenerator {
 
   private generateSetAttributeCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
-    const varName = props.variableName || 'var';
-    const attributeName = props.attributeName || 'attr';
-    const value = props.value || '';
-    
-    if (typeof value === 'string') {
-      return `setAttribute(${varName}, '${attributeName}', '${value}')`;
+    const varName = (props.variableName ?? 'var').toString().trim() || 'var';
+    const attributeName = (props.attributeName ?? 'attr').toString().trim() || 'attr';
+    const raw = (props.value ?? '').toString().trim();
+
+    if (raw === '') {
+      return `setAttribute(${varName}, '${attributeName}', '')`;
     }
-    return `setAttribute(${varName}, '${attributeName}', ${value})`;
+
+    // If it's a boolean or number, emit as-is
+    if (raw === 'true' || raw === 'false') {
+      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+    }
+    if (!isNaN(Number(raw)) && /^-?\d+(\.\d+)?$/.test(raw)) {
+      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+    }
+
+    // If it's an identifier (variable name) or function call, emit as-is
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(raw) || /\)$/.test(raw)) {
+      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+    }
+
+    // Otherwise, treat as a string literal
+    const escaped = raw.replace(/'/g, "\\'");
+    return `setAttribute(${varName}, '${attributeName}', '${escaped}')`;
+  }
+
+  private generateSetAttributesCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const varName = (props.variableName ?? 'var').toString().trim() || 'var';
+    const rawMap = (props.attributesMap ?? '').toString().trim();
+    // If blank, still emit call with empty object to be explicit
+    if (!rawMap) {
+      return `setAttributes(${varName}, {})`;
+    }
+    // Preserve as-is if not an object literal string starting with '{'
+    const isObjectLiteral = rawMap.startsWith('{') || rawMap.startsWith('mapNode(');
+    if (isObjectLiteral) {
+      return `setAttributes(${varName}, ${rawMap})`;
+    }
+    // Otherwise treat as variable symbol
+    return `setAttributes(${varName}, ${rawMap})`;
+  }
+
+  private generateSetTextCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const varName = (props.variableName ?? 'var').toString().trim() || 'var';
+    const rawText = (props.text ?? '').toString();
+    const escaped = rawText.replace(/'/g, "\\'");
+    return `setText(${varName}, '${escaped}')`;
+  }
+
+  private generateRemoveAttributeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const varName = (props.variableName ?? 'var').toString().trim() || 'var';
+    const attributeName = (props.attributeName ?? 'attr').toString().trim() || 'attr';
+    return `removeAttribute(${varName}, '${attributeName}')`;
+  }
+
+  private generateHasAttributeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const varName = (props.variableName ?? 'var').toString().trim() || 'var';
+    const attributeName = (props.attributeName ?? 'attr').toString().trim() || 'attr';
+    return `hasAttribute(${varName}, '${attributeName}')`;
+  }
+
+  private generateTreeToYAMLCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const treeVar = props.treeVariable || 'tree';
+    return `treeToYAML(${treeVar})`;
+  }
+
+  private generateTreeToXMLCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const treeVar = props.treeVariable || 'tree';
+    const pretty = props.prettyPrint;
+    if (typeof pretty === 'boolean') {
+      return `treeToXML(${treeVar}, ${pretty})`;
+    }
+    return `treeToXML(${treeVar})`;
+  }
+
+  private generateTreeGetMetadataCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const filename = props.filename || 'data.json';
+    return `treeGetMetadata('${filename}')`;
+  }
+
+  private generateCSVNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const filename = (props.filename ?? '').toString().trim();
+    const delimiter = (props.delimiter ?? ',').toString();
+    const hasHeaders = props.hasHeaders !== undefined ? !!props.hasHeaders : true;
+    if (!filename) {
+      // Fallback to a placeholder to avoid empty required arg
+      return `csvNode('data.csv')`;
+    }
+    // Only include optional args if they differ from defaults
+    const args: string[] = [`'${filename}'`];
+    if (delimiter !== ',') args.push(`'${delimiter}'`);
+    if (hasHeaders === false || args.length > 1) {
+      // If including hasHeaders, ensure delimiter arg slot exists
+      if (args.length === 1) args.push(`','`);
+      args.push(String(hasHeaders));
+    }
+    return `csvNode(${args.join(', ')})`;
+  }
+
+  private generateJSONNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const raw = (props.jsonOrName ?? '').toString().trim();
+    if (!raw) {
+      // Zero-arg form
+      return 'jsonNode()';
+    }
+    // Emit single string argument as-is (quoted)
+    // Note: backend decides whether to parse JSON or treat as name
+    // based on the first char being '{' or '['
+    const escaped = raw.replace(/'/g, "\\'");
+    return `jsonNode('${escaped}')`;
+  }
+
+  private generateXMLNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const raw = (props.xmlString ?? '').toString().trim();
+    if (!raw) {
+      // Zero-arg form creates empty XML node named "xml"
+      return 'xmlNode()';
+    }
+    const escaped = raw.replace(/'/g, "\\'");
+    return `xmlNode('${escaped}')`;
+  }
+
+  private generateYAMLNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const raw = (props.yamlString ?? '').toString().trim();
+    if (!raw) {
+      // Zero-arg form creates empty YAML node named "yaml"
+      return 'yamlNode()';
+    }
+    const escaped = raw.replace(/'/g, "\\'");
+    return `yamlNode('${escaped}')`;
+  }
+
+  private generateMapNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const raw = (props.mapString ?? '').toString().trim();
+    if (!raw) {
+      // Zero-arg form: creates empty map named "map"
+      return 'mapNode()';
+    }
+    // Single string argument: backend will parse to initialize the map
+    const escaped = raw.replace(/'/g, "\\'");
+    return `mapNode('${escaped}')`;
+  }
+
+  private generateFindByNameCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+    const childNameRaw = (props.name ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    const childName = childNameRaw || 'child';
+    return `findByName(${nodeVar}, '${childName}')`;
+  }
+
+  private generateTraverseNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+    let functionName = (props.functionName ?? '').toString().trim() || 'visitFn';
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    // Emit the function name as an unquoted symbol
+    return `traverseNode(${nodeVar}, ${functionName})`;
+  }
+
+  private generateQueryNodeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+    let functionName = (props.functionName ?? '').toString().trim() || 'predicateFn';
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    // Emit the function name as an unquoted symbol
+    return `queryNode(${nodeVar}, ${functionName})`;
+  }
+
+  private generateGetChildByNameCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+    const childNameRaw = (props.name ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    const childName = childNameRaw || 'child';
+    return `getChildByName(${nodeVar}, '${childName}')`;
+  }
+
+  private generateGetDepthCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getDepth(${nodeVar})`;
+  }
+
+  private generateGetLevelCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getLevel(${nodeVar})`;
+  }
+
+  private generateGetNameCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getName(${nodeVar})`;
+  }
+
+  private generateSetNameCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? props.variableName ?? '').toString().trim();
+    const rawName = (props.name ?? '').toString();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+    if (!nodeVar) nodeVar = 'node';
+    const escaped = rawName.replace(/'/g, "\\'");
+    return `setName(${nodeVar}, '${escaped}')`;
+  }
+
+  private generateGetParentCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getParent(${nodeVar})`;
+  }
+
+  private generateGetPathCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getPath(${nodeVar})`;
+  }
+
+  private generateGetRootCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getRoot(${nodeVar})`;
+  }
+
+  private generateGetSiblingsCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getSiblings(${nodeVar})`;
+  }
+
+  private generateGetTextCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `getText(${nodeVar})`;
+  }
+
+  private generateIsLeafCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `isLeaf(${nodeVar})`;
+  }
+
+  private generateIsRootCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let nodeVar = (props.node ?? '').toString().trim();
+
+    if (!nodeVar) {
+      // Try infer from incoming edge declare
+      const incomingEdges = this.diagram.edges.filter(edge => edge.target === node.id);
+      if (incomingEdges.length > 0) {
+        const sourceNode = this.nodeMap.get(incomingEdges[0].source);
+        if (sourceNode && sourceNode.data.properties?.variableName) {
+          nodeVar = sourceNode.data.properties.variableName;
+        }
+      }
+    }
+
+    if (!nodeVar) nodeVar = 'node';
+    return `isRoot(${nodeVar})`;
   }
 
   private generateNestedChildCode(childNode: VisualDSLNode): string | null {
     switch (childNode.data.label) {
       case 'Create':
-      case 'New Tree':
         return this.generateCreateCode(childNode);
+      case 'New Tree':
+        return this.generateNewTreeCode(childNode);
         
       case 'Parse JSON':
         // Check if the parseJSON node has its own children (like array)

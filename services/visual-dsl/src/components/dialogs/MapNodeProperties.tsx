@@ -1,40 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-interface CreateNodePropertiesProps {
+interface MapNodePropertiesProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (properties: CreateNodeProperties) => void;
+  onSave: (properties: MapNodeProperties) => void;
   onDelete: () => void;
-  initialProperties: CreateNodeProperties;
+  initialProperties: MapNodeProperties;
 }
 
-export interface CreateNodeProperties {
-  nodeName: string;
+// Backend semantics for mapNode:
+// - No args: creates an empty Map node named "map"
+// - One string arg: parses map content from the provided string
+export interface MapNodeProperties {
+  // Optional string content representing a map payload to load
+  mapString?: string;
 }
 
-export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = ({
+export const MapNodePropertiesDialog: React.FC<MapNodePropertiesProps> = ({
   isOpen,
   onClose,
   onSave,
   onDelete,
   initialProperties
 }) => {
-  const [nodeName, setNodeName] = useState(initialProperties.nodeName || '');
+  const [mapString, setMapString] = useState(initialProperties.mapString ?? '');
+  const [canSave, setCanSave] = useState(true); // optional field
+
+  useEffect(() => {
+    setCanSave(true);
+  }, [mapString]);
 
   const handleSave = () => {
-    onSave({
-      nodeName: nodeName.trim()
-    });
+    if (!canSave) return;
+    const trimmed = mapString.trim();
+    onSave(trimmed ? { mapString: trimmed } : {});
     onClose();
   };
 
   const handleClose = () => {
-    // Save properties when closing
-    onSave({
-      nodeName: nodeName.trim()
-    });
+    const trimmed = mapString.trim();
+    onSave(trimmed ? { mapString: trimmed } : {});
     onClose();
   };
 
@@ -51,7 +58,7 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
         {/* Title Bar */}
         <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-800 dark:border-gray-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Create Properties
+            Map Node Properties
           </h3>
           <button
             onClick={handleClose}
@@ -62,29 +69,30 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
         </div>
         
         {/* Content */}
-        <div className="p-6">
-          {/* Node Name (optional) */}
-          <div className="mb-6">
+        <div className="p-6 space-y-6">
+          {/* Optional map string input */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              TreeNode Name (optional):
+              Map String (optional):
             </label>
             <Input
               type="text"
-              value={nodeName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNodeName(e.target.value)}
+              value={mapString}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMapString(e.target.value)}
               className="w-full"
-              placeholder="e.g. MyNode — leave blank to use default"
+              placeholder="e.g. key1=value1,key2=value2"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              If left blank, codegen will emit create() with no arguments (backend defaults the name).
+              Leave blank to create an empty map node named "map". If provided, the backend will parse the string to populate the map.
             </p>
           </div>
-          
+
           {/* Buttons */}
           <div className="flex gap-3">
             <Button
-              onClick={handleClose}
-              className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200"
+              onClick={handleSave}
+              disabled={!canSave}
+              className={`px-6 py-2 ${canSave ? 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600' : 'bg-gray-200 dark:bg-gray-600 opacity-60 cursor-not-allowed'} text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200`}
             >
               Save Properties
             </Button>
@@ -97,21 +105,18 @@ export const CreateNodePropertiesDialog: React.FC<CreateNodePropertiesProps> = (
           </div>
         </div>
       </div>
-      
+
       {/* Explanatory text */}
       <div className="absolute top-1/2 left-1/2 transform translate-x-64 -translate-y-1/2 max-w-sm p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg shadow-lg">
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          The Create logicon creates a new TreeNode in Chariot with an optional name.
+          Creates a Map node. With no input, an empty map named "map" is created. If a string is provided, it will be parsed to initialize the map.
         </p>
         <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-          <strong>Parameter:</strong>
+          <strong>Parameters:</strong>
         </p>
         <ul className="text-xs text-gray-600 dark:text-gray-400 mt-1 space-y-1">
-          <li>1. TreeNode name (string, optional)</li>
+          <li>1. mapString (string, optional)</li>
         </ul>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 italic">
-          💡 Leave the name blank to emit create() and let the runtime choose the default name.
-        </p>
       </div>
     </div>
   );

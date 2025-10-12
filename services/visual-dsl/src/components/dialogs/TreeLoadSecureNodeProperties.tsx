@@ -53,14 +53,16 @@ export const TreeLoadSecureNodePropertiesDialog: React.FC<TreeLoadSecureNodeProp
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filename:</label>
             <Input type="text" value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="secure.json" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Decryption Key ID:</label>
-              <Input type="text" value={decryptionKeyID} onChange={(e) => setDecryptionKeyID(e.target.value)} placeholder="decKey" />
+              <Input className="w-full" type="text" value={decryptionKeyID} onChange={(e) => setDecryptionKeyID(e.target.value)} placeholder="decKey" />
             </div>
+          </div>
+          <div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Verification Key ID:</label>
-              <Input type="text" value={verificationKeyID} onChange={(e) => setVerificationKeyID(e.target.value)} placeholder="verifyKey" />
+              <Input className="w-full" type="text" value={verificationKeyID} onChange={(e) => setVerificationKeyID(e.target.value)} placeholder="verifyKey" />
             </div>
           </div>
           <div className="flex gap-3 pt-2">
