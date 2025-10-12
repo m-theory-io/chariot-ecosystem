@@ -25,9 +25,10 @@ We use Docker's cross-platform building capabilities with proper platform target
 ./scripts/build-azure-cross-platform.sh
 ```
 
-### 3. Deploy to Azure
+### 3. Push to Azure Container Registry
 ```bash
-./scripts/deploy-azure.sh
+./scripts/build-azure-cross-platform.sh <tag> [all|service]
+./scripts/push-images.sh <tag> [all|service]
 ```
 
 ## Manual Cross-Platform Builds
@@ -67,7 +68,7 @@ docker-compose -f docker-compose.yml -f docker-compose.cross-platform.yml build
 
 ### 2. Build Scripts
 - Created `build-azure-cross-platform.sh` for automated cross-platform builds
-- Updated `deploy-azure.sh` to use cross-platform builds
+- Use `push-images.sh` to publish to ACR; `deploy-azure.sh` has been removed to avoid confusion
 - Added platform verification steps
 
 ### 3. Package.json Updates

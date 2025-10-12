@@ -185,6 +185,7 @@ services:
       - OAUTH2_PROXY_SHOW_DEBUG_ON_ERROR=true
       - OAUTH2_PROXY_SESSION_STORE_TYPE=redis
       - OAUTH2_PROXY_REDIS_CONNECTION_URL=redis://redis:6379
+      - OAUTH2_PROXY_SKIP_AUTH_ROUTES=^/visual-dsl/visual_dsl_favicon\.svg$
     volumes:
       # Bind-mount a real file from the VM (create it on the host). Defaults to /home/mtheory/.oauth2-proxy/authenticated-emails.txt
       - "${OAUTH2_EMAILS_FILE:-/home/mtheory/.oauth2-proxy/authenticated-emails.txt}:/etc/oauth2-proxy/authenticated-emails.txt:ro"

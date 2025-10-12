@@ -1,0 +1,41 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-visual-dsl",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd services/visual-dsl && if [ -f pnpm-lock.yaml ]; then corepack pnpm -s i && corepack pnpm -s build; elif [ -f yarn.lock ]; then yarn install --frozen-lockfile && yarn build; else npm ci --no-audit --no-fund && npm run build; fi"
+			]
+		},
+		{
+			"label": "build-visual-dsl-2",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd services/visual-dsl && npm run -s build"
+			]
+		},
+		{
+			"label": "build-visual-dsl-setname",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd services/visual-dsl && npm run -s build"
+			]
+		},
+		{
+			"label": "build-visual-dsl-traverse",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd services/visual-dsl && npm run -s build"
+			]
+		}
+	]
+}

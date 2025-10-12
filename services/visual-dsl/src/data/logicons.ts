@@ -468,13 +468,6 @@ export const logiconDefinitions: LogiconData[] = [
     category: 'node'
   },
   {
-    id: 'cloneNode',
-    label: 'Clone Node',
-    icon: '👥',
-    description: 'Clone a node',
-    category: 'node'
-  },
-  {
     id: 'create',
     label: 'Create',
     icon: '🆕',

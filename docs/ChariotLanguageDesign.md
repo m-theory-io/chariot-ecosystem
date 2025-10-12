@@ -56,7 +56,7 @@ if(smaller(x, 5)) {
 
 Is it more verbose than Lisp? Yes, but it is also arguably more readable
 to programmers raised on imperative languages such as JavaScript or
-C\#\#. Also, note that else is treated as a keyword.\
+C++. Also, note that else is treated as a keyword.\
 \
 For iteration, the same pattern applies. A Lisp while loop:
 

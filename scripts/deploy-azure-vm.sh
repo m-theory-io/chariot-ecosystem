@@ -35,9 +35,11 @@ fi
 
 print_status "Target VM: $AZURE_VM_USER@$AZURE_VM_HOST"
 
-# Step 1: Build and push images to ACR
-print_building "Building and pushing images to Azure Container Registry..."
-./scripts/deploy-azure.sh
+# Step 1: Build and push images to ACR (canonical flow)
+print_building "Building and pushing images to Azure Container Registry (canonical flow)..."
+TAG=${TAG:-latest}
+./scripts/build-azure-cross-platform.sh "$TAG" all
+./scripts/push-images.sh "$TAG" all
 
 # Step 2: Prepare deployment package
 print_status "Preparing deployment package..."

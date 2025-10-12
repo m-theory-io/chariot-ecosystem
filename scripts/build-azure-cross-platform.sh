@@ -115,6 +115,12 @@ build_nginx() {
         -t nginx:$TAG \
         --load \
         ./infrastructure/docker/nginx
+
+    # Also tag the local image as :amd64 so default compose tag pulls the latest fix
+    if [ "$TAG" != "amd64" ]; then
+        print_status "Tagging nginx:$TAG also as nginx:amd64 (local convenience tag)"
+        docker tag nginx:$TAG nginx:amd64 || true
+    fi
 }
 
 # Build services based on argument
@@ -158,6 +164,12 @@ if [ -n "$REGISTRY_NAME" ]; then
     for image in "${BUILT_IMAGES[@]}"; do
         service_name=$(echo $image | cut -d: -f1)
         docker tag $image "$REGISTRY_NAME.azurecr.io/$service_name:$TAG"
+
+        # Special-case nginx: also tag registry image as :amd64 to match compose default
+        if [ "$service_name" = "nginx" ] && [ "$TAG" != "amd64" ]; then
+            print_status "Creating additional registry tag for nginx: amd64"
+            docker tag $image "$REGISTRY_NAME.azurecr.io/nginx:amd64"
+        fi
     done
     
     print_status "Images tagged for registry!"
@@ -180,6 +192,11 @@ print_status "🚀 To push to registry:"
 for image in "${BUILT_IMAGES[@]}"; do
     service_name=$(echo $image | cut -d: -f1)
     echo "   docker push $REGISTRY_NAME.azurecr.io/$service_name:$TAG"
+
+    # Show extra push command for nginx default tag
+    if [ "$service_name" = "nginx" ] && [ "$TAG" != "amd64" ]; then
+        echo "   docker push $REGISTRY_NAME.azurecr.io/nginx:amd64"
+    fi
 done
 
 print_status "🎉 Cross-platform build complete! Images are ready for Azure deployment."

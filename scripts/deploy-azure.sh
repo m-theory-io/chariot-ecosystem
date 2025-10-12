@@ -83,21 +83,31 @@ print_status "Cross-platform build completed!"
 print_status "Pushing Docker images to ACR..."
 
 # The images are already built by the cross-platform script, just push them
+# Use repository names consistent with docker-compose.azure.yml and push-images.sh
+
 print_status "Pushing go-chariot image..."
-docker tag go-chariot:amd64 "$ACR_LOGIN_SERVER/chariot-api:latest"
-docker push "$ACR_LOGIN_SERVER/chariot-api:latest"
+docker tag go-chariot:latest "$ACR_LOGIN_SERVER/go-chariot:latest"
+docker push "$ACR_LOGIN_SERVER/go-chariot:latest"
 
 print_status "Pushing charioteer image..."
-docker tag charioteer:amd64 "$ACR_LOGIN_SERVER/chariot-editor:latest"
-docker push "$ACR_LOGIN_SERVER/chariot-editor:latest"
+docker tag charioteer:latest "$ACR_LOGIN_SERVER/charioteer:latest"
+docker push "$ACR_LOGIN_SERVER/charioteer:latest"
 
 print_status "Pushing visual-dsl image..."
-docker tag visual-dsl:amd64 "$ACR_LOGIN_SERVER/chariot-visual-dsl:latest"
-docker push "$ACR_LOGIN_SERVER/chariot-visual-dsl:latest"
+docker tag visual-dsl:latest "$ACR_LOGIN_SERVER/visual-dsl:latest"
+docker push "$ACR_LOGIN_SERVER/visual-dsl:latest"
 
 print_status "Pushing nginx image..."
-docker tag nginx:amd64 "$ACR_LOGIN_SERVER/chariot-nginx:latest"
-docker push "$ACR_LOGIN_SERVER/chariot-nginx:latest"
+# Push both latest and amd64 tags; compose defaults to nginx:amd64
+docker tag nginx:latest "$ACR_LOGIN_SERVER/nginx:latest"
+docker push "$ACR_LOGIN_SERVER/nginx:latest"
+# If local nginx:amd64 exists (built by cross-platform script), push it as the default alias
+if docker image inspect nginx:amd64 >/dev/null 2>&1; then
+    docker tag nginx:amd64 "$ACR_LOGIN_SERVER/nginx:amd64"
+    docker push "$ACR_LOGIN_SERVER/nginx:amd64"
+else
+    print_warning "nginx:amd64 not found locally; only pushed nginx:latest. Run build-azure-cross-platform.sh to create amd64 alias if needed."
+fi
 
 print_status "All images pushed successfully!"
 

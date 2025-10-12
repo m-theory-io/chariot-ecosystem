@@ -25,9 +25,11 @@ print_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 print_building() { echo -e "${BLUE}[BUILD]${NC} $1"; }
 
-# Step 1: Build and push images
-print_building "Building and pushing images to ACR..."
-./scripts/deploy-azure.sh
+# Step 1: Build and push images using canonical flow
+print_building "Building and pushing images to ACR (canonical flow)..."
+TAG=${TAG:-latest}
+./scripts/build-azure-cross-platform.sh "$TAG" all
+./scripts/push-images.sh "$TAG" all
 
 # Step 2: Get ACR credentials
 print_status "Getting ACR credentials..."
