@@ -38,13 +38,26 @@ func getSecureFilePath(filename string, pathType string) (string, error) {
 		if basePath == "" {
 			return "", fmt.Errorf("TreePath is not configured")
 		}
+	case "diagram":
+		basePath = cfg.ChariotConfig.DiagramPath
+		if basePath == "" {
+			return "", fmt.Errorf("DiagramPath is not configured")
+		}
 	default:
 		return "", fmt.Errorf("invalid path type: %s", pathType)
 	}
 
-	// Validate base path exists
-	if _, err := os.Stat(basePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("%s '%s' does not exist", pathType, basePath)
+	// Ensure base path exists and is a directory
+	if info, err := os.Stat(basePath); err != nil {
+		if os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(basePath, 0755); mkErr != nil {
+				return "", fmt.Errorf("failed to create %s path '%s': %w", pathType, basePath, mkErr)
+			}
+		} else {
+			return "", fmt.Errorf("failed to access %s path '%s': %w", pathType, basePath, err)
+		}
+	} else if !info.IsDir() {
+		return "", fmt.Errorf("%s path '%s' is not a directory", pathType, basePath)
 	}
 
 	// Clean the filename to prevent directory traversal attacks

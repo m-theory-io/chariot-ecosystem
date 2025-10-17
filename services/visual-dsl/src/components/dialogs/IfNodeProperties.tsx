@@ -10,6 +10,9 @@ export interface IfNodeProperties {
   rightOperand?: string;
   description?: string;
   name?: string;
+  ifBody?: string;
+  hasElse?: boolean;
+  elseBody?: string;
 }
 
 interface IfNodePropertiesDialogProps {
@@ -25,7 +28,7 @@ export const IfNodePropertiesDialog: React.FC<IfNodePropertiesDialogProps> = ({
   onSave,
   initialProperties = {}
 }) => {
-  const [properties, setProperties] = useState<IfNodeProperties>({
+  const defaultState: IfNodeProperties = {
     condition: '',
     conditionType: 'expression',
     leftOperand: '',
@@ -33,21 +36,47 @@ export const IfNodePropertiesDialog: React.FC<IfNodePropertiesDialogProps> = ({
     rightOperand: '',
     description: '',
     name: '',
-    ...initialProperties
-  });
+    ifBody: '',
+    hasElse: false,
+    elseBody: ''
+  };
+
+  const coerceBoolean = (value: unknown): boolean => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') return true;
+      if (normalized === 'false') return false;
+    }
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+    return false;
+  };
+
+  const hydrateState = (props: IfNodeProperties = {}): IfNodeProperties => {
+    const merged = {
+      ...defaultState,
+      ...props
+    };
+
+    const legacyBody = (props as Record<string, unknown>)?.body;
+    if ((merged.ifBody === undefined || merged.ifBody === '') && typeof legacyBody === 'string') {
+      merged.ifBody = legacyBody;
+    }
+
+    merged.ifBody = merged.ifBody ?? '';
+    merged.hasElse = coerceBoolean(merged.hasElse);
+    merged.elseBody = merged.hasElse ? (merged.elseBody ?? '') : '';
+
+    return merged;
+  };
+
+  const [properties, setProperties] = useState<IfNodeProperties>(hydrateState(initialProperties));
 
   useEffect(() => {
     if (isOpen) {
-      setProperties({
-        condition: '',
-        conditionType: 'expression',
-        leftOperand: '',
-        operator: 'equal',
-        rightOperand: '',
-        description: '',
-        name: '',
-        ...initialProperties
-      });
+      setProperties(hydrateState(initialProperties));
     }
   }, [isOpen, initialProperties]);
 
@@ -63,7 +92,10 @@ export const IfNodePropertiesDialog: React.FC<IfNodePropertiesDialogProps> = ({
 
     onSave({
       ...properties,
-      condition: finalCondition
+      condition: finalCondition,
+      ifBody: properties.ifBody ?? '',
+      hasElse: coerceBoolean(properties.hasElse),
+      elseBody: coerceBoolean(properties.hasElse) ? (properties.elseBody ?? '') : ''
     });
     onClose();
   };
@@ -197,6 +229,51 @@ export const IfNodePropertiesDialog: React.FC<IfNodePropertiesDialogProps> = ({
               placeholder="Describe what this condition checks"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              If Block Statements
+            </label>
+            <textarea
+              value={properties.ifBody || ''}
+              onChange={(e) => setProperties({ ...properties, ifBody: e.target.value })}
+              placeholder="Statements to execute when the condition is true"
+              className="w-full h-32 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-y"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Lines entered here render immediately inside the if block, before any nested logicons.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="if-has-else"
+              type="checkbox"
+              checked={properties.hasElse ?? false}
+              onChange={(e) => setProperties({ ...properties, hasElse: e.target.checked })}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+            />
+            <label htmlFor="if-has-else" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Include else block
+            </label>
+          </div>
+
+          {properties.hasElse && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Else Block Statements
+              </label>
+              <textarea
+                value={properties.elseBody || ''}
+                onChange={(e) => setProperties({ ...properties, elseBody: e.target.value })}
+                placeholder="Statements to execute when the condition is false"
+                className="w-full h-32 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-y"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Else statements render after the if block and before any downstream logicons.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 mt-6">

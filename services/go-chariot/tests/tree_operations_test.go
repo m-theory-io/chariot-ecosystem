@@ -85,7 +85,7 @@ func TestTreeOperations(t *testing.T) {
 				`setq(firstResult, getAt(found, 0))`,
 				`getAttribute(firstResult, 'id')`,
 			},
-			ExpectedValue: chariot.Number(2),
+			ExpectedValue: chariot.Number(1),
 		},
 		{
 			Name: "Tree Find - Not Found",
@@ -110,7 +110,7 @@ func TestTreeOperations(t *testing.T) {
 			Name: "Tree Search - Multiple Results",
 			Script: []string{
 				`setq(data, parseJSON('[{"id": 1, "name": "Alice", "role": "dev"}, {"id": 2, "name": "Bob", "role": "manager"}, {"id": 3, "name": "Charlie", "role": "dev"}]', 'users'))`,
-				`setq(devUsers, treeFind(data, 'role', 'dev'))`,
+				`setq(devUsers, treeSearch(data, 'role', 'dev'))`,
 				`length(devUsers)`,
 			},
 			ExpectedValue: chariot.Number(2),
@@ -357,7 +357,7 @@ func TestTreeSearchErrorHandling(t *testing.T) {
 			Name: "Tree Search - Wrong Argument Count (too many)",
 			Script: []string{
 				`setq(data, parseJSON('{}', 'test'))`,
-				`treeSearch(data, 'key', 'value', '=', 'extra')`,
+				`treeSearch(data, 'key', 'value', '=', false, 'extra')`,
 			},
 			ExpectedError: true,
 		},

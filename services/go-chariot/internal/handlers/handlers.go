@@ -307,10 +307,10 @@ func (h *Handlers) Execute(c echo.Context) error {
 					Data:   "Invalid function parameters format",
 				})
 			}
-			bodyStart := paramsEnd + 1
 			params = strings.TrimSpace(params[:paramsEnd])
 			// Remove closing paren from Program using the already computed bodyStart
-			req.Program = strings.TrimSpace(req.Program[:bodyStart])
+			bodyStart := strings.Index(req.Program, "{")
+			req.Program = strings.TrimSpace(req.Program[bodyStart:])
 		}
 		// Extract the body -- the braces plus all lines betwee them
 		bodyStart := strings.Index(req.Program, "{")

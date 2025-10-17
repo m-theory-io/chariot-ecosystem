@@ -38,12 +38,16 @@ export class ChariotCodeGenerator {
   private nodeMap: Map<string, VisualDSLNode>;
   private executionOrder: string[];
   private nestingMap: Map<string, string[]>;
+  private parentLookup: Map<string, string>;
+  private switchInlineNodes: Set<string>;
 
   constructor(diagram: VisualDSLDiagram) {
     this.diagram = diagram;
     this.nodeMap = new Map();
     this.executionOrder = [];
     this.nestingMap = new Map();
+    this.parentLookup = new Map();
+    this.switchInlineNodes = new Set();
     
     // Build node map
     diagram.nodes.forEach(node => {
@@ -60,11 +64,14 @@ export class ChariotCodeGenerator {
           this.nestingMap.set(rel.parentId, []);
         }
         this.nestingMap.get(rel.parentId)!.push(rel.childId);
+        this.parentLookup.set(rel.childId, rel.parentId);
       }
     });
-    
-    // Calculate execution order from flow
+
+    // Calculate execution order from flow before collecting inline nodes
     this.calculateExecutionOrder();
+
+    this.switchInlineNodes = this.collectSwitchInlineNodes();
   }
 
   public generateChariotCode(): string {
@@ -80,11 +87,18 @@ export class ChariotCodeGenerator {
       const parentNode = this.nodeMap.get(parentId);
       if (parentNode?.data.label === 'Declare' && childIds.length === 1) {
         const childNode = this.nodeMap.get(childIds[0]);
-        if (childNode && ['Create', 'New Tree', 'Parse JSON', 'Array'].includes(childNode.data.label)) {
+        if (!childNode) continue;
+        const typeSpec = parentNode.data.properties?.typeSpecifier || 'T';
+        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array'];
+        if (inlineLabels.includes(childNode.data.label)) {
+          inlineProcessedNodes.add(childIds[0]);
+        } else if (childNode.data.label === 'Function' && typeSpec === 'F') {
           inlineProcessedNodes.add(childIds[0]);
         }
       }
     }
+
+    this.switchInlineNodes.forEach(id => inlineProcessedNodes.add(id));
     
     // Process nodes in execution order, skipping inline-processed ones
     for (const nodeId of this.executionOrder) {
@@ -107,6 +121,11 @@ export class ChariotCodeGenerator {
       const parentNode = this.nodeMap.get(parentId);
       if (!parentNode) continue;
       
+      const parentLabel = parentNode.data.label;
+      if (parentLabel === 'Switch' || parentLabel === 'Case' || parentLabel === 'Default' || parentLabel === 'If' || parentLabel === 'Then' || parentLabel === 'Else') {
+        continue;
+      }
+
       const parentProps = parentNode.data.properties || {};
       const parentVarName = parentProps.variableName || this.inferVariableName(parentNode);
       
@@ -114,13 +133,23 @@ export class ChariotCodeGenerator {
       const isComplexNesting = childIds.length > 1 || 
         childIds.some(childId => {
           const childNode = this.nodeMap.get(childId);
-          return childNode && !['Create', 'New Tree', 'Parse JSON', 'Array'].includes(childNode.data.label);
+          if (!childNode) {
+            return false;
+          }
+          if (childNode.data.label === 'Then' || childNode.data.label === 'Else') {
+            return false;
+          }
+          return !['Create', 'New Tree', 'Parse JSON', 'Array'].includes(childNode.data.label);
         });
       
       if (isComplexNesting) {
         for (const childId of childIds) {
           const childNode = this.nodeMap.get(childId);
           if (!childNode) continue;
+
+          if (childNode.data.label === 'Then' || childNode.data.label === 'Else') {
+            continue;
+          }
           
           const childProps = childNode.data.properties || {};
           const childVarName = childProps.variableName || this.inferVariableName(childNode);
@@ -340,6 +369,17 @@ export class ChariotCodeGenerator {
         
       case 'Array':
         return this.generateArrayCode(node);
+      case 'Function':
+        return this.generateFunctionCode(node);
+      case 'If':
+        return this.generateIfCode(node);
+      case 'Switch':
+        return this.generateSwitchCode(node);
+      case 'Case':
+      case 'Default':
+      case 'Then':
+      case 'Else':
+        return null;
         
       case 'Set Value':
         return this.generateSetValueCode(node);
@@ -375,6 +415,11 @@ export class ChariotCodeGenerator {
     const varName = props.variableName || this.inferVariableName(node);
     const typeSpec = props.typeSpecifier || 'T';
     const isGlobal = props.isGlobal || false;
+    const rawInitialValue = props.initialValue;
+    const hasInitialValue =
+      rawInitialValue !== undefined &&
+      rawInitialValue !== null &&
+      String(rawInitialValue).trim().length > 0;
 
     
     // Check if this declare has a nested child (like create or parseJSON)
@@ -384,11 +429,14 @@ export class ChariotCodeGenerator {
     if (nestedChildren.length === 1) {
       const childNode = this.nodeMap.get(nestedChildren[0]);
       if (childNode) {
-        // Only generate inline for simple child types
-        const isSimpleChild = ['Create', 'New Tree', 'Parse JSON', 'Array'].includes(childNode.data.label);
-        
-        if (isSimpleChild) {
-          const childCode = this.generateNestedChildCode(childNode);
+        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array'];
+        const isSimpleChild = inlineLabels.includes(childNode.data.label);
+        const isInlineFunction = childNode.data.label === 'Function' && typeSpec === 'F';
+
+        if (isSimpleChild || isInlineFunction) {
+          const childCode = isInlineFunction
+            ? this.generateFunctionCode(childNode)
+            : this.generateNestedChildCode(childNode);
           if (childCode) {
             if (isGlobal) {
               return `declareGlobal(${varName}, '${typeSpec}', ${childCode})`;
@@ -402,10 +450,16 @@ export class ChariotCodeGenerator {
     
     // Simple declare without nested content (or for complex nesting handled by addChild)
     if (isGlobal) {
+      if (hasInitialValue) {
+        return `declareGlobal(${varName}, '${typeSpec}', ${rawInitialValue})`;
+      }
       return `declareGlobal(${varName}, '${typeSpec}')`;
-    } else {
-      return `declare(${varName}, '${typeSpec}')`;
     }
+
+    if (hasInitialValue) {
+      return `declare(${varName}, '${typeSpec}', ${rawInitialValue})`;
+    }
+    return `declare(${varName}, '${typeSpec}')`;
   }
 
   private generateCreateCode(node: VisualDSLNode): string {
@@ -921,6 +975,143 @@ export class ChariotCodeGenerator {
     return `array()`;
   }
 
+  private generateFunctionCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const parameterEntries = this.normalizeFunctionParameters(props);
+    const body: string = (props.body ?? '').toString();
+
+    const paramNames: string[] = [];
+    for (const entry of parameterEntries) {
+      if (entry.name.length === 0) continue;
+      if (!paramNames.includes(entry.name)) {
+        paramNames.push(entry.name);
+      }
+    }
+    const paramsStr = paramNames.join(', ');
+
+    const defaultLines = parameterEntries
+      .filter(entry => entry.name.length > 0 && entry.value.length > 0)
+      .map(entry => `  if(equal(${entry.name}, DBNull)) {\n    setq(${entry.name}, ${entry.value});\n  }`);
+
+    const normalizedBody = body.replace(/\r\n/g, '\n');
+    const hasBodyContent = normalizedBody.trim().length > 0;
+
+    const sections: string[] = [];
+    if (defaultLines.length > 0) {
+      sections.push(defaultLines.join('\n'));
+    }
+    if (hasBodyContent) {
+      sections.push(normalizedBody);
+    }
+
+    const inner = sections.join('\n');
+    return `func(${paramsStr}) {\n${inner}\n}`;
+  }
+
+  private generateIfCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const rawCondition = (props.condition ?? '').toString().trim();
+    const condition = rawCondition !== '' ? rawCondition : 'true';
+
+    const lines: string[] = [];
+    lines.push(`if(${condition}) {`);
+
+    const inlineIf = this.normalizeInlineBlock(props.ifBody ?? props.body, 2);
+    const orderedChildren = this.getOrderedChildren(node.id);
+    const thenNodeId = orderedChildren.find(childId => {
+      const childNode = this.nodeMap.get(childId);
+      return childNode?.data.label === 'Then';
+    }) ?? null;
+
+    let nestedIf: string[] = [];
+    if (thenNodeId) {
+      const branchChildren = this.getBranchChildren(thenNodeId);
+      nestedIf = this.generateBlockFromChildren(thenNodeId, 2, branchChildren);
+    } else {
+      const fallbackChildren = orderedChildren.filter(childId => {
+        const childNode = this.nodeMap.get(childId);
+        return childNode?.data.label !== 'Else';
+      });
+      nestedIf = this.generateBlockFromChildren(node.id, 2, fallbackChildren);
+    }
+
+    if (inlineIf.length > 0) {
+      lines.push(...inlineIf);
+    }
+    if (nestedIf.length > 0) {
+      lines.push(...nestedIf);
+    }
+    if (inlineIf.length === 0 && nestedIf.length === 0) {
+      lines.push(`${this.indent(2)}// TODO: add statements`);
+    }
+
+    lines.push('}');
+
+    const elseText = (props.elseBody ?? '').toString();
+    const elseNodeId = orderedChildren.find(childId => {
+      const childNode = this.nodeMap.get(childId);
+      return childNode?.data.label === 'Else';
+    }) ?? null;
+
+    let elseBranchBlock: string[] = [];
+    if (elseNodeId) {
+      const branchChildren = this.getBranchChildren(elseNodeId);
+      elseBranchBlock = this.generateBlockFromChildren(elseNodeId, 2, branchChildren);
+    }
+
+    const inlineElse = this.normalizeInlineBlock(elseText, 2);
+    const includeElse = this.isTruthy(props.hasElse) || inlineElse.length > 0 || elseBranchBlock.length > 0;
+    if (includeElse) {
+      lines.push('else {');
+      if (inlineElse.length > 0) {
+        lines.push(...inlineElse);
+      }
+      if (elseBranchBlock.length > 0) {
+        lines.push(...elseBranchBlock);
+      }
+      if (inlineElse.length === 0 && elseBranchBlock.length === 0) {
+        lines.push(`${this.indent(2)}// TODO: add else statements`);
+      }
+      lines.push('}');
+    }
+
+    return lines.join('\n');
+  }
+
+  private normalizeFunctionParameters(props: Record<string, any>): { name: string; value: string }[] {
+    const result: { name: string; value: string }[] = [];
+    const raw = props?.parameters;
+    if (Array.isArray(raw)) {
+      raw.forEach((entry: any) => {
+        if (typeof entry === 'string') {
+          const name = entry.toString().trim();
+          if (name.length > 0) {
+            result.push({ name, value: '' });
+          }
+        } else if (entry && typeof entry === 'object') {
+          const name = (entry.name ?? '').toString().trim();
+          const value = (entry.value ?? '').toString().trim();
+          if (name.length > 0 || value.length > 0) {
+            result.push({ name, value });
+          }
+        }
+      });
+    }
+
+    const legacyNames = Array.isArray(props?.parameterNames) ? props.parameterNames : [];
+    const legacyValues = Array.isArray(props?.parameterValues) ? props.parameterValues : [];
+    const maxLegacy = Math.max(legacyNames.length, legacyValues.length);
+    for (let i = 0; i < maxLegacy; i++) {
+      const name = (legacyNames[i] ?? '').toString().trim();
+      const value = (legacyValues[i] ?? '').toString().trim();
+      if (name.length > 0 || value.length > 0) {
+        result.push({ name, value });
+      }
+    }
+
+    return result;
+  }
+
   private generateGenericFunctionCode(node: VisualDSLNode): string {
     // Sanitize the label to avoid artifacts like "declare(...)" from visual labels
     const rawLabel = node.data.label.toLowerCase();
@@ -1058,6 +1249,284 @@ export class ChariotCodeGenerator {
     return `${functionName}(${args.join(', ')})`;
   }
 
+  private generateSwitchCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const rawExpr = (props.testExpression ?? '').toString().trim();
+    const header = rawExpr !== '' ? `switch(${rawExpr}) {` : 'switch() {';
+    const lines = [header];
+
+    const orderedChildren = this.getOrderedChildren(node.id);
+    const caseNodes: VisualDSLNode[] = [];
+    let defaultNode: VisualDSLNode | null = null;
+
+    for (const childId of orderedChildren) {
+      const childNode = this.nodeMap.get(childId);
+      if (!childNode) continue;
+      if (childNode.data.label === 'Case') {
+        caseNodes.push(childNode);
+      } else if (childNode.data.label === 'Default' && !defaultNode) {
+        defaultNode = childNode;
+      }
+    }
+
+    if (caseNodes.length === 0 && !defaultNode) {
+      lines.push(`${this.indent(2)}// TODO: add case or default branch`);
+    } else {
+      for (const caseNode of caseNodes) {
+        lines.push(...this.generateCaseBlock(caseNode, 2));
+      }
+      if (defaultNode) {
+        lines.push(...this.generateDefaultBlock(defaultNode, 2));
+      }
+    }
+
+    lines.push('}');
+    return lines.join('\n');
+  }
+
+  private generateCaseBlock(node: VisualDSLNode, indentLevel: number): string[] {
+    const props = node.data.properties || {};
+    const rawCondition = (props.condition ?? '').toString().trim();
+    const condition = rawCondition !== '' ? rawCondition : 'true';
+    const lines: string[] = [];
+    lines.push(`${this.indent(indentLevel)}case(${condition}) {`);
+
+    const inlineBody = this.normalizeInlineBlock(props.body, indentLevel + 2);
+    const branchChildren = this.getBranchChildren(node.id);
+    const generatedBody = this.generateBlockFromChildren(node.id, indentLevel + 2, branchChildren);
+
+    if (inlineBody.length > 0) {
+      lines.push(...inlineBody);
+    }
+    if (generatedBody.length > 0) {
+      lines.push(...generatedBody);
+    }
+    if (inlineBody.length === 0 && generatedBody.length === 0) {
+      lines.push(`${this.indent(indentLevel + 2)}// TODO: add statements`);
+    }
+
+    lines.push(`${this.indent(indentLevel)}}`);
+    return lines;
+  }
+
+  private generateDefaultBlock(node: VisualDSLNode, indentLevel: number): string[] {
+    const props = node.data.properties || {};
+    const lines: string[] = [];
+    lines.push(`${this.indent(indentLevel)}default() {`);
+
+    const inlineBody = this.normalizeInlineBlock(props.body, indentLevel + 2);
+    const branchChildren = this.getBranchChildren(node.id);
+    const generatedBody = this.generateBlockFromChildren(node.id, indentLevel + 2, branchChildren);
+
+    if (inlineBody.length > 0) {
+      lines.push(...inlineBody);
+    }
+    if (generatedBody.length > 0) {
+      lines.push(...generatedBody);
+    }
+    if (inlineBody.length === 0 && generatedBody.length === 0) {
+      lines.push(`${this.indent(indentLevel + 2)}// TODO: add statements`);
+    }
+
+    lines.push(`${this.indent(indentLevel)}}`);
+    return lines;
+  }
+
+  private generateBlockFromChildren(parentId: string, indentLevel: number, overrideChildIds?: string[]): string[] {
+    const childIds = overrideChildIds ?? this.getOrderedChildren(parentId);
+    const result: string[] = [];
+    const indent = this.indent(indentLevel);
+
+    for (const childId of childIds) {
+      const childNode = this.nodeMap.get(childId);
+      if (!childNode) continue;
+      const childCode = this.generateNodeCode(childNode);
+      if (!childCode) continue;
+      const childLines = childCode.split('\n');
+      for (const line of childLines) {
+        result.push(indent + line);
+      }
+    }
+
+    return result;
+  }
+
+  private normalizeInlineBlock(raw: unknown, indentLevel: number): string[] {
+    if (raw === undefined || raw === null) {
+      return [];
+    }
+    const text = raw.toString().trim();
+    if (text === '') {
+      return [];
+    }
+    const indent = this.indent(indentLevel);
+    return text.split(/\r?\n/).map(line => indent + line.trimEnd());
+  }
+
+  private isTruthy(value: unknown): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') {
+        return true;
+      }
+      if (normalized === 'false') {
+        return false;
+      }
+    }
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+    return false;
+  }
+
+  private getOrderedChildren(parentId: string): string[] {
+    return this.diagram.nestingRelations
+      .filter(rel => rel.parentId === parentId)
+      .sort((a, b) => a.order - b.order)
+      .map(rel => rel.childId)
+      .filter(childId => this.nodeMap.has(childId));
+  }
+
+  private indent(level: number): string {
+    if (level <= 0) {
+      return '';
+    }
+    return ' '.repeat(level);
+  }
+
+  private collectSwitchInlineNodes(): Set<string> {
+    const inline = new Set<string>();
+
+    const visit = (nodeId: string) => {
+      if (inline.has(nodeId)) {
+        return;
+      }
+      inline.add(nodeId);
+      const children = this.nestingMap.get(nodeId) || [];
+      for (const child of children) {
+        visit(child);
+      }
+    };
+
+    for (const [parentId, childIds] of this.nestingMap) {
+      const parentNode = this.nodeMap.get(parentId);
+      if (!parentNode) {
+        continue;
+      }
+
+      if (parentNode.data.label === 'Switch' || parentNode.data.label === 'If') {
+        for (const childId of childIds) {
+          visit(childId);
+          const branchExtras = this.collectBranchFlow(childId);
+          for (const extra of branchExtras) {
+            visit(extra);
+          }
+        }
+      }
+    }
+
+    return inline;
+  }
+
+  private collectBranchFlow(parentId: string): string[] {
+    const visited = new Set<string>();
+    const pending: string[] = [];
+
+    for (const edge of this.diagram.edges) {
+      if (edge.source === parentId && this.nodeMap.has(edge.target)) {
+        pending.push(edge.target);
+      }
+    }
+
+    while (pending.length > 0) {
+      const nodeId = pending.pop()!;
+      if (visited.has(nodeId)) {
+        continue;
+      }
+
+      const node = this.nodeMap.get(nodeId);
+      if (!node) {
+        continue;
+      }
+
+      const label = node.data.label;
+      if (label === 'Case' || label === 'Default' || label === 'Switch' || label === 'Then' || label === 'Else') {
+        continue;
+      }
+
+      const incomingFromSwitch = this.diagram.edges.some(edge => {
+        if (edge.target !== nodeId) {
+          return false;
+        }
+        const sourceNode = this.nodeMap.get(edge.source);
+        const sourceLabel = sourceNode?.data.label;
+        return sourceLabel === 'Switch' || sourceLabel === 'If';
+      });
+      if (incomingFromSwitch) {
+        continue;
+      }
+
+      const incomingFromOtherBranch = this.diagram.edges.some(edge => {
+        if (edge.target !== nodeId) {
+          return false;
+        }
+        if (edge.source === parentId) {
+          return false;
+        }
+        const sourceNode = this.nodeMap.get(edge.source);
+        const sourceLabel = sourceNode?.data.label;
+        return sourceLabel === 'Case' || sourceLabel === 'Default' || sourceLabel === 'Then' || sourceLabel === 'Else';
+      });
+      if (incomingFromOtherBranch) {
+        continue;
+      }
+
+      const parent = this.parentLookup.get(nodeId);
+      if (parent && parent !== parentId) {
+        continue;
+      }
+
+      visited.add(nodeId);
+
+      for (const edge of this.diagram.edges) {
+        if (edge.source === nodeId && !visited.has(edge.target)) {
+          pending.push(edge.target);
+        }
+      }
+    }
+
+    if (visited.size === 0) {
+      return [];
+    }
+
+    const ordered: string[] = [];
+    for (const nodeId of this.executionOrder) {
+      if (visited.has(nodeId)) {
+        ordered.push(nodeId);
+      }
+    }
+    return ordered;
+  }
+
+  private getBranchChildren(parentId: string): string[] {
+    const nested = this.getOrderedChildren(parentId);
+    const seen = new Set<string>(nested);
+    const result = [...nested];
+
+    const extras = this.collectBranchFlow(parentId);
+    for (const childId of extras) {
+      if (!seen.has(childId)) {
+        result.push(childId);
+        seen.add(childId);
+      }
+    }
+
+    return result;
+  }
+
   private generateSetValueCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     const varName = props.variableName || 'var';
@@ -1123,6 +1592,11 @@ export class ChariotCodeGenerator {
 
     if (raw === '') {
       return `setAttribute(${varName}, '${attributeName}', '')`;
+    }
+
+    // Inline function literal support: if value looks like func(...) { ... }
+    if (/^func\s*\(/.test(raw)) {
+      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
     }
 
     // If it's a boolean or number, emit as-is

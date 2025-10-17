@@ -14,7 +14,7 @@ func TestDoETLTypeDebugging(t *testing.T) {
 				`// Test transform creation and mapping`,
 				`setq(transform, createTransform(TestTransform))`,
 				`// Add simple mapping with string program`,
-				`addMapping(transform, "name", "full_name", "sourceValue", "VARCHAR", true, "Unknown")`,
+				`addMapping(transform, "name", "full_name", [], "VARCHAR", true)`,
 				`// Check that we have 1 mapping`,
 				`length(getMappings(transform))`,
 			},
@@ -25,7 +25,7 @@ func TestDoETLTypeDebugging(t *testing.T) {
 			Script: []string{
 				`// Test complete doETL processing`,
 				`setq(transform, createTransform(TestTransform))`,
-				`addMapping(transform, "name", "full_name", "sourceValue", "VARCHAR", true, "Unknown")`,
+				`addMapping(transform, "name", "full_name", [], "VARCHAR", true)`,
 				``,
 				`// Execute doETL and check status`,
 				`setq(result, doETL("test_job", "test_data.csv", transform, map("type", "test", "tableName", "test_table")))`,

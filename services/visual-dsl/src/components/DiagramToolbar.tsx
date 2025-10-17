@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ChariotCodeGeneratorComponent } from './ChariotCodeGenerator';
@@ -34,6 +34,10 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [saveDirectory, setSaveDirectory] = useState('');
+  const [pendingSaveDirectory, setPendingSaveDirectory] = useState('');
+  const directoryInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load saved diagrams list on component mount and after saves
   const loadSavedDiagrams = () => {
@@ -63,6 +67,15 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
 
   useEffect(() => {
     loadSavedDiagrams();
+    const storedPath = localStorage.getItem('diagram_save_path') || '';
+    setSaveDirectory(storedPath);
+  }, []);
+
+  useEffect(() => {
+    if (directoryInputRef.current) {
+      directoryInputRef.current.setAttribute('webkitdirectory', '');
+      directoryInputRef.current.setAttribute('directory', '');
+    }
   }, []);
 
   const handleSaveWithRefresh = () => {
@@ -175,6 +188,87 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     }
   };
 
+  const openSettings = () => {
+    setPendingSaveDirectory(saveDirectory);
+    setIsSettingsOpen(true);
+  };
+
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+  };
+
+  const saveSettings = () => {
+    const trimmedPath = pendingSaveDirectory.trim();
+    setSaveDirectory(trimmedPath);
+    localStorage.setItem('diagram_save_path', trimmedPath);
+    setIsSettingsOpen(false);
+  };
+
+  const handleDirectorySelection = async () => {
+    try {
+      if (typeof window !== 'undefined' && typeof (window as any).showDirectoryPicker === 'function') {
+        const handle = await (window as any).showDirectoryPicker();
+        if (!handle) {
+          return;
+        }
+
+        if (typeof (handle as any).resolve === 'function') {
+          const segments = await (handle as any).resolve();
+          if (Array.isArray(segments) && segments.length > 0) {
+            setPendingSaveDirectory('/' + segments.join('/'));
+            return;
+          }
+        }
+
+        const legacyPath = (handle as any).fullPath || (handle as any).path;
+        if (legacyPath) {
+          setPendingSaveDirectory(legacyPath);
+        } else if (handle.name) {
+          if (window.location.origin === 'http://localhost') {
+            setPendingSaveDirectory(`/Volumes/${handle.name}`);
+          } else {
+            setPendingSaveDirectory(handle.name);
+          }
+        }
+      } else if (directoryInputRef.current) {
+        directoryInputRef.current.click();
+      }
+    } catch (error) {
+      console.warn('Directory selection was cancelled or failed:', error);
+    }
+  };
+
+  const handleDirectoryInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const firstFile = files[0] as File & { webkitRelativePath?: string };
+      if (firstFile.webkitRelativePath) {
+        const segments = firstFile.webkitRelativePath.split('/');
+        if (segments.length > 0) {
+          segments.pop();
+        }
+        const basePath = (firstFile as any).path || '';
+        if (basePath) {
+          const normalized = basePath.replace(/\\/g, '/');
+          const lastSlash = normalized.lastIndexOf('/');
+          const withoutFile = lastSlash >= 0 ? normalized.substring(0, lastSlash) : normalized;
+          setPendingSaveDirectory(withoutFile || normalized);
+        } else {
+          setPendingSaveDirectory('/' + segments.join('/'));
+        }
+      } else if ((firstFile as any).path) {
+        const raw = (firstFile as any).path;
+        const normalized = raw.replace(/\\/g, '/');
+        const lastSlash = normalized.lastIndexOf('/');
+        const withoutFile = lastSlash >= 0 ? normalized.substring(0, lastSlash) : normalized;
+        setPendingSaveDirectory(withoutFile || normalized);
+      } else {
+        setPendingSaveDirectory(firstFile.name);
+      }
+    }
+    event.target.value = '';
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -199,7 +293,7 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   return (
     <>
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Diagram Name */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -215,7 +309,7 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
           </div>
 
           {/* File Operations */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap flex-1">
             <Button
               onClick={onNew}
               className="h-8 text-xs px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
@@ -337,6 +431,21 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
             <ChariotCodeGeneratorComponent 
               diagramData={diagramData}
             />
+
+            <div className="flex items-center gap-2 ml-auto">
+              {saveDirectory && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  Save Path: {saveDirectory}
+                </span>
+              )}
+              <Button
+                onClick={openSettings}
+                className="h-8 text-xs px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+                title="Edit toolbar settings"
+              >
+                ⚙️ Settings
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -375,6 +484,66 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
           </div>
         </div>
       )}
+
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-3xl w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Settings
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Diagram Save Path
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    type="text"
+                    value={pendingSaveDirectory}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPendingSaveDirectory(e.target.value)}
+                    placeholder="e.g., ~/Documents/ChariotDiagrams"
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleDirectorySelection}
+                    className="h-8 text-xs px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 whitespace-nowrap"
+                  >
+                    Select Folder
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Select a folder or enter a path manually. Stored locally for export helpers.
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Tip: Some browsers label the confirmation button "Upload" when granting folder access. No files are uploaded—this simply authorizes reading from the chosen directory.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                onClick={closeSettings}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveSettings}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={directoryInputRef}
+        type="file"
+        style={{ display: 'none' }}
+        multiple
+        onChange={handleDirectoryInputChange}
+      />
 
       {/* Load JSON Dialog */}
       {isLoadDialogOpen && (

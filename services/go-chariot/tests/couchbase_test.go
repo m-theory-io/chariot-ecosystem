@@ -26,13 +26,15 @@ var (
 func initCouchbaseConfig() {
 	couchbaseConfigOnce.Do(func() {
 		// Set the env vars in the os
-		os.Setenv("CHARIOT_COUCHBASE_URL", "192.168.0.101")
+		os.Setenv("CHARIOT_COUCHBASE_URL", "localhost")
 		os.Setenv("CHARIOT_COUCHBASE_USER", "mtheory")
 		os.Setenv("CHARIOT_COUCHBASE_PASSWORD", "Borg12731273")
 		os.Setenv("CHARIOT_COUCHBASE_BUCKET", "chariot")
 		os.Setenv("CHARIOT_COUCHBASE_SCOPE", "_default")
-		os.Setenv("CHARIOT_DATA_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
-		os.Setenv("CHARIOT_TREE_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
+		os.Setenv("CHARIOT_CBDL", "true")
+		os.Setenv("CHARIOT_DATA_PATH", "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
+		os.Setenv("CHARIOT_TREE_PATH", "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
+		os.Setenv("CHARIOT_DIAGRAM_PATH", "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/diagrams")
 
 		kissflag.SetPrefix("CHARIOT_")
 		kissflag.BindAllEVars(cfg.ChariotConfig)

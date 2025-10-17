@@ -68,7 +68,11 @@ import { YAMLNodePropertiesDialog, YAMLNodeProperties } from "../components/dial
 import { IfNodePropertiesDialog, IfNodeProperties } from "../components/dialogs/IfNodeProperties";
 import { IifNodePropertiesDialog, IifNodeProperties } from "../components/dialogs/IifNodeProperties";
 import { WhileNodePropertiesDialog, WhileNodeProperties } from "../components/dialogs/WhileNodeProperties";
+import FunctionNodePropertiesDialog, { FunctionNodeProperties } from "../components/dialogs/FunctionNodeProperties";
 import { CBQueryNodePropertiesDialog, CBQueryNodeProperties } from "../components/dialogs/CBQueryNodeProperties";
+import { SwitchNodePropertiesDialog, SwitchNodeProperties } from "../components/dialogs/SwitchNodeProperties";
+import { CaseNodePropertiesDialog, CaseNodeProperties } from "../components/dialogs/CaseNodeProperties";
+import { DefaultNodePropertiesDialog, DefaultNodeProperties } from "../components/dialogs/DefaultNodeProperties";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { DirectionToggle } from "../components/ui/DirectionToggle";
 import { NestingToggle } from "../components/NestingToggle";
@@ -111,10 +115,40 @@ const nodeTypes = {
   group: GroupNode,
 };
 
+const coerceBoolean = (value: unknown): boolean => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  return false;
+};
+
+const collectDescendantIds = (rootId: string, relations: { parentId: string; childId: string }[]): string[] => {
+  const result: Set<string> = new Set();
+  const visit = (id: string) => {
+    const children = relations.filter(rel => rel.parentId === id);
+    for (const child of children) {
+      if (!result.has(child.childId)) {
+        result.add(child.childId);
+        visit(child.childId);
+      }
+    }
+  };
+  visit(rootId);
+  return Array.from(result);
+};
+
 export default function VisualDSLPrototype() {
   const { theme } = useTheme();
   const { direction, selectedNodeId, setSelectedNodeId } = useFlowControl();
-  const { nestingMode, selectedParentId, setSelectedParentId, nestingRelations, addNestingRelation, getChildrenOf, removeNestingRelation, setNestingMode, wrapGroupAsSubflow, isSubflow, getSubflow, getAllSubflows, replaceAllSubflows } = useNesting();
+  const { nestingMode, selectedParentId, setSelectedParentId, nestingRelations, addNestingRelation, getChildrenOf, getParentOf, removeNestingRelation, setNestingMode, wrapGroupAsSubflow, unwrapSubflow, isSubflow, getSubflow, getAllSubflows, replaceAllSubflows } = useNesting();
   const [nodes, setNodes] = React.useState<Node[]>(initialNodes);
   const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
   
@@ -227,11 +261,50 @@ export default function VisualDSLPrototype() {
         setCurrentDiagramName(diagramData.name);
       }
       
-      // Restore nesting relations
+      // Restore nesting relations with normalized ordering
       if (diagramData.nestingRelations) {
-        diagramData.nestingRelations.forEach(rel => {
+        const relations = Array.isArray(diagramData.nestingRelations)
+          ? diagramData.nestingRelations.map(rel => ({ ...rel }))
+          : [];
+        const nodesById = new Map((diagramData.nodes || []).map(node => [node.id, node]));
+        const defaultSeen = new Map<string, boolean>();
+
+        const filtered = relations.filter(rel => {
+          const parentNode = nodesById.get(rel.parentId);
+          if (parentNode?.data?.label === 'Switch') {
+            const childNode = nodesById.get(rel.childId);
+            if (childNode?.data?.label === 'Default') {
+              if (defaultSeen.get(rel.parentId)) {
+                return false;
+              }
+              defaultSeen.set(rel.parentId, true);
+            }
+          }
+          return true;
+        });
+
+        const byParent = new Map<string, typeof filtered>();
+        filtered.forEach(rel => {
+          if (!byParent.has(rel.parentId)) {
+            byParent.set(rel.parentId, []);
+          }
+          byParent.get(rel.parentId)!.push(rel);
+        });
+
+        byParent.forEach(list => {
+          list.sort((a, b) => a.order - b.order);
+          list.forEach((rel, index) => {
+            rel.order = index;
+          });
+        });
+
+        filtered.forEach(rel => {
           addNestingRelation(rel);
         });
+
+        setTimeout(() => {
+          createMissingGroups();
+        }, 0);
       }
 
       // Restore subflows (metadata like names/collapsed state)
@@ -382,6 +455,8 @@ export default function VisualDSLPrototype() {
       const groupId = `group-${nodeId}`;
       
       console.log('Deleting nesting group:', { root: nodeId, children: children.map(c => c.childId), groupNode: groupId });
+
+  unwrapSubflow(groupId);
       
       // Remove all nesting relations for this group
       children.forEach(child => {
@@ -420,6 +495,7 @@ export default function VisualDSLPrototype() {
           if (remainingChildrenAfterRemoval.length === 0) {
             // No more children, remove the group container
             const groupId = `group-${parentRelation.parentId}`;
+            unwrapSubflow(groupId);
             setNodes(nds => nds.filter(n => n.id !== groupId));
           } else {
             // Update group bounds
@@ -488,8 +564,16 @@ export default function VisualDSLPrototype() {
         nodeType = 'iif';
       } else if ((label === 'While' || label === 'while') && category === 'control') {
         nodeType = 'while';
+      } else if ((label === 'Function' || label === 'func') && category === 'control') {
+        nodeType = 'function';
       } else if ((label === 'CB Query' || label === 'cbQuery') && category === 'couchbase') {
         nodeType = 'cbQuery';
+      } else if ((label === 'Switch' || label === 'switch') && category === 'control') {
+        nodeType = 'switch';
+      } else if ((label === 'Case' || label === 'case') && category === 'control') {
+        nodeType = 'case';
+      } else if ((label === 'Default' || label === 'default') && category === 'control') {
+        nodeType = 'default';
       } else if ((label === 'Add Child' || label === 'addChild') && category === 'node') {
         nodeType = 'addChild';
       } else if ((label === 'Remove Child' || label === 'removeChild') && category === 'node') {
@@ -611,22 +695,6 @@ export default function VisualDSLPrototype() {
     setContextMenu(null);
   }, [nodes]);
 
-  const saveNodeProperties = React.useCallback((nodeId: string, properties: any) => {
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        if (node.id === nodeId) {
-          const updatedNode = { ...node, data: { ...node.data, properties } };
-          // If this is a Start node, sync the diagram name with the Start node's name
-          if (node.data.label === 'Start' && (properties as any).name) {
-            setCurrentDiagramName((properties as any).name);
-          }
-          return updatedNode;
-        }
-        return node;
-      })
-    );
-  }, []);
-
   // Function to sync Start node name when diagram name changes
   const updateDiagramName = React.useCallback((newName: string) => {
     setCurrentDiagramName(newName);
@@ -715,22 +783,6 @@ export default function VisualDSLPrototype() {
       });
     },
     [getChildrenOf, nestingRelations]
-  );
-  const onEdgesChange = React.useCallback(
-    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
-  );
-  const onConnect = React.useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
-    []
-  );
-
-  // Handle edge updates (moving connectors between handles)
-  const onEdgeUpdate = React.useCallback(
-    (oldEdge: Edge, newConnection: Connection) => {
-      setEdges((eds) => reconnectEdge(oldEdge, newConnection, eds));
-    },
-    []
   );
 
   // Force create groups for all existing nesting relationships (debugging helper)
@@ -840,6 +892,547 @@ export default function VisualDSLPrototype() {
     }));
   };
 
+  const findSwitchBranchRoot = React.useCallback((nodeId: string | null | undefined): string | null => {
+    if (!nodeId) {
+      return null;
+    }
+
+    let currentId = nodeId.startsWith('group-') ? nodeId.replace(/^group-/, '') : nodeId;
+    const visited = new Set<string>();
+
+    while (currentId) {
+      if (visited.has(currentId)) {
+        break;
+      }
+      visited.add(currentId);
+
+      const currentNode = nodes.find(n => n.id === currentId);
+      if (!currentNode) {
+        break;
+      }
+
+      if (['Case', 'Default', 'Then', 'Else'].includes(currentNode.data.label)) {
+        return currentId;
+      }
+
+      const parentRel = getParentOf(currentId);
+      if (!parentRel) {
+        break;
+      }
+      currentId = parentRel.parentId;
+    }
+
+    return null;
+  }, [nodes, getParentOf]);
+
+  const onEdgesChange = React.useCallback(
+    (changes: EdgeChange[]) => {
+      if (changes.length === 0) {
+        return;
+      }
+
+      const removedIds = changes.filter(change => change.type === 'remove').map(change => change.id);
+      if (removedIds.length > 0) {
+        setEdges(prevEdges => {
+          const removedEdges = prevEdges.filter(edge => removedIds.includes(edge.id));
+          removedEdges.forEach(edge => {
+            const branchRoot = findSwitchBranchRoot(edge.source);
+            if (branchRoot) {
+              removeNestingRelation(branchRoot, edge.target);
+              setTimeout(() => {
+                updateGroupBounds(branchRoot);
+                const parentRel = getParentOf(branchRoot);
+                if (parentRel) {
+                  updateGroupBounds(parentRel.parentId);
+                }
+              }, 0);
+            }
+          });
+          return applyEdgeChanges(changes, prevEdges);
+        });
+        return;
+      }
+
+      setEdges(eds => applyEdgeChanges(changes, eds));
+    },
+    [findSwitchBranchRoot, removeNestingRelation, updateGroupBounds, getParentOf]
+  );
+
+  const onConnect = React.useCallback(
+    (connection: Connection) => {
+      setEdges(eds => addEdge(connection, eds));
+
+      if (!connection.source || !connection.target) {
+        return;
+      }
+
+      const branchRoot = findSwitchBranchRoot(connection.source);
+      if (!branchRoot) {
+        return;
+      }
+
+      const existingParent = getParentOf(connection.target);
+      if (existingParent && existingParent.parentId !== branchRoot) {
+        removeNestingRelation(existingParent.parentId, connection.target);
+      }
+
+      const siblings = getChildrenOf(branchRoot);
+      if (!siblings.some(rel => rel.childId === connection.target)) {
+        addNestingRelation({
+          parentId: branchRoot,
+          childId: connection.target,
+          order: siblings.length,
+        });
+      }
+
+      setTimeout(() => {
+        updateGroupBounds(branchRoot);
+        const parentRel = getParentOf(branchRoot);
+        if (parentRel) {
+          updateGroupBounds(parentRel.parentId);
+        }
+      }, 0);
+    },
+    [findSwitchBranchRoot, setEdges, getParentOf, removeNestingRelation, getChildrenOf, addNestingRelation, updateGroupBounds]
+  );
+
+  // Handle edge updates (moving connectors between handles)
+  const onEdgeUpdate = React.useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      setEdges(eds => reconnectEdge(oldEdge, newConnection, eds));
+
+      const oldBranchRoot = findSwitchBranchRoot(oldEdge.source);
+      if (oldBranchRoot) {
+        removeNestingRelation(oldBranchRoot, oldEdge.target);
+        setTimeout(() => {
+          updateGroupBounds(oldBranchRoot);
+          const parentRel = getParentOf(oldBranchRoot);
+          if (parentRel) {
+            updateGroupBounds(parentRel.parentId);
+          }
+        }, 0);
+      }
+
+      if (!newConnection.source || !newConnection.target) {
+        return;
+      }
+
+      const newBranchRoot = findSwitchBranchRoot(newConnection.source);
+      if (!newBranchRoot) {
+        return;
+      }
+
+      const existingParent = getParentOf(newConnection.target);
+      if (existingParent && existingParent.parentId !== newBranchRoot) {
+        removeNestingRelation(existingParent.parentId, newConnection.target);
+      }
+
+      const siblings = getChildrenOf(newBranchRoot);
+      if (!siblings.some(rel => rel.childId === newConnection.target)) {
+        addNestingRelation({
+          parentId: newBranchRoot,
+          childId: newConnection.target,
+          order: siblings.length,
+        });
+      }
+
+      setTimeout(() => {
+        updateGroupBounds(newBranchRoot);
+        const parentRel = getParentOf(newBranchRoot);
+        if (parentRel) {
+          updateGroupBounds(parentRel.parentId);
+        }
+      }, 0);
+    },
+    [findSwitchBranchRoot, setEdges, removeNestingRelation, updateGroupBounds, getParentOf, getChildrenOf, addNestingRelation]
+  );
+
+  const resolveSwitchParent = React.useCallback((): string | null => {
+    if (nestingMode && selectedParentId) {
+      const parentNode = nodes.find(n => n.id === selectedParentId);
+      if (parentNode?.data.label === 'Switch') {
+        return selectedParentId;
+      }
+    }
+
+    if (selectedNodeId) {
+      let candidateId = selectedNodeId;
+      if (candidateId.startsWith('group-')) {
+        candidateId = candidateId.replace(/^group-/, '');
+      }
+
+      const candidateNode = nodes.find(n => n.id === candidateId);
+      if (candidateNode?.data.label === 'Switch') {
+        return candidateId;
+      }
+
+      const parentRelation = nestingRelations.find(rel => rel.childId === candidateId);
+      if (parentRelation) {
+        const parentNode = nodes.find(n => n.id === parentRelation.parentId);
+        if (parentNode?.data.label === 'Switch') {
+          return parentRelation.parentId;
+        }
+        const branchRoot = findSwitchBranchRoot(parentRelation.parentId);
+        if (branchRoot) {
+          const switchRelation = getParentOf(branchRoot);
+          if (switchRelation) {
+            const switchNode = nodes.find(n => n.id === switchRelation.parentId);
+            if (switchNode?.data.label === 'Switch') {
+              return switchRelation.parentId;
+            }
+          }
+        }
+      }
+
+      const branchRoot = findSwitchBranchRoot(candidateId);
+      if (branchRoot) {
+        const switchRelation = getParentOf(branchRoot);
+        if (switchRelation) {
+          const switchNode = nodes.find(n => n.id === switchRelation.parentId);
+          if (switchNode?.data.label === 'Switch') {
+            return switchRelation.parentId;
+          }
+        }
+      }
+    }
+
+    return null;
+  }, [nestingMode, selectedParentId, selectedNodeId, nestingRelations, nodes, findSwitchBranchRoot, getParentOf]);
+
+  const addIfBranch = React.useCallback((ifId: string, branchKind: 'Then' | 'Else', parentOverride?: Node): string | null => {
+    const ifNode = parentOverride ?? nodes.find(n => n.id === ifId);
+    if (!ifNode) {
+      return null;
+    }
+
+    let existingChildren = getChildrenOf(ifId);
+    const existingBranchRel = existingChildren.find(rel => {
+      const childNode = nodes.find(n => n.id === rel.childId);
+      return childNode?.data.label === branchKind;
+    });
+    if (existingBranchRel) {
+      return existingBranchRel.childId;
+    }
+
+    if (branchKind === 'Else') {
+      const hasThen = existingChildren.some(rel => {
+        const childNode = nodes.find(n => n.id === rel.childId);
+        return childNode?.data.label === 'Then';
+      });
+      if (!hasThen) {
+        addIfBranch(ifId, 'Then', parentOverride);
+        existingChildren = getChildrenOf(ifId);
+      }
+    }
+
+    const branchNodes = existingChildren
+      .map(rel => nodes.find(n => n.id === rel.childId))
+      .filter((child): child is Node => !!child && (child.data.label === 'Then' || child.data.label === 'Else'));
+
+    let branchIndex = branchNodes.length;
+    if (branchKind === 'Then') {
+      branchIndex = 0;
+    } else if (branchKind === 'Else') {
+      const hasThenNode = branchNodes.some(child => child.data.label === 'Then');
+      branchIndex = hasThenNode ? 1 : Math.max(branchNodes.length, 1);
+    }
+
+    const branchId = `${branchKind.toLowerCase()}-${Date.now()}-${++nodeCounterRef.current}`;
+    const spacing = 150;
+    const stackSpacing = 110;
+
+    let branchPosition = {
+      x: ifNode.position.x,
+      y: ifNode.position.y + spacing + (branchIndex * stackSpacing)
+    };
+
+    switch (direction) {
+      case 'right':
+        branchPosition = {
+          x: ifNode.position.x + spacing + (branchIndex * 150),
+          y: ifNode.position.y
+        };
+        break;
+      case 'up':
+        branchPosition = {
+          x: ifNode.position.x,
+          y: ifNode.position.y - spacing - (branchIndex * stackSpacing)
+        };
+        break;
+      default:
+        branchPosition = {
+          x: ifNode.position.x,
+          y: ifNode.position.y + spacing + (branchIndex * stackSpacing)
+        };
+        break;
+    }
+
+    const branchIcon = branchKind === 'Then' ? '✅' : '🚫';
+    const newNode: Node = {
+      id: branchId,
+      type: 'logicon',
+      position: branchPosition,
+      data: {
+        label: branchKind,
+        icon: branchIcon,
+        category: 'control',
+        properties: {}
+      }
+    };
+
+    let sourceHandle = 'bottom';
+    let targetHandle = 'top';
+    switch (direction) {
+      case 'right':
+        sourceHandle = 'right';
+        targetHandle = 'left';
+        break;
+      case 'up':
+        sourceHandle = 'top';
+        targetHandle = 'bottom';
+        break;
+      default:
+        sourceHandle = 'bottom';
+        targetHandle = 'top';
+        break;
+    }
+
+    const newEdge: Edge = {
+      id: `${ifId}-${branchId}`,
+      source: ifId,
+      target: branchId,
+      sourceHandle,
+      targetHandle,
+      type: 'default',
+      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      animated: false,
+      updatable: true
+    };
+
+    const existingOrders = existingChildren.map(rel => rel.order);
+    const nextOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 0;
+    const isFirstChild = existingChildren.length === 0;
+
+    setNodes(prev => [...prev, newNode]);
+    setEdges(prev => [...prev, newEdge]);
+    addNestingRelation({ parentId: ifId, childId: branchId, order: nextOrder });
+
+    if (isFirstChild) {
+      setGroupCount(prev => prev + 1);
+    }
+
+    setTimeout(() => {
+      if (isFirstChild) {
+        createGroupForNesting(ifId, branchId);
+      } else {
+        updateGroupBounds(ifId);
+      }
+    }, 0);
+
+    return branchId;
+  }, [nodes, getChildrenOf, direction, setNodes, setEdges, addNestingRelation, setGroupCount, createGroupForNesting, updateGroupBounds]);
+
+  const removeIfBranch = React.useCallback((ifId: string, branchKind: 'Then' | 'Else') => {
+    const children = getChildrenOf(ifId);
+    const targetRel = children.find(rel => {
+      const childNode = nodes.find(n => n.id === rel.childId);
+      return childNode?.data.label === branchKind;
+    });
+
+    if (!targetRel) {
+      return;
+    }
+
+    const branchId = targetRel.childId;
+    const descendantIds = collectDescendantIds(branchId, nestingRelations);
+    const idsToRemove = new Set<string>([branchId, ...descendantIds]);
+    const groupIdsToRemove = new Set<string>(Array.from(idsToRemove).map(id => `group-${id}`));
+
+    setNodes(prev => prev.filter(node => !idsToRemove.has(node.id) && !groupIdsToRemove.has(node.id)));
+    setEdges(prev => prev.filter(edge => !idsToRemove.has(edge.source) && !idsToRemove.has(edge.target)));
+
+    nestingRelations.forEach(rel => {
+      if (idsToRemove.has(rel.childId) && (rel.parentId === ifId || idsToRemove.has(rel.parentId))) {
+        removeNestingRelation(rel.parentId, rel.childId);
+      }
+    });
+
+    if (selectedNodeId && idsToRemove.has(selectedNodeId)) {
+      setSelectedNodeId(ifId);
+    }
+
+    if (selectedParentId && idsToRemove.has(selectedParentId)) {
+      setSelectedParentId(ifId);
+    }
+
+    setTimeout(() => {
+      const remainingChildren = getChildrenOf(ifId);
+      if (remainingChildren.length === 0) {
+        setGroupCount(prev => Math.max(0, prev - 1));
+        const groupId = `group-${ifId}`;
+        unwrapSubflow(groupId);
+        setNodes(prev => prev.filter(node => node.id !== groupId));
+      } else {
+        updateGroupBounds(ifId);
+      }
+    }, 0);
+  }, [getChildrenOf, nodes, nestingRelations, removeNestingRelation, setNodes, setEdges, selectedNodeId, setSelectedNodeId, selectedParentId, setSelectedParentId, setGroupCount, unwrapSubflow, updateGroupBounds]);
+
+  const saveNodeProperties = React.useCallback((nodeId: string, properties: any) => {
+    let previousProperties: any = null;
+    let nodeLabel: string | null = null;
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === nodeId) {
+          nodeLabel = node.data.label;
+          if (nodeLabel === 'If') {
+            previousProperties = node.data.properties || {};
+          }
+
+          const updatedNode = { ...node, data: { ...node.data, properties } };
+          // If this is a Start node, sync the diagram name with the Start node's name
+          if (node.data.label === 'Start' && (properties as any).name) {
+            setCurrentDiagramName((properties as any).name);
+          }
+          return updatedNode;
+        }
+        return node;
+      })
+    );
+
+    if (nodeLabel === 'If') {
+      const prevHasElse = coerceBoolean(previousProperties?.hasElse);
+      const nextHasElse = coerceBoolean(properties?.hasElse);
+
+      addIfBranch(nodeId, 'Then');
+
+      if (nextHasElse) {
+        addIfBranch(nodeId, 'Else');
+      } else if (prevHasElse) {
+        removeIfBranch(nodeId, 'Else');
+      }
+    }
+  }, [setNodes, setCurrentDiagramName, addIfBranch, removeIfBranch]);
+
+  const addSwitchChild = React.useCallback((switchId: string, childKind: 'Case' | 'Default', parentOverride?: Node) => {
+    const switchNode = parentOverride ?? nodes.find(n => n.id === switchId);
+    if (!switchNode) {
+      return null;
+    }
+
+    const existingChildren = getChildrenOf(switchId);
+    if (childKind === 'Default') {
+      const hasDefault = existingChildren.some(rel => {
+        const childNode = nodes.find(n => n.id === rel.childId);
+        return childNode?.data.label === 'Default';
+      });
+      if (hasDefault) {
+        alert('Switch already has a default branch.');
+        return null;
+      }
+    }
+
+    const childId = `${childKind.toLowerCase()}-${Date.now()}-${++nodeCounterRef.current}`;
+    const childLabel = childKind === 'Case' ? 'Case' : 'Default';
+    const childIcon = childKind === 'Case' ? '📋' : '🎯';
+    const childCategory = 'control';
+
+    const childIndex = existingChildren.length;
+    const spacing = 150;
+    const stackSpacing = 110;
+    let childPosition = { x: switchNode.position.x, y: switchNode.position.y + spacing + (childIndex * stackSpacing) };
+
+    switch (direction) {
+      case 'right':
+        childPosition = {
+          x: switchNode.position.x + spacing + (childIndex * 150),
+          y: switchNode.position.y
+        };
+        break;
+      case 'up':
+        childPosition = {
+          x: switchNode.position.x,
+          y: switchNode.position.y - spacing - (childIndex * stackSpacing)
+        };
+        break;
+      default:
+        childPosition = {
+          x: switchNode.position.x,
+          y: switchNode.position.y + spacing + (childIndex * stackSpacing)
+        };
+        break;
+    }
+
+    const childProperties = childKind === 'Case'
+      ? ({ name: '', condition: '', description: '', body: '' } as CaseNodeProperties)
+      : ({ name: '', description: '', body: '' } as DefaultNodeProperties);
+
+    const newNode: Node = {
+      id: childId,
+      type: 'logicon',
+      position: childPosition,
+      data: {
+        label: childLabel,
+        icon: childIcon,
+        category: childCategory,
+        properties: childProperties
+      }
+    };
+
+    let sourceHandle = 'bottom';
+    let targetHandle = 'top';
+    switch (direction) {
+      case 'right':
+        sourceHandle = 'right';
+        targetHandle = 'left';
+        break;
+      case 'up':
+        sourceHandle = 'top';
+        targetHandle = 'bottom';
+        break;
+      default:
+        sourceHandle = 'bottom';
+        targetHandle = 'top';
+        break;
+    }
+
+    const newEdge: Edge = {
+      id: `${switchId}-${childId}`,
+      source: switchId,
+      target: childId,
+      sourceHandle,
+      targetHandle,
+      type: 'default',
+      style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      animated: false,
+      updatable: true
+    };
+
+    const existingOrders = existingChildren.map(rel => rel.order);
+    const nextOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 0;
+    const isFirstChild = existingChildren.length === 0;
+
+    setNodes(prev => [...prev, newNode]);
+    setEdges(prev => [...prev, newEdge]);
+    addNestingRelation({ parentId: switchId, childId, order: nextOrder });
+
+    if (isFirstChild) {
+      setGroupCount(prev => prev + 1);
+    }
+
+    setTimeout(() => {
+      if (isFirstChild) {
+        createGroupForNesting(switchId, childId);
+      } else {
+        updateGroupBounds(switchId);
+      }
+    }, 0);
+
+    setSelectedNodeId(childId);
+    return childId;
+  }, [nodes, getChildrenOf, direction, addNestingRelation, setEdges, setNodes, setGroupCount, createGroupForNesting, updateGroupBounds, setSelectedNodeId]);
+
   const onNodeClick = React.useCallback(
     (event: React.MouseEvent, node: Node) => {
       console.log('Node clicked:', { nodeId: node.id, nestingMode, selectedParentId });
@@ -861,15 +1454,19 @@ export default function VisualDSLPrototype() {
         nodeToSelect = node.id.replace(/^group-/, '');
       }
       
-      // If clicking on a child node in a nesting group, select the parent instead
+      // If clicking on a child node in a nesting group, select the parent unless this is a subflow
       const parentRelation = nestingRelations.find(rel => rel.childId === node.id);
       if (parentRelation) {
-        nodeToSelect = parentRelation.parentId;
+        const parentIsSubflow = isSubflow(parentRelation.parentId);
+        const isBranchNode = ['Case', 'Default', 'Then', 'Else'].includes(node.data?.label ?? '');
+        if (!parentIsSubflow && !isBranchNode) {
+          nodeToSelect = parentRelation.parentId;
+        }
       }
       
       setSelectedNodeId(nodeToSelect);
     },
-    [nestingMode, selectedParentId, setSelectedNodeId, setSelectedParentId, nestingRelations]
+    [nestingMode, selectedParentId, setSelectedNodeId, setSelectedParentId, nestingRelations, isSubflow]
   );
 
   // Find the last node in the logical flow (rightmost and bottommost)
@@ -916,6 +1513,26 @@ export default function VisualDSLPrototype() {
 
   // Regular add logicon with random placement (now the modifier behavior)
   const addLogiconRandom = (logicon: LogiconData, withModifier: boolean = false) => {
+    if (logicon.label === 'Case') {
+      const switchParent = resolveSwitchParent();
+      if (!switchParent) {
+        alert('Select a Switch node (or set it as the active nesting parent) before adding a Case.');
+        return;
+      }
+      addSwitchChild(switchParent, 'Case');
+      return;
+    }
+
+    if (logicon.label === 'Default') {
+      const switchParent = resolveSwitchParent();
+      if (!switchParent) {
+        alert('Select a Switch node (or set it as the active nesting parent) before adding a Default.');
+        return;
+      }
+      addSwitchChild(switchParent, 'Default');
+      return;
+    }
+
     const id = `${logicon.id}-${Date.now()}-${++nodeCounterRef.current}`;
     
     // Set default properties based on node type
@@ -941,6 +1558,25 @@ export default function VisualDSLPrototype() {
         jsonString: '{"key": "value"}',
         nodeName: 'root'
       };
+    } else if (logicon.label === 'If') {
+      defaultProperties = {
+        condition: '',
+        conditionType: 'expression',
+        leftOperand: '',
+        operator: 'equal',
+        rightOperand: '',
+        description: '',
+        name: '',
+        ifBody: '',
+        hasElse: false,
+        elseBody: ''
+      };
+    } else if (logicon.label === 'Switch') {
+      defaultProperties = {
+        name: '',
+        testExpression: '',
+        description: ''
+      };
     }
     
     const newNode: Node = {
@@ -958,6 +1594,20 @@ export default function VisualDSLPrototype() {
       },
     };
     setNodes((nds) => [...nds, newNode]);
+
+    if (logicon.label === 'If') {
+      const props = defaultProperties as IfNodeProperties;
+      addIfBranch(id, 'Then', newNode);
+      if (coerceBoolean(props.hasElse)) {
+        addIfBranch(id, 'Else', newNode);
+      }
+      setSelectedNodeId(id);
+    } else if (logicon.label === 'Switch') {
+      const firstCaseId = addSwitchChild(id, 'Case', newNode);
+      if (firstCaseId) {
+        setSelectedNodeId(id);
+      }
+    }
   };
 
   // Calculate the bounds of a nesting group
@@ -1042,6 +1692,26 @@ export default function VisualDSLPrototype() {
 
   // Add logicon in flow (now the default single-click behavior)
   const addLogiconFlow = (logicon: LogiconData) => {
+    if (logicon.label === 'Case') {
+      const switchParent = resolveSwitchParent();
+      if (!switchParent) {
+        alert('Select a Switch node (or set it as the active nesting parent) before adding a Case.');
+        return;
+      }
+      addSwitchChild(switchParent, 'Case');
+      return;
+    }
+
+    if (logicon.label === 'Default') {
+      const switchParent = resolveSwitchParent();
+      if (!switchParent) {
+        alert('Select a Switch node (or set it as the active nesting parent) before adding a Default.');
+        return;
+      }
+      addSwitchChild(switchParent, 'Default');
+      return;
+    }
+
     const id = `${logicon.id}-${Date.now()}-${++nodeCounterRef.current}`;
     
     // In nesting mode, if we have a selected parent, add as child
@@ -1105,6 +1775,12 @@ export default function VisualDSLPrototype() {
         defaultProperties = {
           jsonString: '{"key": "value"}',
           nodeName: 'root'
+        };
+      } else if (logicon.label === 'Switch') {
+        defaultProperties = {
+          name: '',
+          testExpression: '',
+          description: ''
         };
       }
       
@@ -1178,6 +1854,13 @@ export default function VisualDSLPrototype() {
       } else {
         setTimeout(() => updateGroupBounds(selectedParentId), 0);
       }
+
+      if (logicon.label === 'Switch') {
+        const firstCaseId = addSwitchChild(id, 'Case', newNode);
+        if (firstCaseId) {
+          setSelectedNodeId(id);
+        }
+      }
       
       return;
     }
@@ -1200,8 +1883,11 @@ export default function VisualDSLPrototype() {
         }
         const parentRelation = nestingRelations.find(rel => rel.childId === selectedNodeId);
         if (parentRelation) {
-          // This node is a child in a nesting - use the parent as reference
-          referenceNode = nodes.find(node => node.id === parentRelation.parentId) || referenceNode;
+          const isBranchNode = ['Case', 'Default', 'Then', 'Else'].includes(referenceNode.data?.label ?? '');
+          if (!isBranchNode) {
+            // This node is a child in a nesting - use the parent as reference
+            referenceNode = nodes.find(node => node.id === parentRelation.parentId) || referenceNode;
+          }
         }
         // If it's already a parent node, we use it as-is
       }
@@ -1215,6 +1901,8 @@ export default function VisualDSLPrototype() {
       addLogiconRandom(logicon);
       return;
     }
+
+    const branchRootId = findSwitchBranchRoot(referenceNode.id);
 
     // Calculate position - if reference node is part of a nesting group, 
     // position relative to the group bounds
@@ -1279,6 +1967,25 @@ export default function VisualDSLPrototype() {
         jsonString: '{"key": "value"}',
         nodeName: 'root'
       };
+    } else if (logicon.label === 'If') {
+      defaultProperties = {
+        condition: '',
+        conditionType: 'expression',
+        leftOperand: '',
+        operator: 'equal',
+        rightOperand: '',
+        description: '',
+        name: '',
+        ifBody: '',
+        hasElse: false,
+        elseBody: ''
+      };
+    } else if (logicon.label === 'Switch') {
+      defaultProperties = {
+        name: '',
+        testExpression: '',
+        description: ''
+      };
     }
 
     const newNode: Node = {
@@ -1292,6 +1999,26 @@ export default function VisualDSLPrototype() {
         properties: defaultProperties
       },
     };
+
+    const branchRestrictedLabels = ['Case', 'Default', 'Then', 'Else'];
+    if (branchRootId && !branchRestrictedLabels.includes(logicon.label)) {
+      const siblings = getChildrenOf(branchRootId);
+      if (!siblings.some(rel => rel.childId === id)) {
+        addNestingRelation({
+          parentId: branchRootId,
+          childId: id,
+          order: siblings.length,
+        });
+      }
+
+      setTimeout(() => {
+        updateGroupBounds(branchRootId);
+        const parentRel = getParentOf(branchRootId);
+        if (parentRel) {
+          updateGroupBounds(parentRel.parentId);
+        }
+      }, 0);
+    }
 
     // Create connection with direction-specific handles
     let sourceHandle: string;
@@ -1330,7 +2057,52 @@ export default function VisualDSLPrototype() {
     setNodes((nds) => [...nds, newNode]);
     setEdges((eds) => [...eds, newEdge]);
     setSelectedNodeId(id); // Select the newly created node
+
+    if (logicon.label === 'If') {
+      const props = defaultProperties as IfNodeProperties;
+      addIfBranch(id, 'Then', newNode);
+      if (coerceBoolean(props.hasElse)) {
+        addIfBranch(id, 'Else', newNode);
+      }
+    } else if (logicon.label === 'Switch') {
+      const firstCaseId = addSwitchChild(id, 'Case', newNode);
+      if (firstCaseId) {
+        setSelectedNodeId(id);
+      }
+    }
   };
+
+  const switchContextActions = React.useMemo(() => {
+    if (!contextMenu) return [];
+    const node = nodes.find(n => n.id === contextMenu.nodeId);
+    if (!node || node.data.label !== 'Switch') return [];
+
+    const children = getChildrenOf(node.id);
+    const hasDefault = children.some(rel => {
+      const childNode = nodes.find(n => n.id === rel.childId);
+      return childNode?.data.label === 'Default';
+    });
+
+    return [
+      {
+        label: 'Add Case',
+        icon: '📋',
+        onClick: () => {
+          addSwitchChild(node.id, 'Case');
+          setContextMenu(null);
+        }
+      },
+      {
+        label: 'Add Default',
+        icon: '🎯',
+        onClick: () => {
+          addSwitchChild(node.id, 'Default');
+          setContextMenu(null);
+        },
+        disabled: hasDefault
+      }
+    ];
+  }, [contextMenu, nodes, getChildrenOf, addSwitchChild, setContextMenu]);
 
   return (
     <ReactFlowProvider>
@@ -1553,6 +2325,7 @@ export default function VisualDSLPrototype() {
               onProperties={() => openPropertiesDialog(contextMenu.nodeId)}
               nodeLabel={contextMenu.nodeLabel}
               isGroupRoot={contextMenu.isGroupRoot}
+              actions={switchContextActions}
             />
           )}
           
@@ -1611,6 +2384,62 @@ export default function VisualDSLPrototype() {
               onClose={() => setPropertiesDialog(null)}
               onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
               initialProperties={propertiesDialog.properties as WhileNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'switch' && (
+            <SwitchNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SwitchNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as SwitchNodeProperties || {
+                name: '',
+                testExpression: '',
+                description: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'case' && (
+            <CaseNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: CaseNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as CaseNodeProperties || {
+                name: '',
+                condition: '',
+                description: '',
+                body: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'default' && (
+            <DefaultNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: DefaultNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as DefaultNodeProperties || {
+                name: '',
+                description: '',
+                body: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'function' && (
+            <FunctionNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: FunctionNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as FunctionNodeProperties || {
+                parameters: [],
+                body: ''
+              }}
             />
           )}
 

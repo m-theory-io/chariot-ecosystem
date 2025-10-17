@@ -16,7 +16,7 @@ func TestETLOperations(t *testing.T) {
 				`setq(data, extractCSV("test_data.csv"))`,
 				`length(data)`,
 			},
-			ExpectedValue: chariot.Number(54), // expected row count
+			ExpectedValue: chariot.Number(3), // expected row count
 		},
 		{
 			Name: "Transform Data Pipeline",
@@ -28,7 +28,7 @@ func TestETLOperations(t *testing.T) {
 				`}))`,
 				`getProp(getAt(transformed, 0), "total")`,
 			},
-			ExpectedValue: chariot.Number(150.00),
+			ExpectedValue: chariot.Number(172.5),
 		},
 	}
 

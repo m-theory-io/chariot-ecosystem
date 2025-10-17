@@ -14,9 +14,10 @@
                 "CHARIOT_CERT_PATH": "/tmp/ssl",
                 "CHARIOT_SSL": "false",
                 "COUCHBASE_URL": "couchbase://localhost",
-                "COUCHBASE_USERNAME": "Administrator",
-                "COUCHBASE_PASSWORD": "chariot123",
+                "COUCHBASE_USERNAME": "mtheory",
+                "COUCHBASE_PASSWORD": "Borg12731273",
                 "COUCHBASE_BUCKET": "chariot",
+                "COUCHBASE_CBDL": "true",
                 "MYSQL_HOST": "localhost",
                 "MYSQL_PORT": "3306",
                 "MYSQL_DATABASE": "chariot",
@@ -26,7 +27,7 @@
                 "AZURE_TENANT_ID": "82fbfa53-3046-4f39-a182-f5e0082313d4",
                 "AZURE_KEY_VAULT_URL": "https://chariot-vault.vault.azure.net",
                 "AZURE_CONFIG_DIR": "/home/nvidia/.azure",
-                "CHARIOT_VAULT_KEY_PREFIX": "docker"
+                "CHARIOT_VAULT_KEY_PREFIX": "azure"
             },
             "args": [],
             "showLog": true,

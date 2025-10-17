@@ -1621,8 +1621,37 @@ func jsonNodeGetAttribute(args ...Value) (Value, error) {
 	if jsonNode.Attributes == nil {
 		return nil, fmt.Errorf("node has no attributes")
 	}
+
 	if val, exists := jsonNode.Attributes[string(attrName)]; exists {
 		return val, nil
+	} else {
+		// Check for special JSONNode case
+		testAttr := "_" + jsonNode.NameStr
+		if val2, exists := jsonNode.Attributes[testAttr]; exists {
+			trec := val2.(*ArrayValue).Get(0).(map[string]Value)
+			if val3, exists := trec[string(attrName)]; exists {
+				return val3, nil
+			}
+		} else {
+			// recursively walk jsonNode.Attributes
+			for _, v := range jsonNode.Attributes {
+				switch v := v.(type) {
+				case *ArrayValue:
+					for i := 0; i < v.Length(); i++ {
+						trec := v.Elements[i]
+						switch trec := trec.(type) {
+						case map[string]Value:
+							if tval, exists := trec[string(attrName)]; exists {
+								return tval, nil
+							}
+						}
+					}
+				case *MapNode, *JSONNode, TreeNode:
+					trec, err := jsonNodeGetAttribute(v, attrName)
+					return trec, err
+				}
+			}
+		}
 	}
 	return nil, fmt.Errorf("attribute '%s' not found", attrName)
 }

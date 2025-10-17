@@ -20,13 +20,13 @@ func initMySQLConfig() {
 		// Initialize configuration similar to cmd/main.go
 		// Set the env vars in the os
 		os.Setenv("CHARIOT_SQL_DRIVER", "mysql")
-		os.Setenv("CHARIOT_SQL_URL", "192.168.0.101")
-		os.Setenv("CHARIOT_SQL_USER", "root")
-		os.Setenv("CHARIOT_SQL_PASSWORD", "Borg12731273")
+		os.Setenv("CHARIOT_SQL_URL", "localhost")
+		os.Setenv("CHARIOT_SQL_USER", "chariot")
+		os.Setenv("CHARIOT_SQL_PASSWORD", "chariot123")
 		os.Setenv("CHARIOT_SQL_DATABASE", "testsql")
 		os.Setenv("CHARIOT_SQL_PORT", "3306")
-		os.Setenv("CHARIOT_DATA_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
-		os.Setenv("CHARIOT_TREE_PATH", "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
+		os.Setenv("CHARIOT_DATA_PATH", "~/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
+		os.Setenv("CHARIOT_TREE_PATH", "~/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
 		os.Setenv("CHARIOT_VAULT_NAME", "chariot-vault")
 		kissflag.SetPrefix("CHARIOT_")
 
@@ -38,9 +38,9 @@ func initMySQLConfig() {
 
 		// MySQL specific configuration
 		cfg.ChariotConfig.StringVar("sql_driver", &cfg.ChariotConfig.SQLDriver, "mysql")
-		cfg.ChariotConfig.StringVar("sql_host", &cfg.ChariotConfig.SQLHost, "192.168.0.101")
-		cfg.ChariotConfig.StringVar("sql_user", &cfg.ChariotConfig.SQLUser, "root")
-		cfg.ChariotConfig.StringVar("sql_password", &cfg.ChariotConfig.SQLPassword, "Borg12731273")
+		cfg.ChariotConfig.StringVar("sql_host", &cfg.ChariotConfig.SQLHost, "localhost")
+		cfg.ChariotConfig.StringVar("sql_user", &cfg.ChariotConfig.SQLUser, "chariot")
+		cfg.ChariotConfig.StringVar("sql_password", &cfg.ChariotConfig.SQLPassword, "chariot123")
 		cfg.ChariotConfig.StringVar("sql_database", &cfg.ChariotConfig.SQLDatabase, "testsql")
 		cfg.ChariotConfig.IntVar("sql_port", &cfg.ChariotConfig.SQLPort, 3306)
 

@@ -1,5 +1,12 @@
 import React from 'react';
 
+interface ContextMenuAction {
+  label: string;
+  icon?: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
 interface ContextMenuProps {
   x: number;
   y: number;
@@ -8,6 +15,7 @@ interface ContextMenuProps {
   onProperties?: () => void;
   nodeLabel?: string;
   isGroupRoot?: boolean;
+  actions?: ContextMenuAction[];
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ 
@@ -17,7 +25,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose, 
   onProperties,
   nodeLabel,
-  isGroupRoot 
+  isGroupRoot,
+  actions = []
 }) => {
   React.useEffect(() => {
     const handleClickOutside = () => onClose();
@@ -42,6 +51,27 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         )}
       </div>
       
+      {actions.map((action, idx) => (
+        <button
+          key={`${action.label}-${idx}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!action.disabled) {
+              action.onClick();
+            }
+          }}
+          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+            action.disabled
+              ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          disabled={action.disabled}
+        >
+          <span>{action.icon || '➕'}</span>
+          <span>{action.label}</span>
+        </button>
+      ))}
+
       {onProperties && (
         <button
           onClick={(e) => {
