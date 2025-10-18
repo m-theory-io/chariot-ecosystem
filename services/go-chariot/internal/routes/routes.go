@@ -26,6 +26,13 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	api.POST("/function/save", h.SaveFunctionHandler)
 	api.POST("/functions/save-library", h.SaveFunctionLibraryHandler)
 
+	// Diagrams API
+	diagrams := api.Group("/diagrams")
+	diagrams.GET("", h.ListDiagrams)          // GET /api/diagrams
+	diagrams.GET(":name", h.GetDiagram)       // GET /api/diagrams/:name
+	diagrams.POST("", h.SaveDiagram)          // POST /api/diagrams
+	diagrams.DELETE(":name", h.DeleteDiagram) // DELETE /api/diagrams/:name
+
 	// Listener registry APIs
 	listeners := api.Group("/listeners")
 	listeners.GET("", h.ListListeners)              // GET /api/listeners
