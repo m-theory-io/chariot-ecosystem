@@ -25,6 +25,7 @@ import { LastChildNodePropertiesDialog, LastChildNodeProperties } from "../compo
 import { GetAttributeNodePropertiesDialog, GetAttributeNodeProperties } from "../components/dialogs/GetAttributeNodeProperties";
 import { RemoveAttributeNodePropertiesDialog, RemoveAttributeNodeProperties } from "../components/dialogs/RemoveAttributeNodeProperties";
 import SetAttributeNodePropertiesDialog, { SetAttributeNodeProperties as SetAttributeProps } from "../components/dialogs/SetAttributeNodeProperties";
+import SetValueNodePropertiesDialog, { SetValueNodeProperties } from "../components/dialogs/SetValueNodeProperties";
 import { SetAttributesNodePropertiesDialog, SetAttributesNodeProperties } from "../components/dialogs/SetAttributesNodeProperties";
 import { GetChildAtNodePropertiesDialog, GetChildAtNodeProperties } from "../components/dialogs/GetChildAtNodeProperties";
 import { GetChildByNameNodePropertiesDialog, GetChildByNameNodeProperties } from "../components/dialogs/GetChildByNameNodeProperties";
@@ -49,6 +50,8 @@ import { ChildCountNodePropertiesDialog, ChildCountNodeProperties } from "../com
 import { ClearNodePropertiesDialog, ClearNodeProperties } from "../components/dialogs/ClearNodeProperties";
 import { AddToNodePropertiesDialog, AddToNodeProperties } from "../components/dialogs/AddToNodeProperties";
 import LogPrintNodeProperties, { LogPrintNodeProperties as LogPrintProperties } from "../components/dialogs/LogPrintNodeProperties";
+import BreakNodePropertiesDialog, { BreakNodeProperties } from "../components/dialogs/BreakNodeProperties";
+import ContinueNodePropertiesDialog, { ContinueNodeProperties } from "../components/dialogs/ContinueNodeProperties";
 import CreateTransformNodeProperties, { CreateTransformNodeProperties as CreateTransformProperties } from "../components/dialogs/CreateTransformNodeProperties";
 import AddMappingNodeProperties, { AddMappingNodeProperties as AddMappingProperties } from "../components/dialogs/AddMappingNodeProperties";
 import { TreeSaveNodePropertiesDialog, TreeSaveNodeProperties } from "../components/dialogs/TreeSaveNodeProperties";
@@ -558,6 +561,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'start';
       } else if ((label === 'Declare' || label === 'declare') && category === 'value') {
         nodeType = 'declare';
+      } else if ((label === 'Set Equal' || label === 'Set Value' || label === 'setq') && category === 'value') {
+        nodeType = 'setValue';
       } else if ((label === 'If' || label === 'if') && category === 'control') {
         nodeType = 'if';
       } else if ((label === 'Iif' || label === 'IIf'|| label === 'iif') && category === 'comparison') {
@@ -574,6 +579,10 @@ export default function VisualDSLPrototype() {
         nodeType = 'case';
       } else if ((label === 'Default' || label === 'default') && category === 'control') {
         nodeType = 'default';
+      } else if ((label === 'Break' || label === 'break') && category === 'control') {
+        nodeType = 'break';
+      } else if ((label === 'Continue' || label === 'continue') && category === 'control') {
+        nodeType = 'continue';
       } else if ((label === 'Add Child' || label === 'addChild') && category === 'node') {
         nodeType = 'addChild';
       } else if ((label === 'Remove Child' || label === 'removeChild') && category === 'node') {
@@ -911,7 +920,7 @@ export default function VisualDSLPrototype() {
         break;
       }
 
-      if (['Case', 'Default', 'Then', 'Else'].includes(currentNode.data.label)) {
+  if (['Case', 'Default', 'Then', 'Else', 'Loop Body'].includes(currentNode.data.label)) {
         return currentId;
       }
 
@@ -1232,6 +1241,117 @@ export default function VisualDSLPrototype() {
     return branchId;
   }, [nodes, getChildrenOf, direction, setNodes, setEdges, addNestingRelation, setGroupCount, createGroupForNesting, updateGroupBounds]);
 
+  const ensureWhileBody = React.useCallback((whileId: string, parentOverride?: Node): string | null => {
+    const whileNode = parentOverride ?? nodes.find(n => n.id === whileId);
+    if (!whileNode) {
+      return null;
+    }
+
+    const existingChildren = getChildrenOf(whileId);
+    const existingBody = existingChildren.find(rel => {
+      const childNode = nodes.find(n => n.id === rel.childId);
+      return childNode?.data.label === 'Loop Body';
+    });
+
+    if (existingBody) {
+      return existingBody.childId;
+    }
+
+    const bodyId = `while-body-${Date.now()}-${++nodeCounterRef.current}`;
+    const spacing = 150;
+    const stackSpacing = 110;
+    const childIndex = existingChildren.length;
+
+    let bodyPosition = {
+      x: whileNode.position.x,
+      y: whileNode.position.y + spacing + (childIndex * stackSpacing)
+    };
+
+    switch (direction) {
+      case 'right':
+        bodyPosition = {
+          x: whileNode.position.x + spacing + (childIndex * 150),
+          y: whileNode.position.y
+        };
+        break;
+      case 'up':
+        bodyPosition = {
+          x: whileNode.position.x,
+          y: whileNode.position.y - spacing - (childIndex * stackSpacing)
+        };
+        break;
+      default:
+        bodyPosition = {
+          x: whileNode.position.x,
+          y: whileNode.position.y + spacing + (childIndex * stackSpacing)
+        };
+        break;
+    }
+
+    const bodyNode: Node = {
+      id: bodyId,
+      type: 'logicon',
+      position: bodyPosition,
+      data: {
+        label: 'Loop Body',
+        icon: '🔁',
+        category: 'control',
+        properties: { description: '' }
+      }
+    };
+
+    let sourceHandle = 'bottom';
+    let targetHandle = 'top';
+    switch (direction) {
+      case 'right':
+        sourceHandle = 'right';
+        targetHandle = 'left';
+        break;
+      case 'up':
+        sourceHandle = 'top';
+        targetHandle = 'bottom';
+        break;
+      default:
+        sourceHandle = 'bottom';
+        targetHandle = 'top';
+        break;
+    }
+
+    const newEdge: Edge = {
+      id: `${whileId}-${bodyId}`,
+      source: whileId,
+      target: bodyId,
+      sourceHandle,
+      targetHandle,
+      type: 'default',
+      style: { stroke: '#2563eb', strokeWidth: 2 },
+      animated: false,
+      updatable: true
+    };
+
+    const existingOrders = existingChildren.map(rel => rel.order);
+    const nextOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 0;
+    const isFirstChild = existingChildren.length === 0;
+
+    setNodes(prev => [...prev, bodyNode]);
+    setEdges(prev => [...prev, newEdge]);
+    addNestingRelation({ parentId: whileId, childId: bodyId, order: nextOrder });
+
+    if (isFirstChild) {
+      setGroupCount(prev => prev + 1);
+    }
+
+    setTimeout(() => {
+      if (isFirstChild) {
+        createGroupForNesting(whileId, bodyId);
+      } else {
+        updateGroupBounds(whileId);
+      }
+    }, 0);
+
+    return bodyId;
+  }, [nodes, getChildrenOf, direction, setNodes, setEdges, addNestingRelation, setGroupCount, createGroupForNesting, updateGroupBounds]);
+
   const removeIfBranch = React.useCallback((ifId: string, branchKind: 'Then' | 'Else') => {
     const children = getChildrenOf(ifId);
     const targetRel = children.find(rel => {
@@ -1312,8 +1432,10 @@ export default function VisualDSLPrototype() {
       } else if (prevHasElse) {
         removeIfBranch(nodeId, 'Else');
       }
+    } else if (nodeLabel === 'While') {
+      ensureWhileBody(nodeId);
     }
-  }, [setNodes, setCurrentDiagramName, addIfBranch, removeIfBranch]);
+  }, [setNodes, setCurrentDiagramName, addIfBranch, removeIfBranch, ensureWhileBody]);
 
   const addSwitchChild = React.useCallback((switchId: string, childKind: 'Case' | 'Default', parentOverride?: Node) => {
     const switchNode = parentOverride ?? nodes.find(n => n.id === switchId);
@@ -1458,15 +1580,18 @@ export default function VisualDSLPrototype() {
       const parentRelation = nestingRelations.find(rel => rel.childId === node.id);
       if (parentRelation) {
         const parentIsSubflow = isSubflow(parentRelation.parentId);
-        const isBranchNode = ['Case', 'Default', 'Then', 'Else'].includes(node.data?.label ?? '');
-        if (!parentIsSubflow && !isBranchNode) {
+        const parentNode = nodes.find(n => n.id === parentRelation.parentId);
+        const parentLabel = parentNode?.data?.label ?? '';
+        const parentIsLoopBody = parentLabel === 'Loop Body';
+        const isBranchNode = ['Case', 'Default', 'Then', 'Else', 'Loop Body'].includes(node.data?.label ?? '');
+        if (!parentIsSubflow && !isBranchNode && !parentIsLoopBody) {
           nodeToSelect = parentRelation.parentId;
         }
       }
       
       setSelectedNodeId(nodeToSelect);
     },
-    [nestingMode, selectedParentId, setSelectedNodeId, setSelectedParentId, nestingRelations, isSubflow]
+    [nestingMode, selectedParentId, setSelectedNodeId, setSelectedParentId, nestingRelations, isSubflow, nodes]
   );
 
   // Find the last node in the logical flow (rightmost and bottommost)
@@ -1571,11 +1696,29 @@ export default function VisualDSLPrototype() {
         hasElse: false,
         elseBody: ''
       };
+    } else if (logicon.label === 'While') {
+      defaultProperties = {
+        condition: '',
+        conditionType: 'expression',
+        leftOperand: '',
+        operator: 'equal',
+        rightOperand: '',
+        maxIterations: 100,
+        description: '',
+        name: '',
+        body: ''
+      };
     } else if (logicon.label === 'Switch') {
       defaultProperties = {
         name: '',
         testExpression: '',
         description: ''
+      };
+    } else if (logicon.label === 'Set Equal' || logicon.label === 'Set Value' || logicon.label === 'setq') {
+      defaultProperties = {
+        variableName: 'myVar',
+        value: '',
+        valueType: 'string'
       };
     }
     
@@ -1601,6 +1744,9 @@ export default function VisualDSLPrototype() {
       if (coerceBoolean(props.hasElse)) {
         addIfBranch(id, 'Else', newNode);
       }
+      setSelectedNodeId(id);
+    } else if (logicon.label === 'While') {
+      ensureWhileBody(id, newNode);
       setSelectedNodeId(id);
     } else if (logicon.label === 'Switch') {
       const firstCaseId = addSwitchChild(id, 'Case', newNode);
@@ -1782,6 +1928,12 @@ export default function VisualDSLPrototype() {
           testExpression: '',
           description: ''
         };
+      } else if (logicon.label === 'Set Equal' || logicon.label === 'Set Value' || logicon.label === 'setq') {
+        defaultProperties = {
+          variableName: 'myVar',
+          value: '',
+          valueType: 'string'
+        };
       }
       
       const newNode: Node = {
@@ -1883,8 +2035,11 @@ export default function VisualDSLPrototype() {
         }
         const parentRelation = nestingRelations.find(rel => rel.childId === selectedNodeId);
         if (parentRelation) {
-          const isBranchNode = ['Case', 'Default', 'Then', 'Else'].includes(referenceNode.data?.label ?? '');
-          if (!isBranchNode) {
+          const parentNode = nodes.find(n => n.id === parentRelation.parentId);
+          const parentLabel = parentNode?.data?.label ?? '';
+          const parentIsLoopBody = parentLabel === 'Loop Body';
+          const isBranchNode = ['Case', 'Default', 'Then', 'Else', 'Loop Body'].includes(referenceNode.data?.label ?? '');
+          if (!isBranchNode && !parentIsLoopBody) {
             // This node is a child in a nesting - use the parent as reference
             referenceNode = nodes.find(node => node.id === parentRelation.parentId) || referenceNode;
           }
@@ -1986,6 +2141,12 @@ export default function VisualDSLPrototype() {
         testExpression: '',
         description: ''
       };
+    } else if (logicon.label === 'Set Equal' || logicon.label === 'Set Value' || logicon.label === 'setq') {
+      defaultProperties = {
+        variableName: 'myVar',
+        value: '',
+        valueType: 'string'
+      };
     }
 
     const newNode: Node = {
@@ -2000,7 +2161,7 @@ export default function VisualDSLPrototype() {
       },
     };
 
-    const branchRestrictedLabels = ['Case', 'Default', 'Then', 'Else'];
+  const branchRestrictedLabels = ['Case', 'Default', 'Then', 'Else', 'Loop Body'];
     if (branchRootId && !branchRestrictedLabels.includes(logicon.label)) {
       const siblings = getChildrenOf(branchRootId);
       if (!siblings.some(rel => rel.childId === id)) {
@@ -2356,6 +2517,23 @@ export default function VisualDSLPrototype() {
                 isGlobal: false, 
                 variableName: 'myVar', 
                 typeSpecifier: 'S' 
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setValue' && (
+            <SetValueNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SetValueNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SetValueNodeProperties || {
+                variableName: 'myVar',
+                value: '',
+                valueType: 'string'
               }}
             />
           )}
@@ -3269,6 +3447,24 @@ export default function VisualDSLPrototype() {
                 logLevel: 'info',
                 additionalArgs: []
               }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'break' && (
+            <BreakNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: BreakNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as BreakNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'continue' && (
+            <ContinueNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: ContinueNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              initialProperties={propertiesDialog.properties as ContinueNodeProperties || {}}
             />
           )}
           

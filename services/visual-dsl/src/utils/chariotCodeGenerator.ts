@@ -39,7 +39,7 @@ export class ChariotCodeGenerator {
   private executionOrder: string[];
   private nestingMap: Map<string, string[]>;
   private parentLookup: Map<string, string>;
-  private switchInlineNodes: Set<string>;
+  private structuralInlineNodes: Set<string>;
 
   constructor(diagram: VisualDSLDiagram) {
     this.diagram = diagram;
@@ -47,7 +47,7 @@ export class ChariotCodeGenerator {
     this.executionOrder = [];
     this.nestingMap = new Map();
     this.parentLookup = new Map();
-    this.switchInlineNodes = new Set();
+    this.structuralInlineNodes = new Set();
     
     // Build node map
     diagram.nodes.forEach(node => {
@@ -71,39 +71,67 @@ export class ChariotCodeGenerator {
     // Calculate execution order from flow before collecting inline nodes
     this.calculateExecutionOrder();
 
-    this.switchInlineNodes = this.collectSwitchInlineNodes();
+    this.structuralInlineNodes = this.collectStructuralInlineNodes();
+  }
+
+  private canonicalLabel(rawLabel?: string): string {
+    if (!rawLabel) {
+      return '';
+    }
+    const normalized = rawLabel.trim();
+    const lowerKey = normalized.toLowerCase();
+    const aliasMap: Record<string, string> = {
+      'set equal': 'Set Equal',
+      'set value': 'Set Value',
+      'set q': 'Set Q',
+      'setq': 'Set Q',
+      'logprint': 'LogPrint',
+      'log print': 'Log Print',
+      'loop body': 'Loop Body',
+    };
+    return aliasMap[lowerKey] || normalized;
+  }
+
+  private getNodeLabel(node: VisualDSLNode): string {
+    return this.canonicalLabel(node.data.label);
   }
 
   public generateChariotCode(): string {
     const lines: string[] = [];
     
-    // Add header comment
     lines.push(`// ${this.diagram.name}`);
     lines.push('');
     
-    // Get all child nodes that are handled inline (don't process them separately)
     const inlineProcessedNodes = new Set<string>();
     for (const [parentId, childIds] of this.nestingMap) {
       const parentNode = this.nodeMap.get(parentId);
-      if (parentNode?.data.label === 'Declare' && childIds.length === 1) {
+      if (!parentNode) {
+        continue;
+      }
+      const parentLabel = this.getNodeLabel(parentNode);
+      if (parentLabel === 'Declare' && childIds.length === 1) {
         const childNode = this.nodeMap.get(childIds[0]);
-        if (!childNode) continue;
+        if (!childNode) {
+          continue;
+        }
         const typeSpec = parentNode.data.properties?.typeSpecifier || 'T';
+        const childLabel = this.getNodeLabel(childNode);
         const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array'];
-        if (inlineLabels.includes(childNode.data.label)) {
+        if (inlineLabels.includes(childLabel)) {
           inlineProcessedNodes.add(childIds[0]);
-        } else if (childNode.data.label === 'Function' && typeSpec === 'F') {
+        } else if (childLabel === 'Function' && typeSpec === 'F') {
           inlineProcessedNodes.add(childIds[0]);
         }
+      } else if (['Set Equal', 'Set Value', 'Set Q', 'setq'].includes(parentLabel)) {
+        childIds.forEach(id => inlineProcessedNodes.add(id));
       }
     }
 
-    this.switchInlineNodes.forEach(id => inlineProcessedNodes.add(id));
+    this.structuralInlineNodes.forEach(id => inlineProcessedNodes.add(id));
     
-    // Process nodes in execution order, skipping inline-processed ones
     for (const nodeId of this.executionOrder) {
       if (inlineProcessedNodes.has(nodeId)) {
-        continue; // Skip nodes that are handled inline by their parent
+        continue;
       }
       
       const node = this.nodeMap.get(nodeId);
@@ -114,58 +142,6 @@ export class ChariotCodeGenerator {
         lines.push(chariotCode);
       }
     }
-    
-    // Generate addChild calls for nesting relationships not handled inline
-    const addChildLines: string[] = [];
-    for (const [parentId, childIds] of this.nestingMap) {
-      const parentNode = this.nodeMap.get(parentId);
-      if (!parentNode) continue;
-      
-      const parentLabel = parentNode.data.label;
-      if (parentLabel === 'Switch' || parentLabel === 'Case' || parentLabel === 'Default' || parentLabel === 'If' || parentLabel === 'Then' || parentLabel === 'Else') {
-        continue;
-      }
-
-      const parentProps = parentNode.data.properties || {};
-      const parentVarName = parentProps.variableName || this.inferVariableName(parentNode);
-      
-      // Check if this is a complex nesting case (multiple children or non-simple children)
-      const isComplexNesting = childIds.length > 1 || 
-        childIds.some(childId => {
-          const childNode = this.nodeMap.get(childId);
-          if (!childNode) {
-            return false;
-          }
-          if (childNode.data.label === 'Then' || childNode.data.label === 'Else') {
-            return false;
-          }
-          return !['Create', 'New Tree', 'Parse JSON', 'Array'].includes(childNode.data.label);
-        });
-      
-      if (isComplexNesting) {
-        for (const childId of childIds) {
-          const childNode = this.nodeMap.get(childId);
-          if (!childNode) continue;
-
-          if (childNode.data.label === 'Then' || childNode.data.label === 'Else') {
-            continue;
-          }
-          
-          const childProps = childNode.data.properties || {};
-          const childVarName = childProps.variableName || this.inferVariableName(childNode);
-          
-          addChildLines.push(`addChild(${parentVarName}, ${childVarName})`);
-        }
-      }
-    }
-    
-    // Add the addChild calls if any were generated
-    if (addChildLines.length > 0) {
-      lines.push('');
-      lines.push('// Add children to parent nodes');
-      lines.push(...addChildLines);
-    }
-    
     return lines.join('\n');
   }
 
@@ -250,8 +226,9 @@ export class ChariotCodeGenerator {
 
   private generateNodeCode(node: VisualDSLNode): string | null {
     const props = node.data.properties || {};
-    
-    switch (node.data.label) {
+    const label = this.getNodeLabel(node);
+
+    switch (label) {
       case 'Start':
         // Start node doesn't generate code directly, just a comment
         return `// Starting ${props.name || this.diagram.name}`;
@@ -373,16 +350,23 @@ export class ChariotCodeGenerator {
         return this.generateFunctionCode(node);
       case 'If':
         return this.generateIfCode(node);
+      case 'While':
+        return this.generateWhileCode(node);
       case 'Switch':
         return this.generateSwitchCode(node);
       case 'Case':
       case 'Default':
       case 'Then':
       case 'Else':
+      case 'Loop Body':
         return null;
-        
+
+      case 'Set Equal':
       case 'Set Value':
-        return this.generateSetValueCode(node);
+      case 'Set Q':
+        return this.generateSetqCode(node);
+      case 'SetQ':
+        return this.generateSetqCode(node);
         
       case 'Get Attribute':
         return this.generateGetAttributeCode(node);
@@ -866,23 +850,16 @@ export class ChariotCodeGenerator {
       args.push(`'${message}'`);
     }
     
-    // Add log level if it's not the default 'info' or if there are additional args
+    // Include log level if it's not the default 'info' OR if there are additional args (to preserve arg position)
     if (logLevel !== 'info' || additionalArgs.length > 0) {
       args.push(`'${logLevel}'`);
-      
-      // Add additional arguments if any
+
+      // Pass additional arguments through verbatim; do not auto-quote
       if (additionalArgs.length > 0) {
         additionalArgs.forEach((arg: string) => {
-          // Check if the argument is already quoted or looks like a variable
-          if (arg.startsWith('"') && arg.endsWith('"') || arg.startsWith("'") && arg.endsWith("'")) {
-            // Already quoted - use as-is
-            args.push(arg);
-          } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(arg)) {
-            // Looks like a variable name - use unquoted
-            args.push(arg);
-          } else {
-            // Quote as string literal
-            args.push(`'${arg}'`);
+          const raw = (arg ?? '').toString();
+          if (raw.length > 0) {
+            args.push(raw);
           }
         });
       }
@@ -1020,7 +997,7 @@ export class ChariotCodeGenerator {
     const orderedChildren = this.getOrderedChildren(node.id);
     const thenNodeId = orderedChildren.find(childId => {
       const childNode = this.nodeMap.get(childId);
-      return childNode?.data.label === 'Then';
+      return childNode ? this.getNodeLabel(childNode) === 'Then' : false;
     }) ?? null;
 
     let nestedIf: string[] = [];
@@ -1030,7 +1007,8 @@ export class ChariotCodeGenerator {
     } else {
       const fallbackChildren = orderedChildren.filter(childId => {
         const childNode = this.nodeMap.get(childId);
-        return childNode?.data.label !== 'Else';
+        const label = childNode ? this.getNodeLabel(childNode) : '';
+        return label !== 'Else';
       });
       nestedIf = this.generateBlockFromChildren(node.id, 2, fallbackChildren);
     }
@@ -1050,7 +1028,7 @@ export class ChariotCodeGenerator {
     const elseText = (props.elseBody ?? '').toString();
     const elseNodeId = orderedChildren.find(childId => {
       const childNode = this.nodeMap.get(childId);
-      return childNode?.data.label === 'Else';
+      return childNode ? this.getNodeLabel(childNode) === 'Else' : false;
     }) ?? null;
 
     let elseBranchBlock: string[] = [];
@@ -1075,6 +1053,51 @@ export class ChariotCodeGenerator {
       lines.push('}');
     }
 
+    return lines.join('\n');
+  }
+
+  private generateWhileCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const rawCondition = (props.condition ?? '').toString().trim();
+    const condition = rawCondition !== '' ? rawCondition : 'true';
+
+    const lines: string[] = [];
+    lines.push(`while(${condition}) {`);
+
+    const maxIterations = Number(props.maxIterations);
+    if (Number.isFinite(maxIterations) && maxIterations > 0) {
+      lines.push(`${this.indent(2)}// max iterations: ${Math.floor(maxIterations)}`);
+    }
+
+    const inlineBody = this.normalizeInlineBlock(props.body, 2);
+    const orderedChildren = this.getOrderedChildren(node.id);
+    const loopBodyNodeId = orderedChildren.find(childId => {
+      const childNode = this.nodeMap.get(childId);
+      if (!childNode) {
+        return false;
+      }
+      return this.getNodeLabel(childNode) === 'Loop Body';
+    }) ?? null;
+
+    let nestedBlock: string[] = [];
+    if (loopBodyNodeId) {
+      const branchChildren = this.getBranchChildren(loopBodyNodeId);
+      nestedBlock = this.generateBlockFromChildren(loopBodyNodeId, 2, branchChildren);
+    } else {
+      nestedBlock = this.generateBlockFromChildren(node.id, 2, orderedChildren);
+    }
+
+    if (inlineBody.length > 0) {
+      lines.push(...inlineBody);
+    }
+    if (nestedBlock.length > 0) {
+      lines.push(...nestedBlock);
+    }
+    if (inlineBody.length === 0 && nestedBlock.length === 0) {
+      lines.push(`${this.indent(2)}// TODO: add loop body statements`);
+    }
+
+    lines.push('}');
     return lines.join('\n');
   }
 
@@ -1397,7 +1420,7 @@ export class ChariotCodeGenerator {
     return ' '.repeat(level);
   }
 
-  private collectSwitchInlineNodes(): Set<string> {
+  private collectStructuralInlineNodes(): Set<string> {
     const inline = new Set<string>();
 
     const visit = (nodeId: string) => {
@@ -1417,7 +1440,13 @@ export class ChariotCodeGenerator {
         continue;
       }
 
-      if (parentNode.data.label === 'Switch' || parentNode.data.label === 'If') {
+      const parentLabel = this.getNodeLabel(parentNode);
+      if (
+        parentLabel === 'Switch' ||
+        parentLabel === 'If' ||
+        parentLabel === 'While' ||
+        parentLabel === 'Loop Body'
+      ) {
         for (const childId of childIds) {
           visit(childId);
           const branchExtras = this.collectBranchFlow(childId);
@@ -1452,8 +1481,15 @@ export class ChariotCodeGenerator {
         continue;
       }
 
-      const label = node.data.label;
-      if (label === 'Case' || label === 'Default' || label === 'Switch' || label === 'Then' || label === 'Else') {
+      const label = this.getNodeLabel(node);
+      if (
+        label === 'Case' ||
+        label === 'Default' ||
+        label === 'Switch' ||
+        label === 'Then' ||
+        label === 'Else' ||
+        label === 'Loop Body'
+      ) {
         continue;
       }
 
@@ -1462,8 +1498,8 @@ export class ChariotCodeGenerator {
           return false;
         }
         const sourceNode = this.nodeMap.get(edge.source);
-        const sourceLabel = sourceNode?.data.label;
-        return sourceLabel === 'Switch' || sourceLabel === 'If';
+        const sourceLabel = sourceNode ? this.getNodeLabel(sourceNode) : '';
+        return sourceLabel === 'Switch' || sourceLabel === 'If' || sourceLabel === 'While';
       });
       if (incomingFromSwitch) {
         continue;
@@ -1477,8 +1513,14 @@ export class ChariotCodeGenerator {
           return false;
         }
         const sourceNode = this.nodeMap.get(edge.source);
-        const sourceLabel = sourceNode?.data.label;
-        return sourceLabel === 'Case' || sourceLabel === 'Default' || sourceLabel === 'Then' || sourceLabel === 'Else';
+        const sourceLabel = sourceNode ? this.getNodeLabel(sourceNode) : '';
+        return (
+          sourceLabel === 'Case' ||
+          sourceLabel === 'Default' ||
+          sourceLabel === 'Then' ||
+          sourceLabel === 'Else' ||
+          sourceLabel === 'Loop Body'
+        );
       });
       if (incomingFromOtherBranch) {
         continue;
@@ -1527,15 +1569,140 @@ export class ChariotCodeGenerator {
     return result;
   }
 
-  private generateSetValueCode(node: VisualDSLNode): string {
+  private generateSetqCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
-    const varName = props.variableName || 'var';
-    const value = props.value || '';
-    
-    if (typeof value === 'string') {
-      return `setValue(${varName}, '${value}')`;
+    const rawVar = props.variableName ?? this.inferVariableName(node) ?? 'var';
+    const varName = rawVar.toString().trim() || 'var';
+    const childIds = this.getOrderedChildren(node.id);
+
+    if (childIds.length > 0) {
+      const lines: string[] = [];
+
+      const leadingChildren = childIds.slice(0, -1);
+      for (const childId of leadingChildren) {
+        const childNode = this.nodeMap.get(childId);
+        if (!childNode) {
+          continue;
+        }
+        const childCode = this.generateNodeCode(childNode);
+        if (childCode) {
+          lines.push(childCode);
+        }
+      }
+
+      let inlineValue: string | null = null;
+      const finalChildId = childIds[childIds.length - 1];
+      const finalChildNode = this.nodeMap.get(finalChildId);
+      if (finalChildNode) {
+        inlineValue = this.generateSetqInlineValue(finalChildNode);
+        if (!inlineValue) {
+          const finalChildCode = this.generateNodeCode(finalChildNode);
+          if (finalChildCode) {
+            lines.push(finalChildCode);
+          }
+        }
+      }
+
+      const { expression: fallbackExpression } = this.formatSetqValueFromProps(props);
+      const resolvedValue = inlineValue && inlineValue.trim().length > 0
+        ? inlineValue
+        : fallbackExpression;
+
+      lines.push(`setq(${varName}, ${resolvedValue})`);
+      return lines.join('\n');
     }
-    return `setValue(${varName}, ${value})`;
+
+    const { expression } = this.formatSetqValueFromProps(props);
+    return `setq(${varName}, ${expression})`;
+  }
+
+  private generateSetqInlineValue(childNode: VisualDSLNode): string | null {
+    const label = this.getNodeLabel(childNode);
+    if (
+      [
+        'Set Equal',
+        'Set Value',
+        'Set Q',
+        'SetQ',
+        'Declare',
+        'If',
+        'Then',
+        'Else',
+        'While',
+        'Loop Body',
+        'Switch',
+        'Case',
+        'Default',
+        'Break',
+        'Continue'
+      ].includes(label)
+    ) {
+      return null;
+    }
+
+    switch (label) {
+      case 'Create':
+        return this.generateCreateCode(childNode);
+      case 'New Tree':
+        return this.generateNewTreeCode(childNode);
+      case 'Parse JSON':
+        return this.generateParseJSONCode(childNode);
+      case 'Array':
+        return this.generateArrayCode(childNode);
+      case 'List':
+        return this.generateListCode(childNode);
+      case 'Node To String':
+        return this.generateNodeToStringCode(childNode);
+      case 'Get Attribute':
+        return this.generateGetAttributeCode(childNode);
+      case 'Has Attribute':
+        return this.generateHasAttributeCode(childNode);
+      case 'Function':
+        return this.generateFunctionCode(childNode);
+      case 'LogPrint':
+      case 'Log Print':
+      case 'logPrint':
+        return null;
+      default: {
+        const allowedCategories = new Set([
+          'value',
+          'string',
+          'math',
+          'array',
+          'date',
+          'crypto',
+          'tree',
+          'node',
+          'json',
+          'dispatcher',
+          'sql',
+          'host',
+          'system'
+        ]);
+        if (allowedCategories.has(childNode.data.category)) {
+          return this.generateGenericFunctionCode(childNode);
+        }
+        return null;
+      }
+    }
+  }
+
+  private formatSetqValueFromProps(props: Record<string, any>): { expression: string; isEmpty: boolean } {
+    const rawValue = props.value ?? '';
+    const valueText = rawValue.toString();
+    const isBlank = valueText.trim().length === 0;
+    const valueType = props.valueType === 'expression' ? 'expression' : 'string';
+
+    if (isBlank) {
+      return { expression: `''`, isEmpty: true };
+    }
+
+    if (valueType === 'expression') {
+      return { expression: valueText, isEmpty: false };
+    }
+
+    const escaped = valueText.replace(/'/g, "\\'");
+    return { expression: `'${escaped}'`, isEmpty: false };
   }
 
   private generateListCode(node: VisualDSLNode): string {

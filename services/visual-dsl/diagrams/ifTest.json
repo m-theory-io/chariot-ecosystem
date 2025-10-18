@@ -1,0 +1,274 @@
+{
+  "name": "ifTest",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 50
+      },
+      "data": {
+        "label": "Start",
+        "icon": "🚀",
+        "category": "control",
+        "properties": {
+          "name": "ifTest"
+        }
+      },
+      "width": 100,
+      "height": 67,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "declare-1760533346712-1",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "myVar",
+          "typeSpecifier": "N",
+          "initialValue": "27"
+        }
+      },
+      "width": 100,
+      "height": 67
+    },
+    {
+      "id": "if-1760533365840-2",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 350
+      },
+      "data": {
+        "label": "If",
+        "icon": "🔀",
+        "category": "control",
+        "properties": {
+          "condition": "smallerEq(myVar, 20)",
+          "conditionType": "expression",
+          "leftOperand": "",
+          "operator": "equal",
+          "rightOperand": "",
+          "description": "",
+          "name": "",
+          "ifBody": "logPrint('smaller than 21')",
+          "hasElse": true,
+          "elseBody": "logPrint('bigger than 20')"
+        }
+      },
+      "width": 100,
+      "height": 87,
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "then-1760533365841-3",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 500
+      },
+      "data": {
+        "label": "Then",
+        "icon": "✅",
+        "category": "control",
+        "properties": {}
+      },
+      "width": 100,
+      "height": 87,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "else-1760533429762-4",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 610
+      },
+      "data": {
+        "label": "Else",
+        "icon": "🚫",
+        "category": "control",
+        "properties": {}
+      },
+      "width": 100,
+      "height": 87,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "declare-1760533451807-5",
+      "type": "logicon",
+      "position": {
+        "x": 200,
+        "y": 500
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "myVarTrue",
+          "typeSpecifier": "S",
+          "initialValue": "smaller than 21"
+        }
+      },
+      "width": 100,
+      "height": 67
+    },
+    {
+      "id": "declare-1760533494464-6",
+      "type": "logicon",
+      "position": {
+        "x": 200,
+        "y": 610
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "myVarFalse",
+          "typeSpecifier": "S",
+          "initialValue": "bigger than 20"
+        }
+      },
+      "width": 100,
+      "height": 67
+    },
+    {
+      "id": "logPrint-1760533596447-7",
+      "type": "logicon",
+      "position": {
+        "x": 315,
+        "y": 350
+      },
+      "data": {
+        "label": "Log Print",
+        "icon": "📝",
+        "category": "system",
+        "properties": {
+          "message": "Done!",
+          "logLevel": "info",
+          "additionalArgs": []
+        }
+      },
+      "width": 100,
+      "height": 67
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-declare-1760533346712-1",
+      "source": "start",
+      "target": "declare-1760533346712-1",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "declare-1760533346712-1-if-1760533365840-2",
+      "source": "declare-1760533346712-1",
+      "target": "if-1760533365840-2",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "if-1760533365840-2-then-1760533365841-3",
+      "source": "if-1760533365840-2",
+      "target": "then-1760533365841-3",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    },
+    {
+      "id": "if-1760533365840-2-else-1760533429762-4",
+      "source": "if-1760533365840-2",
+      "target": "else-1760533429762-4",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    },
+    {
+      "id": "then-1760533365841-3-declare-1760533451807-5",
+      "source": "then-1760533365841-3",
+      "target": "declare-1760533451807-5",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "else-1760533429762-4-declare-1760533494464-6",
+      "source": "else-1760533429762-4",
+      "target": "declare-1760533494464-6",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "if-1760533365840-2-logPrint-1760533596447-7",
+      "source": "if-1760533365840-2",
+      "target": "logPrint-1760533596447-7",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    }
+  ],
+  "nestingRelations": [
+    {
+      "parentId": "if-1760533365840-2",
+      "childId": "then-1760533365841-3",
+      "order": 0
+    },
+    {
+      "parentId": "if-1760533365840-2",
+      "childId": "else-1760533429762-4",
+      "order": 1
+    },
+    {
+      "parentId": "then-1760533365841-3",
+      "childId": "declare-1760533451807-5",
+      "order": 0
+    },
+    {
+      "parentId": "else-1760533429762-4",
+      "childId": "declare-1760533494464-6",
+      "order": 0
+    }
+  ],
+  "subflows": {},
+  "groupCount": 1,
+  "created": "2025-10-15T13:07:11.625Z",
+  "modified": "2025-10-15T13:07:11.625Z"
+}

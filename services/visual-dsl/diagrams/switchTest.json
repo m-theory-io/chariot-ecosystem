@@ -1,0 +1,286 @@
+{
+  "name": "switchTest",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 50
+      },
+      "data": {
+        "label": "Start",
+        "icon": "🚀",
+        "category": "control",
+        "properties": {
+          "name": "switchTest"
+        }
+      },
+      "width": 100,
+      "height": 67,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "declare-1760462436488-1",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "myVar",
+          "typeSpecifier": "N",
+          "initialValue": "27"
+        }
+      },
+      "width": 100,
+      "height": 67,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "switch-1760462454002-2",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 350
+      },
+      "data": {
+        "label": "Switch",
+        "icon": "🔄",
+        "category": "control",
+        "properties": {
+          "name": "",
+          "testExpression": "myVar",
+          "description": ""
+        }
+      },
+      "width": 100,
+      "height": 87,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "case-1760462454003-3",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 492
+      },
+      "data": {
+        "label": "Case",
+        "icon": "📋",
+        "category": "control",
+        "properties": {
+          "name": "",
+          "condition": "smallerEq(myVar, 20)",
+          "description": "",
+          "body": "logPrint('smaller than 21')"
+        }
+      },
+      "width": 100,
+      "height": 87,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "case-1760462519962-4",
+      "type": "logicon",
+      "position": {
+        "x": 50,
+        "y": 610
+      },
+      "data": {
+        "label": "Case",
+        "icon": "📋",
+        "category": "control",
+        "properties": {
+          "name": "",
+          "condition": "bigger(myVar, 20)",
+          "description": "",
+          "body": "logPrint('bigger than 20')"
+        }
+      },
+      "width": 100,
+      "height": 87,
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "declare-1760462626340-5",
+      "type": "logicon",
+      "position": {
+        "x": 200,
+        "y": 492
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "new1",
+          "typeSpecifier": "S",
+          "initialValue": "\"test 1\""
+        }
+      },
+      "width": 100,
+      "height": 67,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 200,
+        "y": 492
+      },
+      "dragging": false
+    },
+    {
+      "id": "declare-1760462661425-6",
+      "type": "logicon",
+      "position": {
+        "x": 200,
+        "y": 610
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "new2",
+          "typeSpecifier": "S",
+          "initialValue": "\"test 2\""
+        }
+      },
+      "width": 100,
+      "height": 67
+    },
+    {
+      "id": "declare-1760462712414-7",
+      "type": "logicon",
+      "position": {
+        "x": 315,
+        "y": 350
+      },
+      "data": {
+        "label": "Declare",
+        "icon": "📋",
+        "category": "value",
+        "properties": {
+          "isGlobal": false,
+          "variableName": "finalVar",
+          "typeSpecifier": "S",
+          "initialValue": "\"final\""
+        }
+      },
+      "width": 100,
+      "height": 67
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-declare-1760462436488-1",
+      "source": "start",
+      "target": "declare-1760462436488-1",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "declare-1760462436488-1-switch-1760462454002-2",
+      "source": "declare-1760462436488-1",
+      "target": "switch-1760462454002-2",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "switch-1760462454002-2-case-1760462454003-3",
+      "source": "switch-1760462454002-2",
+      "target": "case-1760462454003-3",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    },
+    {
+      "id": "switch-1760462454002-2-case-1760462519962-4",
+      "source": "switch-1760462454002-2",
+      "target": "case-1760462519962-4",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "type": "default",
+      "style": {
+        "stroke": "#8b5cf6",
+        "strokeWidth": 2
+      },
+      "animated": false,
+      "updatable": true
+    },
+    {
+      "id": "case-1760462454003-3-declare-1760462626340-5",
+      "source": "case-1760462454003-3",
+      "target": "declare-1760462626340-5",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "case-1760462519962-4-declare-1760462661425-6",
+      "source": "case-1760462519962-4",
+      "target": "declare-1760462661425-6",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    },
+    {
+      "id": "switch-1760462454002-2-declare-1760462712414-7",
+      "source": "switch-1760462454002-2",
+      "target": "declare-1760462712414-7",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "type": "default",
+      "updatable": true
+    }
+  ],
+  "nestingRelations": [
+    {
+      "parentId": "switch-1760462454002-2",
+      "childId": "case-1760462454003-3",
+      "order": 0
+    },
+    {
+      "parentId": "switch-1760462454002-2",
+      "childId": "case-1760462519962-4",
+      "order": 1
+    },
+    {
+      "parentId": "case-1760462454003-3",
+      "childId": "declare-1760462626340-5",
+      "order": 0
+    },
+    {
+      "parentId": "case-1760462519962-4",
+      "childId": "declare-1760462661425-6",
+      "order": 0
+    }
+  ],
+  "subflows": {},
+  "groupCount": 1,
+  "created": "2025-10-14T17:29:01.434Z",
+  "modified": "2025-10-14T17:29:01.434Z"
+}
