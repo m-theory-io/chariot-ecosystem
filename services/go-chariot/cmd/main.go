@@ -38,6 +38,7 @@ func init() {
 	cfg.ChariotConfig.StringVar("couchbase_password", &cfg.ChariotConfig.CBPassword, "")
 	cfg.ChariotConfig.StringVar("couchbase_bucket", &cfg.ChariotConfig.CBBucket, "chariot")
 	cfg.ChariotConfig.StringVar("couchbase_scope", &cfg.ChariotConfig.CBScope, "_default")
+	cfg.ChariotConfig.BoolVar("couchbase_cbdl", &cfg.ChariotConfig.CBDL, false)
 	// MySQL specific configuration
 	cfg.ChariotConfig.StringVar("sql_driver", &cfg.ChariotConfig.SQLDriver, "mysql")
 	cfg.ChariotConfig.StringVar("sql_host", &cfg.ChariotConfig.SQLHost, "")
@@ -54,6 +55,8 @@ func init() {
 	cfg.ChariotConfig.StringVar("tree_path", &cfg.ChariotConfig.TreePath, "./data/trees")
 	// Tree serialization format
 	cfg.ChariotConfig.StringVar("tree_format", &cfg.ChariotConfig.TreeFormat, "gob")
+	// Diagram serialization path
+	cfg.ChariotConfig.StringVar("diagram_path", &cfg.ChariotConfig.DiagramPath, "./data/diagrams")
 	// Cert path
 	cfg.ChariotConfig.StringVar("cert_path", &cfg.ChariotConfig.CertPath, "../.certs")
 	// Function library

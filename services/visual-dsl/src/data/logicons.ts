@@ -1117,9 +1117,9 @@ export const logiconDefinitions: LogiconData[] = [
   },
   {
     id: 'setValue',
-    label: 'Set Value',
+    label: 'Set Equal',
     icon: '💾',
-    description: 'Set variable value',
+    description: 'Assign a variable',
     category: 'value'
   },
   {

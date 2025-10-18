@@ -11,6 +11,7 @@ export interface WhileNodeProperties {
   maxIterations?: number;
   description?: string;
   name?: string;
+  body?: string;
 }
 
 interface WhileNodePropertiesDialogProps {
@@ -26,7 +27,7 @@ export const WhileNodePropertiesDialog: React.FC<WhileNodePropertiesDialogProps>
   onSave,
   initialProperties = {}
 }) => {
-  const [properties, setProperties] = useState<WhileNodeProperties>({
+  const defaultState: WhileNodeProperties = {
     condition: '',
     conditionType: 'expression',
     leftOperand: '',
@@ -35,22 +36,61 @@ export const WhileNodePropertiesDialog: React.FC<WhileNodePropertiesDialogProps>
     maxIterations: 100,
     description: '',
     name: '',
-    ...initialProperties
-  });
+    body: ''
+  };
+
+  const sanitizeConditionType = (value: unknown): WhileNodeProperties['conditionType'] => {
+    if (value === 'variable' || value === 'comparison') {
+      return value;
+    }
+    return 'expression';
+  };
+
+  const sanitizeOperator = (value: unknown): WhileNodeProperties['operator'] => {
+    const allowed: WhileNodeProperties['operator'][] = ['equal', 'bigger', 'smaller', 'and', 'or', 'not', 'contains', 'hasPrefix', 'hasSuffix'];
+    if (typeof value === 'string' && (allowed as string[]).includes(value)) {
+      return value as WhileNodeProperties['operator'];
+    }
+    return 'equal';
+  };
+
+  const sanitizeIterations = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return Math.floor(value);
+    }
+    if (typeof value === 'string') {
+      const parsed = parseInt(value, 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+    return 100;
+  };
+
+  const hydrateState = (props: WhileNodeProperties = {}): WhileNodeProperties => {
+    const merged: WhileNodeProperties = {
+      ...defaultState,
+      ...props
+    };
+
+    const legacyBody = (props as Record<string, unknown>)?.loopBody ?? (props as Record<string, unknown>)?.whileBody;
+    if ((merged.body === undefined || merged.body === '') && typeof legacyBody === 'string') {
+      merged.body = legacyBody;
+    }
+
+    merged.conditionType = sanitizeConditionType(merged.conditionType);
+    merged.operator = sanitizeOperator(merged.operator);
+    merged.maxIterations = sanitizeIterations(merged.maxIterations);
+    merged.body = typeof merged.body === 'string' ? merged.body : '';
+
+    return merged;
+  };
+
+  const [properties, setProperties] = useState<WhileNodeProperties>(hydrateState(initialProperties));
 
   useEffect(() => {
     if (isOpen) {
-      setProperties({
-        condition: '',
-        conditionType: 'expression',
-        leftOperand: '',
-        operator: 'equal',
-        rightOperand: '',
-        maxIterations: 100,
-        description: '',
-        name: '',
-        ...initialProperties
-      });
+      setProperties(hydrateState(initialProperties));
     }
   }, [isOpen, initialProperties]);
 
@@ -66,7 +106,9 @@ export const WhileNodePropertiesDialog: React.FC<WhileNodePropertiesDialogProps>
 
     onSave({
       ...properties,
-      condition: finalCondition
+      condition: finalCondition,
+      maxIterations: sanitizeIterations(properties.maxIterations),
+      body: properties.body ?? ''
     });
     onClose();
   };
@@ -196,7 +238,7 @@ export const WhileNodePropertiesDialog: React.FC<WhileNodePropertiesDialogProps>
             <input
               type="number"
               value={String(properties.maxIterations || 100)}
-              onChange={(e) => setProperties({ ...properties, maxIterations: parseInt(e.target.value) || 100 })}
+              onChange={(e) => setProperties({ ...properties, maxIterations: sanitizeIterations(e.target.value) })}
               placeholder="100"
               min="1"
               max="10000"
@@ -204,6 +246,21 @@ export const WhileNodePropertiesDialog: React.FC<WhileNodePropertiesDialogProps>
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Prevents infinite loops (default: 100)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Loop Body Statements
+            </label>
+            <textarea
+              value={properties.body || ''}
+              onChange={(e) => setProperties({ ...properties, body: e.target.value })}
+              placeholder="Statements to execute on each iteration"
+              className="w-full h-32 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-y"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Inline statements render before any nested logicons attached to this while node.
             </p>
           </div>
 

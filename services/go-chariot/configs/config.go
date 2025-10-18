@@ -27,6 +27,7 @@ type Config struct {
 	CBPassword string `evar:"couchbase_password"` // Couchbase password
 	CBBucket   string `evar:"couchbase_bucket"`   // Couchbase bucket name
 	CBScope    string `evar:"couchbase_scope"`    // Couchbase scope name
+	CBDL       bool   `evar:"couchbase_cbdl"`     // Couchbase diagnostic log
 	// RDBMS
 	SQLDriver   string `evar:"sql_driver"`   // SQL driver type (e.g., mysql, postgres)
 	SQLHost     string `evar:"sql_host"`     // SQL connection host
@@ -43,6 +44,8 @@ type Config struct {
 	// Tree serialization
 	TreePath   string `evar:"tree_path"`   // Path to store serialized tree data
 	TreeFormat string `evar:"tree_format"` // Format for tree serialization (json, gob, etc.)
+	// Diagram path
+	DiagramPath string `evar:"diagram_path"` // Path to store VisualDSL diagrams
 	// Cert path
 	CertPath string `evar:"cert_path"` // Path to store certificates
 	// Function library

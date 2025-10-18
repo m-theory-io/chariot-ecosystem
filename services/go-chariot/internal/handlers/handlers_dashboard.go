@@ -71,13 +71,14 @@ type MemoryStats struct {
 }
 
 type ConfigurationInfo struct {
-	DataPath   string `json:"data_path"`
-	TreePath   string `json:"tree_path"`
-	TreeFormat string `json:"tree_format"`
-	Timeout    int    `json:"timeout"`
-	VaultName  string `json:"vault_name"`
-	SQLDriver  string `json:"sql_driver"`
-	CBBucket   string `json:"cb_bucket"`
+	DataPath    string `json:"data_path"`
+	TreePath    string `json:"tree_path"`
+	DiagramPath string `json:"diagram_path"`
+	TreeFormat  string `json:"tree_format"`
+	Timeout     int    `json:"timeout"`
+	VaultName   string `json:"vault_name"`
+	SQLDriver   string `json:"sql_driver"`
+	CBBucket    string `json:"cb_bucket"`
 }
 
 // HandleDashboard serves the dashboard HTML page
@@ -235,6 +236,7 @@ func (h *Handlers) HandleDashboard(c echo.Context) error {
             document.getElementById('configuration').innerHTML = ` + "`" + `
                 <div class="metric"><span>Data Path:</span><span>${config.data_path}</span></div>
                 <div class="metric"><span>Tree Path:</span><span>${config.tree_path}</span></div>
+				<div class="metric"><span>Diagram Path:</span><span>${config.diagram_path}</span></div>
                 <div class="metric"><span>Tree Format:</span><span>${config.tree_format}</span></div>
                 <div class="metric"><span>Session Timeout:</span><span>${config.timeout} min</span></div>
                 <div class="metric"><span>Vault:</span><span>${config.vault_name}</span></div>
@@ -423,13 +425,14 @@ func (h *Handlers) collectDashboardData() DashboardData {
 			Version:    runtime.Version(),
 		},
 		Configuration: ConfigurationInfo{
-			DataPath:   cfg.ChariotConfig.DataPath,
-			TreePath:   cfg.ChariotConfig.TreePath,
-			TreeFormat: cfg.ChariotConfig.TreeFormat,
-			Timeout:    cfg.ChariotConfig.Timeout,
-			VaultName:  cfg.ChariotConfig.VaultName,
-			SQLDriver:  cfg.ChariotConfig.SQLDriver,
-			CBBucket:   cfg.ChariotConfig.CBBucket,
+			DataPath:    cfg.ChariotConfig.DataPath,
+			TreePath:    cfg.ChariotConfig.TreePath,
+			DiagramPath: cfg.ChariotConfig.DiagramPath,
+			TreeFormat:  cfg.ChariotConfig.TreeFormat,
+			Timeout:     cfg.ChariotConfig.Timeout,
+			VaultName:   cfg.ChariotConfig.VaultName,
+			SQLDriver:   cfg.ChariotConfig.SQLDriver,
+			CBBucket:    cfg.ChariotConfig.CBBucket,
 		},
 		ActiveSessions: activeSessions,
 		Listeners:      lInfos,

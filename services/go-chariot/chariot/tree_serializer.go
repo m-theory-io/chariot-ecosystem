@@ -22,6 +22,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	pathTypeTree    = "tree"
+	pathTypeDiagram = "diagram"
+)
+
 // Register node types for serialization
 func init() {
 	gob.Register(GobReference{})
@@ -91,7 +96,8 @@ type SerializationRequest struct {
 	Type       string   // "save", "load"
 	Node       TreeNode // For saves
 	Filename   string
-	Format     string                // "json", "xml", "yaml", "gob"
+	Format     string // "json", "xml", "yaml", "gob"
+	PathType   string
 	Options    *SerializationOptions // Additional options
 	Runtime    *Runtime              // For loads (function reconstruction)
 	ResultChan chan *SerializationResult
@@ -101,6 +107,7 @@ type SerializationOptions struct {
 	Compression bool
 	PrettyPrint bool
 	Format      string
+	PathType    string
 }
 
 type SerializationResult struct {
@@ -160,11 +167,25 @@ func (ts *TreeSerializerService) worker(id int) {
 
 func (ts *TreeSerializerService) processRequest(req *SerializationRequest) *SerializationResult {
 	// Configure the serializer for this request
+	pathType := pathTypeTree
 	if req.Options != nil {
-		ts.serializer.Format = req.Options.Format
+		if req.Options.Format != "" {
+			ts.serializer.Format = req.Options.Format
+		}
 		ts.serializer.Compression = req.Options.Compression
 		ts.serializer.PrettyPrint = req.Options.PrettyPrint
-	} else if req.Format != "" {
+		if req.Options.PathType != "" {
+			pathType = req.Options.PathType
+		}
+	}
+	if req.PathType != "" {
+		pathType = req.PathType
+	}
+	if pathType == "" {
+		pathType = pathTypeTree
+	}
+	ts.serializer.PathType = pathType
+	if req.Format != "" {
 		ts.serializer.Format = req.Format
 	}
 
@@ -205,6 +226,9 @@ func (ts *TreeSerializerService) SaveAsync(node TreeNode, filename string, optio
 		Options:    options,
 		ResultChan: resultChan,
 	}
+	if options != nil && options.PathType != "" {
+		req.PathType = options.PathType
+	}
 
 	// Try to queue request (non-blocking)
 	select {
@@ -227,13 +251,21 @@ func (ts *TreeSerializerService) SaveAsync(node TreeNode, filename string, optio
 }
 
 func (ts *TreeSerializerService) LoadAsync(filename string, rt *Runtime, timeout time.Duration) (TreeNode, error) {
+	return ts.LoadAsyncWithOptions(filename, nil, rt, timeout)
+}
+
+func (ts *TreeSerializerService) LoadAsyncWithOptions(filename string, options *SerializationOptions, rt *Runtime, timeout time.Duration) (TreeNode, error) {
 	resultChan := make(chan *SerializationResult, 1)
 
 	req := &SerializationRequest{
 		Type:       "load",
 		Filename:   filename,
+		Options:    options,
 		Runtime:    rt,
 		ResultChan: resultChan,
+	}
+	if options != nil && options.PathType != "" {
+		req.PathType = options.PathType
 	}
 
 	select {
@@ -252,6 +284,39 @@ func (ts *TreeSerializerService) LoadAsync(filename string, rt *Runtime, timeout
 	case <-time.After(timeout):
 		return nil, errors.New("serialization timeout")
 	}
+}
+
+// SaveDiagramAsync persists a diagram tree using the diagram storage path.
+func (ts *TreeSerializerService) SaveDiagramAsync(node TreeNode, filename string, options *SerializationOptions, timeout time.Duration) error {
+	opts := prepareDiagramOptions(options)
+	return ts.SaveAsync(node, filename, opts, timeout)
+}
+
+// LoadDiagramAsync retrieves a diagram tree using the diagram storage path.
+func (ts *TreeSerializerService) LoadDiagramAsync(filename string, rt *Runtime, timeout time.Duration) (TreeNode, error) {
+	return ts.LoadDiagramAsyncWithOptions(filename, nil, rt, timeout)
+}
+
+// LoadDiagramAsyncWithOptions allows callers to customize diagram load behavior.
+func (ts *TreeSerializerService) LoadDiagramAsyncWithOptions(filename string, options *SerializationOptions, rt *Runtime, timeout time.Duration) (TreeNode, error) {
+	opts := prepareDiagramOptions(options)
+	return ts.LoadAsyncWithOptions(filename, opts, rt, timeout)
+}
+
+func prepareDiagramOptions(base *SerializationOptions) *SerializationOptions {
+	var opts SerializationOptions
+	if base != nil {
+		opts = *base
+	} else {
+		opts.PrettyPrint = true
+	}
+	if opts.PathType == "" {
+		opts.PathType = pathTypeDiagram
+	}
+	if opts.Format == "" {
+		opts.Format = "json"
+	}
+	return &opts
 }
 
 // ValidateSecureAgent validates a secure agent file without loading/decrypting it
@@ -320,6 +385,7 @@ type TreeNodeSerializer struct {
 	Format      string // "json", "xml", "yaml", "gob", "binary"
 	Compression bool   // Whether to use compression
 	PrettyPrint bool   // Whether to format output for human readability
+	PathType    string
 }
 
 // NewTreeNodeSerializer creates a new serializer with default options
@@ -328,18 +394,27 @@ func NewTreeNodeSerializer() *TreeNodeSerializer {
 		Format:      cfg.ChariotConfig.TreeFormat,
 		Compression: false,
 		PrettyPrint: true,
+		PathType:    pathTypeTree,
 	}
+}
+
+func (s *TreeNodeSerializer) resolvePathType() string {
+	if s.PathType == "" {
+		return pathTypeTree
+	}
+	return s.PathType
 }
 
 // SaveTree serializes a TreeNode tree to file
 func (s *TreeNodeSerializer) SaveTree(node TreeNode, filePath string) error {
 	var err error
 	var fullPath string
+	pathType := s.resolvePathType()
 	// Get serialization path from cfg
-	if fullPath, err = getSecureFilePath(filePath, "tree"); err != nil {
+	if fullPath, err = getSecureFilePath(filePath, pathType); err != nil {
 		return err
 	} else {
-		cfg.ChariotLogger.Info("Using secure file path for tree", zap.String("path", fullPath))
+		cfg.ChariotLogger.Info("Using secure file path", zap.String("path", fullPath), zap.String("path_type", pathType))
 	}
 	/*
 		serializationPath := cfg.ChariotConfig.TreePath
@@ -349,7 +424,7 @@ func (s *TreeNodeSerializer) SaveTree(node TreeNode, filePath string) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	cfg.ChariotLogger.Info("Saving tree", zap.String("full_path", fullPath))
+	cfg.ChariotLogger.Info("Saving tree", zap.String("full_path", fullPath), zap.String("path_type", pathType))
 	f, err := os.Create(fullPath) // Create the file
 	if err != nil {
 		return err
@@ -432,10 +507,12 @@ func (s *TreeNodeSerializer) SaveTree(node TreeNode, filePath string) error {
 
 // LoadTree deserializes a TreeNode tree from file
 func (s *TreeNodeSerializer) LoadTree(filePath string) (TreeNode, error) {
-	// Get serialization path from cfg
-	serializationPath := cfg.ChariotConfig.TreePath
-	fullPath := filepath.Join(serializationPath, filePath)
-	cfg.ChariotLogger.Info("Loading tree", zap.String("full_path", fullPath))
+	pathType := s.resolvePathType()
+	fullPath, err := getSecureFilePath(filePath, pathType)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ChariotLogger.Info("Loading tree", zap.String("full_path", fullPath), zap.String("path_type", pathType))
 
 	// Read file content
 	f, err := os.Open(fullPath)
@@ -457,20 +534,22 @@ func (s *TreeNodeSerializer) LoadTree(filePath string) (TreeNode, error) {
 
 	// Auto-detect format from file extension if not specified
 	format := s.Format
-	if format == "" || !strings.HasSuffix(filePath, format) {
-		ext := strings.ToLower(filepath.Ext(filePath))
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filePath)), ".")
+	if format == "" {
 		switch ext {
-		case ".json":
+		case "json":
 			format = "json"
-		case ".xml":
+		case "xml":
 			format = "xml"
-		case ".yaml", ".yml":
+		case "yaml", "yml":
 			format = "yaml"
-		case ".gob":
+		case "gob":
 			format = "gob"
 		default:
 			format = "binary" // Default if can't determine
 		}
+	} else if ext != "" && ext != format {
+		format = ext
 	}
 
 	cfg.ChariotLogger.Info("Using format for loading", zap.String("format", format), zap.String("file", filePath))

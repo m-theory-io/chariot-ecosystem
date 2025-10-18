@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface LogPrintNodeProperties {
   message: string;
@@ -19,14 +19,43 @@ const LogPrintNodeProperties: React.FC<LogPrintNodePropertiesProps> = ({
   onSave,
   initialProperties = {}
 }) => {
-  const [message, setMessage] = useState(initialProperties.message || '');
-  const [logLevel, setLogLevel] = useState(initialProperties.logLevel || 'info');
-  const [additionalArgs, setAdditionalArgs] = useState<string[]>(
-    initialProperties.additionalArgs || []
-  );
+  const defaultState: LogPrintNodeProperties = {
+    message: '',
+    logLevel: 'info',
+    additionalArgs: []
+  };
+
+  const hydrate = (props: Partial<LogPrintNodeProperties> = {}): LogPrintNodeProperties => {
+    const merged: LogPrintNodeProperties = {
+      ...defaultState,
+      ...props,
+      additionalArgs: Array.isArray(props.additionalArgs) ? props.additionalArgs.slice() : []
+    };
+
+    merged.message = (merged.message ?? '').toString();
+    merged.logLevel = ['debug', 'info', 'warn', 'error'].includes(merged.logLevel) ? merged.logLevel : 'info';
+    merged.additionalArgs = merged.additionalArgs.map(arg => (arg ?? '').toString());
+    return merged;
+  };
+
+  const initialState = hydrate(initialProperties);
+
+  const [message, setMessage] = useState(initialState.message);
+  const [logLevel, setLogLevel] = useState(initialState.logLevel);
+  const [additionalArgs, setAdditionalArgs] = useState<string[]>(initialState.additionalArgs);
   const [newArg, setNewArg] = useState('');
 
   const logLevels = ['debug', 'info', 'warn', 'error'];
+
+  useEffect(() => {
+    if (isOpen) {
+      const hydrated = hydrate(initialProperties);
+      setMessage(hydrated.message);
+      setLogLevel(hydrated.logLevel);
+      setAdditionalArgs(hydrated.additionalArgs);
+      setNewArg('');
+    }
+  }, [isOpen, initialProperties]);
 
   const handleSave = () => {
     if (!message.trim()) {
@@ -42,23 +71,17 @@ const LogPrintNodeProperties: React.FC<LogPrintNodePropertiesProps> = ({
     onClose();
   };
 
-  const handleClose = () => {
-    // Save properties when closing
-    if (message.trim()) {
-      onSave({
-        message: message.trim(),
-        logLevel,
-        additionalArgs: additionalArgs.filter(arg => arg.trim() !== '')
-      });
-    }
-    onClose();
-  };
-
   const handleAddArg = () => {
-    if (newArg.trim()) {
-      setAdditionalArgs([...additionalArgs, newArg.trim()]);
-      setNewArg('');
+    const trimmed = newArg.trim();
+    if (!trimmed) {
+      return;
     }
+    if (!logLevel.trim()) {
+      alert('Specify a log level before adding additional arguments.');
+      return;
+    }
+    setAdditionalArgs([...additionalArgs, trimmed]);
+    setNewArg('');
   };
 
   const handleRemoveArg = (index: number) => {
@@ -82,7 +105,7 @@ const LogPrintNodeProperties: React.FC<LogPrintNodePropertiesProps> = ({
             LogPrint Properties
           </h3>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
           >
             ✕
@@ -136,7 +159,7 @@ const LogPrintNodeProperties: React.FC<LogPrintNodePropertiesProps> = ({
               Additional Arguments (Optional)
             </label>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              Additional arguments can only be added if log level is explicitly specified
+              Input additional argument and click Add. Additional arguments can only be added if log level is explicitly specified.
             </p>
 
             {/* Existing Arguments */}
@@ -171,12 +194,12 @@ const LogPrintNodeProperties: React.FC<LogPrintNodePropertiesProps> = ({
                 value={newArg}
                 onChange={(e) => setNewArg(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddArg()}
-                placeholder="Add additional argument..."
+                placeholder="Input additional argument and click Add..."
                 className="flex-1 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-800 dark:border-gray-200 rounded text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 onClick={handleAddArg}
-                disabled={!newArg.trim()}
+                disabled={!newArg.trim() || !logLevel.trim()}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add
@@ -193,7 +216,7 @@ const LogPrintNodeProperties: React.FC<LogPrintNodePropertiesProps> = ({
               Save Properties
             </button>
             <button
-              onClick={handleClose}
+              onClick={onClose}
               className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200"
             >
               Cancel

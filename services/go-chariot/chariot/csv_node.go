@@ -73,7 +73,7 @@ func (n *CSVNode) LoadFromReader(r io.Reader) error {
 			return err
 		}
 		headers = headerRow
-		n.SetAttribute("headers", convertFromNativeValue(headers))
+		n.SetMeta("headers", convertFromNativeValue(headers))
 		n.SetMeta("columnCount", len(headers))
 	}
 

@@ -534,7 +534,7 @@ func RegisterTreeFunctions(rt *Runtime) {
 		tryAdd := func(candidate Value) {
 			// Only consider top-level tree-like candidates
 			switch candidate.(type) {
-			case *JSONNode, TreeNode:
+			case *MapNode, *JSONNode, TreeNode, TreeNodeImpl:
 				if anyMatchInValue(candidate, string(attrName), searchVal, operator) {
 					if key, ok := ptrKey(candidate); ok {
 						if _, exists := seen[key]; exists {
@@ -554,6 +554,8 @@ func RegisterTreeFunctions(rt *Runtime) {
 				for i := 0; i < t.Length(); i++ {
 					walkForest(t.Get(i))
 				}
+			case *MapNode:
+				walkForest(t.Attributes)
 			case []Value:
 				for _, e := range t {
 					walkForest(e)
@@ -712,6 +714,8 @@ func RegisterTreeFunctions(rt *Runtime) {
 		if len(args) > 4 {
 			if b, ok := args[4].(Bool); ok {
 				existsOnly = bool(b)
+			} else {
+				return nil, fmt.Errorf("existsOnly argument (arg[4]) must be boolean, got %T", args[4])
 			}
 		}
 		if existsOnly {

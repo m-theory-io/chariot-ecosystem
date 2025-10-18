@@ -34,8 +34,10 @@ func init() {
 	cfg.ChariotConfig.VaultName = "chariot-vault"
 
 	// Set DataPath for file operations in tests - use absolute path
-	cfg.ChariotConfig.DataPath = "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data"
-	cfg.ChariotConfig.TreePath = "/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree"
+	cfg.ChariotConfig.DataPath = "/home/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data"
+	cfg.ChariotConfig.TreePath = "/home/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees"
+	// Use the data directory for diagram persistence during tests unless overridden
+	cfg.ChariotConfig.DiagramPath = "/home/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/diagrams"
 
 	// Initialize Vault client for all tests
 	if err := vault.InitVaultClient(); err != nil {

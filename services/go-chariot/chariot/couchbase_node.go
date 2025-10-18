@@ -88,6 +88,10 @@ func (n *CouchbaseNode) Connect(connStr, username, password string) error {
 		return errors.New("connection string, username, and password are required")
 	}
 
+	if cfg.ChariotConfig.CBDL {
+		gocb.SetLogger(gocb.DefaultStdioLogger())
+	}
+
 	// Create connection options
 	opts := gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{

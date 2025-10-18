@@ -43,4 +43,6 @@ certs/
 cookie_secret
 services/go-chariot/cmd/cmd
 services/charioteer/charioteer
+services/go-chariot/tests/data/*
+!services/go-chariot/tests/data/.gitkeep
 
