@@ -1,4 +1,4 @@
-import { generateChariotCodeFromDiagram } from '../utils/chariotCodeGenerator';
+import { generateChariotCodeFromDiagram } from 'chariot-codegen';
 
 // Test the code generator with the usersAgent diagram
 const testUsersAgentGeneration = () => {

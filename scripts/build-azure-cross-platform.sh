@@ -103,7 +103,7 @@ build_visual_dsl() {
         -t visual-dsl:$TAG \
         --load \
         --no-cache \
-        ./services/visual-dsl
+        .
 }
 
 # Function to build nginx

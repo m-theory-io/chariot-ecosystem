@@ -35,6 +35,7 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isServerImportOpen, setIsServerImportOpen] = useState(false);
   const [saveDirectory, setSaveDirectory] = useState('');
   const [pendingSaveDirectory, setPendingSaveDirectory] = useState('');
   // Storage mode: local folder (default) or server API
@@ -452,6 +453,21 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     event.target.value = '';
   };
 
+  // Import: if storage is server, open a server picker; else fall back to file upload
+  const handleImportClick = async () => {
+    if (storageMode === 'server') {
+      await loadSavedDiagrams();
+      setIsServerImportOpen(true);
+      return;
+    }
+    document.getElementById('file-upload')?.click();
+  };
+
+  const handleServerImport = async (key: string) => {
+    await loadDiagramFromStorage(key);
+    setIsServerImportOpen(false);
+  };
+
   return (
     <>
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2">
@@ -582,11 +598,11 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
               id="file-upload"
             />
             <Button
-              onClick={() => document.getElementById('file-upload')?.click()}
+              onClick={handleImportClick}
               className="h-8 text-xs px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
-              title="Import diagram from JSON file"
+              title={storageMode === 'server' ? 'Import diagram from server' : 'Import diagram from JSON file'}
             >
-              📥 Import
+              {storageMode === 'server' ? '📥 Import (Server)' : '📥 Import'}
             </Button>
 
             {/* Chariot Code Generator */}
@@ -793,6 +809,56 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
               >
                 Load Diagram
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import from Server Dialog */}
+      {isServerImportOpen && storageMode === 'server' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-xl w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Import Diagram from Server</h3>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{serverBaseUrl}</span>
+            </div>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-md max-h-72 overflow-y-auto">
+              {savedDiagrams.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500 dark:text-gray-400">No diagrams found on server.</div>
+              ) : (
+                <ul>
+                  {savedDiagrams.map((d) => (
+                    <li key={d.key} className="border-b last:border-b-0 border-gray-100 dark:border-gray-700">
+                      <button
+                        className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        onClick={() => handleServerImport(d.key)}
+                        title={`Import ${d.name}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-900 dark:text-gray-100">{d.name}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(d.modified).toLocaleString()}</span>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex justify-between items-center mt-4">
+              <Button
+                onClick={() => loadSavedDiagrams()}
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+              >
+                Refresh List
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsServerImportOpen(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           </div>
         </div>

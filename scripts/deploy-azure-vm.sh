@@ -37,6 +37,9 @@ print_status "Target VM: $AZURE_VM_USER@$AZURE_VM_HOST"
 
 # Step 1: Build and push images to ACR (canonical flow)
 print_building "Building and pushing images to Azure Container Registry (canonical flow)..."
+# Allow passing a tag as first arg; fallback to env TAG or 'latest'
+TAG_INPUT=${1:-}
+if [ -n "$TAG_INPUT" ]; then TAG="$TAG_INPUT"; fi
 TAG=${TAG:-latest}
 ./scripts/build-azure-cross-platform.sh "$TAG" all
 ./scripts/push-images.sh "$TAG" all
@@ -49,6 +52,14 @@ mkdir -p tmp/azure-deploy
 cp docker-compose.azure.yml tmp/azure-deploy/docker-compose.yml
 cp -r databases tmp/azure-deploy/
 cp .env.azure tmp/azure-deploy/.env 2>/dev/null || echo "# Azure environment" > tmp/azure-deploy/.env
+
+# Ensure service image tags are set to the chosen TAG
+{
+    echo "GO_CHARIOT_TAG=${TAG}";
+    echo "CHARIOTEER_TAG=${TAG}";
+    echo "VISUAL_DSL_TAG=${TAG}";
+    echo "NGINX_TAG=${TAG}";
+} >> tmp/azure-deploy/.env
 
 # Create deployment script for VM
 cat > tmp/azure-deploy/deploy-on-vm.sh << 'EOF'

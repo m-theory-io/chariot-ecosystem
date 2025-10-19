@@ -47,20 +47,24 @@ type contextKey string
 // sendSuccess sends a successful ResultJSON response
 func sendSuccess(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ResultJSON{
+	if err := json.NewEncoder(w).Encode(ResultJSON{
 		Result: "OK",
 		Data:   data,
-	})
+	}); err != nil {
+		log.Printf("encode success response error: %v", err)
+	}
 }
 
 // sendError sends an error ResultJSON response
 func sendError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(ResultJSON{
+	if err := json.NewEncoder(w).Encode(ResultJSON{
 		Result: "ERROR",
 		Data:   message,
-	})
+	}); err != nil {
+		log.Printf("encode error response error: %v", err)
+	}
 }
 
 // getBackendURL returns the backend URL from flag, environment variable, or default
@@ -236,7 +240,9 @@ func dashboardWSProxyHandler(w http.ResponseWriter, r *http.Request) {
 	backendConn, _, err := websocket.DefaultDialer.Dial(target.String(), header)
 	if err != nil {
 		log.Printf("WS proxy dial backend failed: %v", err)
-		clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "backend unavailable"))
+		if err := clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "backend unavailable")); err != nil {
+			log.Printf("WS proxy failed to write close message: %v", err)
+		}
 		return
 	}
 	defer backendConn.Close()
@@ -896,6 +902,7 @@ const editorTemplate = `<!DOCTYPE html>
                 <div class="toolbar-tabs">
                     <button id="filesTab" class="toolbar-tab active">Files</button>
                     <button id="functionsTab" class="toolbar-tab">Function Library</button>
+                    <button id="diagramsTab" class="toolbar-tab">Diagrams</button>
                     <button id="dashboardTab" class="toolbar-tab">Dashboard</button>
                 </div>
                 <div id="fileToolbar" class="toolbar-section active">
@@ -928,6 +935,20 @@ const editorTemplate = `<!DOCTYPE html>
                 <div id="dashboardToolbar" class="toolbar-section">
                     <button id="refreshDashboardButton" class="toolbar-button" onclick="refreshDashboardData()">🔄 Refresh</button>
                 </div>
+                <div id="diagramsToolbar" class="toolbar-section">
+                    <div class="file-selector">
+                        <label for="diagramSelect">Diagram:</label>
+                        <select id="diagramSelect" disabled>
+                            <option value="">Select a diagram...</option>
+                        </select>
+                    </div>
+                    <div class="save-buttons">
+                        <button id="refreshDiagramsButton" class="toolbar-button">🔄 Refresh</button>
+                        <button id="saveDiagramButton" class="toolbar-button" disabled>💾 Save</button>
+                        <button id="saveAsDiagramButton" class="toolbar-button" disabled>💾 Save As...</button>
+                        <button id="deleteDiagramButton" class="toolbar-button file-action delete" disabled>🗑️ Delete</button>
+                    </div>
+                </div>
                 <button id="runButton" class="run-button" disabled>▶ Run</button>
                 
                 <div class="auth-section">
@@ -956,6 +977,7 @@ const editorTemplate = `<!DOCTYPE html>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script src="chariot-codegen.js"></script>
     <script>
         // Configuration
         const CHARIOT_FILES_FOLDER = 'files';
@@ -1040,6 +1062,10 @@ const editorTemplate = `<!DOCTYPE html>
         let originalContent = '';
     // Ensure toolbar handlers for Function Library are only initialized once across editor rebuilds
     let functionsToolbarInitialized = false;
+    let diagramsToolbarInitialized = false;
+    // Diagrams state
+    let currentDiagramName = '';
+    let currentDiagramJSON = null; // last loaded JSON for selected diagram
         // Session management variables
         let sessionTimer = null;
         let warningTimer = null;
@@ -2030,11 +2056,13 @@ const editorTemplate = `<!DOCTYPE html>
             const filesTab = document.getElementById('filesTab');
             const functionsTab = document.getElementById('functionsTab');
             const dashboardTab = document.getElementById('dashboardTab');
+            const diagramsTab = document.getElementById('diagramsTab');
             const fileToolbar = document.getElementById('fileToolbar');
             const functionsToolbar = document.getElementById('functionsToolbar');
             const dashboardToolbar = document.getElementById('dashboardToolbar');
+            const diagramsToolbar = document.getElementById('diagramsToolbar');
 
-            if (filesTab && functionsTab && dashboardTab && fileToolbar && functionsToolbar && dashboardToolbar) {
+            if (filesTab && functionsTab && dashboardTab && diagramsTab && fileToolbar && functionsToolbar && dashboardToolbar && diagramsToolbar) {
                 // Helpers to manage dashboard auto-refresh lifecycle
                 function stopDashboardAutoRefresh() {
                     if (dashboardAutoRefresh) {
@@ -2063,10 +2091,12 @@ const editorTemplate = `<!DOCTYPE html>
                     fileToolbar.classList.remove('active');
                     functionsToolbar.classList.remove('active');
                     dashboardToolbar.classList.remove('active');
+                    diagramsToolbar.classList.remove('active');
                     // Remove active from all tabs
                     filesTab.classList.remove('active');
                     functionsTab.classList.remove('active');
                     dashboardTab.classList.remove('active');
+                    diagramsTab.classList.remove('active');
 
                     if (selected === 'files') {
                         // Leaving dashboard: stop auto refresh
@@ -2189,6 +2219,38 @@ const editorTemplate = `<!DOCTYPE html>
                         updateSaveButtonStates();
                         updateRunButtonState();
                         currentTab = 'dashboard';
+                    } else if (selected === 'diagrams') {
+                        // Leaving dashboard: stop auto refresh
+                        stopDashboardAutoRefresh();
+                        // Save current editor states when switching away
+                        if (currentTab === 'files') {
+                            fileEditorContent = editor.getValue();
+                            fileEditorFileName = currentFileName;
+                        } else if (currentTab === 'functions') {
+                            functionEditorContent = editor.getValue();
+                            const fnSel = document.getElementById('functionSelect');
+                            functionEditorFunctionName = fnSel ? fnSel.value : '';
+                        }
+                        // Restore Monaco if coming from dashboard
+                        if (currentTab === 'dashboard') {
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editor) {
+                                editor.getModel()?.dispose();
+                                editor.dispose();
+                                editor = null;
+                            }
+                            editorContainer.innerHTML = '';
+                            setupMonacoEditor();
+                        }
+                        // Show diagrams toolbar and set active tab
+                        diagramsToolbar.classList.add('active');
+                        diagramsTab.classList.add('active');
+                        // Ensure buttons reflect current editor state
+                        updateSaveButtonStates();
+                        updateRunButtonState();
+                        currentTab = 'diagrams';
+                        // Load diagrams list on first enter or refresh as needed
+                        try { loadDiagramsList(); } catch (e) { /* ignore */ }
                     }
                 }
                 filesTab.addEventListener('click', function() {
@@ -2200,8 +2262,235 @@ const editorTemplate = `<!DOCTYPE html>
                 dashboardTab.addEventListener('click', function() {
                     showToolbar('dashboard');
                 });
+                diagramsTab.addEventListener('click', function() {
+                    showToolbar('diagrams');
+                });
+            }
+            // Diagrams toolbar handlers (initialize once)
+            if (!diagramsToolbarInitialized) {
+                const refreshDiagramsButton = document.getElementById('refreshDiagramsButton');
+                const saveDiagramButton = document.getElementById('saveDiagramButton');
+                const saveAsDiagramButton = document.getElementById('saveAsDiagramButton');
+                const deleteDiagramButton = document.getElementById('deleteDiagramButton');
+                const diagramSelect = document.getElementById('diagramSelect');
+
+                if (diagramSelect) {
+                    diagramSelect.addEventListener('change', async function() {
+                        const hasSelection = !!diagramSelect.value;
+                        currentDiagramName = hasSelection ? diagramSelect.value : '';
+                        toggleDiagramActionButtons(hasSelection);
+                        if (hasSelection) {
+                            await generateFromSelectedDiagram();
+                        } else if (editor) {
+                            editor.setValue('');
+                        }
+                    });
+                }
+
+                if (refreshDiagramsButton) {
+                    refreshDiagramsButton.addEventListener('click', async function() {
+                        await loadDiagramsList();
+                        // If a diagram is selected, re-generate from source to discard unsaved edits
+                        const select = document.getElementById('diagramSelect');
+                        if (select && select.value) {
+                            await generateFromSelectedDiagram();
+                        }
+                    });
+                }
+
+                if (saveDiagramButton) {
+                    saveDiagramButton.addEventListener('click', async function() {
+                        await saveCurrentDiagram(false);
+                    });
+                }
+                if (saveAsDiagramButton) {
+                    saveAsDiagramButton.addEventListener('click', async function() {
+                        await saveCurrentDiagram(true);
+                    });
+                }
+                if (deleteDiagramButton) {
+                    deleteDiagramButton.addEventListener('click', async function() {
+                        await deleteCurrentDiagram();
+                    });
+                }
+
+                diagramsToolbarInitialized = true;
             }
         }        
+
+        // Load diagrams list from backend and populate dropdown
+        async function loadDiagramsList() {
+            const select = document.getElementById('diagramSelect');
+            if (!select) return;
+            select.innerHTML = '<option value="">Select a diagram...</option>';
+            select.disabled = true;
+            toggleDiagramActionButtons(false);
+            try {
+                const resp = await fetch(getAPIPath('/api/diagrams'), { headers: getAuthHeaders() });
+                if (!resp.ok) {
+                    if (resp.status === 401) { logout(); return; }
+                    const t = await resp.text();
+                    showOutput('Failed to load diagrams: ' + t, 'error');
+                    return;
+                }
+                const result = await resp.json();
+                const list = Array.isArray(result) ? result : (result && result.result === 'OK' ? result.data : []);
+                if (Array.isArray(list)) {
+                    list.forEach(item => {
+                        const name = typeof item === 'string' ? item : item.name;
+                        if (!name) return;
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        select.appendChild(opt);
+                    });
+                    select.disabled = false;
+                } else {
+                    showOutput('No diagrams available', 'info');
+                }
+            } catch (e) {
+                showOutput('Error loading diagrams: ' + e.message, 'error');
+            }
+        }
+
+        // Fetch selected diagram JSON and generate Chariot code using shared codegen
+        async function generateFromSelectedDiagram() {
+            const select = document.getElementById('diagramSelect');
+            if (!select || !select.value) {
+                showOutput('Please select a diagram first', 'error');
+                return;
+            }
+            if (!window.ChariotCodegen || typeof window.ChariotCodegen.generateChariotCodeFromDiagram !== 'function') {
+                showOutput('Code generator not loaded. Ensure /chariot-codegen.js is available and built.', 'error');
+                return;
+            }
+            const name = select.value;
+            try {
+                const resp = await fetch(getAPIPath('/api/diagrams/' + encodeURIComponent(name)), { headers: getAuthHeaders() });
+                if (!resp.ok) {
+                    if (resp.status === 401) { logout(); return; }
+                    const t = await resp.text();
+                    showOutput('Failed to load diagram: ' + t, 'error');
+                    return;
+                }
+                // Backend returns raw diagram JSON (not wrapped)
+                const diagram = await resp.json();
+                currentDiagramJSON = diagram;
+                let code = '';
+                if (diagram && typeof diagram.code === 'string' && diagram.code.trim().length > 0) {
+                    // Prefer user-authored/saved code when present
+                    code = diagram.code;
+                } else {
+                    code = window.ChariotCodegen.generateChariotCodeFromDiagram(JSON.stringify(diagram));
+                }
+                code = stripEmbeddedDiagramMarker(code);
+                if (editor) {
+                    editor.setValue(code);
+                    showOutput('Generated code from diagram: ' + name, 'success');
+                    updateRunButtonState();
+                }
+            } catch (e) {
+                showOutput('Error generating code: ' + e.message, 'error');
+            }
+        }
+
+        // Remove embedded diagram payload marker from displayed code
+        function stripEmbeddedDiagramMarker(code) {
+            try {
+                const lines = code.split(/\r?\n/);
+                const filtered = lines.filter(l => l.indexOf('__VDSL_SOURCE__: base64:') === -1);
+                return filtered.join('\n').trimEnd();
+            } catch (_) { return code; }
+        }
+
+        function toggleDiagramActionButtons(enabled) {
+            const saveBtn = document.getElementById('saveDiagramButton');
+            const saveAsBtn = document.getElementById('saveAsDiagramButton');
+            const delBtn = document.getElementById('deleteDiagramButton');
+            if (saveBtn) saveBtn.disabled = !enabled;
+            if (saveAsBtn) saveAsBtn.disabled = !enabled;
+            if (delBtn) delBtn.disabled = !enabled;
+        }
+
+        async function saveCurrentDiagram(asNew) {
+            if (!authToken) { showOutput('Please log in first', 'error'); return; }
+            const select = document.getElementById('diagramSelect');
+            if (!select) return;
+            let name = currentDiagramName || select.value;
+            if (asNew || !name) {
+                const input = prompt('Enter diagram name:', name || 'new-diagram');
+                if (!input) return;
+                name = input.trim();
+            }
+            // Use last loaded diagram JSON as the source of truth. The embedded payload is hidden from display
+            // and not required at save time until a true reverse code->diagram exists.
+            const contentJSON = (function() {
+                try {
+                    // Clone to avoid mutating in-memory object
+                    const clone = JSON.parse(JSON.stringify(currentDiagramJSON || {}));
+                    if (editor) {
+                        clone.code = editor.getValue();
+                    }
+                    return clone;
+                } catch (_) {
+                    return currentDiagramJSON;
+                }
+            })();
+            if (!contentJSON) {
+                showOutput('No diagram content available to save.', 'error');
+                return;
+            }
+            try {
+                const resp = await fetch(getAPIPath('/api/diagrams'), {
+                    method: 'POST',
+                    headers: getAuthHeadersWithJSON(),
+                    body: JSON.stringify({ name, content: contentJSON })
+                });
+                if (resp.status === 401) { logout(); return; }
+                if (resp.ok) {
+                    showOutput('Diagram saved: ' + name, 'success');
+                    await loadDiagramsList();
+                    const sel = document.getElementById('diagramSelect');
+                    if (sel) sel.value = name;
+                    currentDiagramName = name;
+                } else {
+                    const t = await resp.text();
+                    showOutput('Save failed: ' + t, 'error');
+                }
+            } catch (e) {
+                showOutput('Save error: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteCurrentDiagram() {
+            if (!authToken) { showOutput('Please log in first', 'error'); return; }
+            const select = document.getElementById('diagramSelect');
+            if (!select || !select.value) { showOutput('No diagram selected', 'error'); return; }
+            const name = select.value;
+            if (!confirm('Delete diagram "' + name + '"? This cannot be undone.')) return;
+            try {
+                const resp = await fetch(getAPIPath('/api/diagrams/' + encodeURIComponent(name)), {
+                    method: 'DELETE',
+                    headers: getAuthHeaders(),
+                });
+                if (resp.status === 401) { logout(); return; }
+                if (resp.ok) {
+                    showOutput('Diagram deleted: ' + name, 'success');
+                    await loadDiagramsList();
+                    const sel = document.getElementById('diagramSelect');
+                    if (sel) sel.value = '';
+                    currentDiagramName = '';
+                    currentDiagramJSON = null;
+                    if (editor) editor.setValue('');
+                    toggleDiagramActionButtons(false);
+                } else {
+                    const t = await resp.text();
+                    showOutput('Delete failed: ' + t, 'error');
+                }
+            } catch (e) {
+                showOutput('Delete error: ' + e.message, 'error');
+            }
+        }
         // Tab switching
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => {
@@ -4897,6 +5186,23 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	sendSuccess(w, health)
 }
 
+// Serve the chariot-codegen IIFE bundle from local filesystem
+func codegenJSHandler(w http.ResponseWriter, r *http.Request) {
+	// Try workspace path first
+	paths := []string{
+		filepath.Join("..", "..", "packages", "chariot-codegen", "dist", "index.global.js"),
+		filepath.Join("packages", "chariot-codegen", "dist", "index.global.js"),
+		filepath.Join(".", "index.global.js"),
+	}
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			http.ServeFile(w, r, p)
+			return
+		}
+	}
+	http.Error(w, "codegen bundle not found", http.StatusNotFound)
+}
+
 func main() {
 	flag.Parse()
 
@@ -4941,8 +5247,38 @@ func main() {
 	http.HandleFunc("/charioteer/login", loginHandler)   // Implement loginHandler to handle login requests
 	http.HandleFunc("/charioteer/logout", logoutHandler) // Implement logoutHandler to handle logout requests
 
+	// Serve shared codegen bundle (both root and prefixed for proxy hosting)
+	http.HandleFunc("/chariot-codegen.js", codegenJSHandler)
+	http.HandleFunc("/charioteer/chariot-codegen.js", codegenJSHandler)
+
 	// Dashboard API proxy route
 	http.HandleFunc("/charioteer/api/dashboard/status", authMiddleware(dashboardAPIHandler))
+
+	// Diagrams proxy endpoints -> go-chariot backend
+	http.HandleFunc("/charioteer/api/diagrams", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		var body []byte
+		if r.Body != nil {
+			b, _ := io.ReadAll(r.Body)
+			body = b
+		}
+		proxyToBackendJSON(w, r, r.Method, "/api/diagrams", body)
+	}))
+	http.HandleFunc("/charioteer/api/diagrams/", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		name := strings.TrimPrefix(r.URL.Path, "/charioteer/api/diagrams/")
+		if name == "" {
+			sendError(w, http.StatusBadRequest, "diagram name required")
+			return
+		}
+		proxyToBackendJSON(w, r, r.Method, "/api/diagrams/"+url.PathEscape(name), nil)
+	}))
 	// Listener API proxy routes
 	http.HandleFunc("/charioteer/api/listeners", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
