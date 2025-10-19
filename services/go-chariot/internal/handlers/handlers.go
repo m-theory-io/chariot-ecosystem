@@ -44,19 +44,23 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 	if cfg.ChariotConfig.Bootstrap != "" {
 		fullPath, err := chariot.GetSecureFilePath(cfg.ChariotConfig.Bootstrap, "data")
 		if err != nil {
-			cfg.ChariotLogger.Error("Failed to get secure file path for bootstrap", zap.Error(err))
+			cfg.ChariotLogger.Error("Failed to get secure file path for bootstrap", zap.String("bootstrap", cfg.ChariotConfig.Bootstrap), zap.Error(err))
 		} else {
+			cfg.ChariotLogger.Info("Loading bootstrap script (handlers)", zap.String("path", fullPath))
 			content, err := os.ReadFile(fullPath)
 			if err != nil {
-				cfg.ChariotLogger.Error("Failed to read bootstrap script", zap.Error(err))
+				cfg.ChariotLogger.Error("Failed to read bootstrap script", zap.String("path", fullPath), zap.Error(err))
 			} else {
 				if _, err := bootstrapRuntime.ExecProgram(string(content)); err != nil {
-					cfg.ChariotLogger.Error("Failed to load bootstrap script in handlers", zap.Error(err))
+					cfg.ChariotLogger.Error("Failed to execute bootstrap script in handlers", zap.String("path", fullPath), zap.Error(err))
 				} else {
+					cfg.ChariotLogger.Info("Bootstrap script executed (handlers)", zap.String("path", fullPath))
 					bootstrapLoaded = true
 				}
 			}
 		}
+	} else {
+		cfg.ChariotLogger.Warn("Bootstrap filename not configured; skipping handlers bootstrap")
 	}
 
 	// Initialize a listeners manager using the bootstrap runtime
@@ -565,24 +569,41 @@ func (h *Handlers) HandleLogout(c echo.Context) error {
 // Session authentication middleware
 func (h *Handlers) SessionAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		token := c.Request().Header.Get("Authorization")
-		cfg.ChariotLogger.Debug("SessionAuth middleware called", zap.String("token", token))
-		if token == "" {
-			return c.JSON(http.StatusUnauthorized, ResultJSON{
-				Result: "ERROR",
-				Data:   "Authentication required (empty token)",
-			})
+		r := c.Request()
+		// 1) Trust oauth2-proxy via nginx when present
+		if r.Header.Get("X-Proxy-Auth") == "oauth2" {
+			user := r.Header.Get("X-User")
+			if user == "" {
+				user = r.Header.Get("X-Email")
+			}
+			if user == "" {
+				user = "oauth2-user"
+			}
+			derivedToken := "proxy-" + user
+			if sess, ok := h.sessionManager.LookupSession(derivedToken); ok {
+				c.Set("session", sess)
+				return next(c)
+			}
+			// Create a per-user session keyed by derived token
+			sess := h.sessionManager.NewSession(user, cfg.ChariotLogger, derivedToken)
+			sess.Authenticated = true
+			c.Set("session", sess)
+			return next(c)
 		}
 
-		session, err := h.sessionManager.GetSession(token)
+		// 2) Authorization header path (supports optional Bearer prefix)
+		authz := strings.TrimSpace(r.Header.Get("Authorization"))
+		if strings.HasPrefix(strings.ToLower(authz), "bearer ") {
+			authz = strings.TrimSpace(authz[7:])
+		}
+		cfg.ChariotLogger.Debug("SessionAuth middleware called", zap.String("token", authz))
+		if authz == "" {
+			return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "Authentication required (empty token)"})
+		}
+		session, err := h.sessionManager.GetSession(authz)
 		if err != nil {
-			return c.JSON(http.StatusUnauthorized, ResultJSON{
-				Result: "ERROR",
-				Data:   "Invalid or expired session",
-			})
+			return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "Invalid or expired session"})
 		}
-
-		// Store session in context
 		c.Set("session", session)
 		return next(c)
 	}

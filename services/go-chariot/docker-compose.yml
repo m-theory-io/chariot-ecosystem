@@ -12,7 +12,7 @@ services:
     environment:
       - CHARIOT_DATA_PATH=/app/data
       - CHARIOT_TREE_PATH=/app/data/trees
-      - CHARIOT_BOOTSTRAP_FILE=/app/data/bootstrap.ch
+      - CHARIOT_BOOTSTRAP=bootstrap.ch
       - CHARIOT_LOG_PATH=/app/logs
       - CHARIOT_DEV_MODE=true
     volumes:

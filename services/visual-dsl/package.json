@@ -23,6 +23,7 @@
     "cert-info": "openssl x509 -in certs/server.crt -text -noout"
   },
   "dependencies": {
+    "chariot-codegen": "file:../../packages/chariot-codegen",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "reactflow": "^11.11.4"

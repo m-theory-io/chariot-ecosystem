@@ -2,7 +2,7 @@
 # Go HTML template-driven web server with Monaco editor
 
 # Stage 1: Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24-alpine AS gobuilder
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -34,6 +34,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 # RUN upx --best --lzma charioteer
 
 # Stage 2: Production stage
+FROM node:20-alpine AS codegenbuilder
+
+# Build the shared codegen package to produce index.global.js
+WORKDIR /repo
+COPY packages/chariot-codegen/package*.json packages/chariot-codegen/
+COPY packages/chariot-codegen/ packages/chariot-codegen/
+RUN cd packages/chariot-codegen && npm ci && npm run build
+
 FROM alpine:latest AS production
 
 # Install runtime dependencies
@@ -56,7 +64,10 @@ RUN mkdir -p /app/config /app/logs /app/ssl /app/files && \
     chown -R charioteer:charioteer /app
 
 # Copy binary from build stage
-COPY --from=builder /src/charioteer /app/
+COPY --from=gobuilder /src/charioteer /app/
+
+# Copy codegen bundle
+COPY --from=codegenbuilder /repo/packages/chariot-codegen/dist/index.global.js /app/index.global.js
 
 # Copy application files
 COPY --chown=charioteer:charioteer services/charioteer/files/ /app/files/

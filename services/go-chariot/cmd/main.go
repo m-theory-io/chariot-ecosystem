@@ -69,12 +69,36 @@ func init() {
 	// Bind evars
 	kissflag.BindAllEVars(cfg.ChariotConfig)
 
+	// Policy: do not accept legacy env var names. If legacy is present, warn and ignore.
+	if legacy := os.Getenv("CHARIOT_BOOTSTRAP_FILE"); legacy != "" {
+		// No functional fallback here by design – prefer fixing envs to match canonical name.
+		// We'll log a warning at runtime in main() as well (once logger is ready).
+	}
+
 }
 
 func main() {
 	slogger := logs.NewZapLogger()
 	defer slogger.Sync() // Ensure logger is flushed before exit
 	cfg.ChariotLogger = slogger
+	// Warn if legacy env var is present
+	if legacy := os.Getenv("CHARIOT_BOOTSTRAP_FILE"); legacy != "" {
+		slogger.Warn("Ignoring legacy env var CHARIOT_BOOTSTRAP_FILE; use CHARIOT_BOOTSTRAP instead",
+			zap.String("legacy_value", legacy),
+			zap.String("canonical_var", "CHARIOT_BOOTSTRAP"),
+			zap.String("canonical_value", cfg.ChariotConfig.Bootstrap),
+		)
+	}
+	// Log key configuration for diagnostics
+	slogger.Info("Chariot configuration",
+		zap.String("DataPath", cfg.ChariotConfig.DataPath),
+		zap.String("TreePath", cfg.ChariotConfig.TreePath),
+		zap.String("DiagramPath", cfg.ChariotConfig.DiagramPath),
+		zap.String("FunctionLib", cfg.ChariotConfig.FunctionLib),
+		zap.String("Bootstrap", cfg.ChariotConfig.Bootstrap),
+		zap.Bool("Headless", cfg.ChariotConfig.Headless),
+		zap.Bool("DevRESTEnabled", cfg.ChariotConfig.DevRESTEnabled),
+	)
 	// Create session manager with 30 minute timeout, clean up every 5 minutes
 	timeOut := time.Duration(cfg.ChariotConfig.Timeout) * time.Minute
 	cleanUpInterval := time.Duration(5) * time.Minute
