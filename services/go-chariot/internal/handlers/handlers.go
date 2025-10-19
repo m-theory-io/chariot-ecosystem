@@ -44,19 +44,23 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 	if cfg.ChariotConfig.Bootstrap != "" {
 		fullPath, err := chariot.GetSecureFilePath(cfg.ChariotConfig.Bootstrap, "data")
 		if err != nil {
-			cfg.ChariotLogger.Error("Failed to get secure file path for bootstrap", zap.Error(err))
+			cfg.ChariotLogger.Error("Failed to get secure file path for bootstrap", zap.String("bootstrap", cfg.ChariotConfig.Bootstrap), zap.Error(err))
 		} else {
+			cfg.ChariotLogger.Info("Loading bootstrap script (handlers)", zap.String("path", fullPath))
 			content, err := os.ReadFile(fullPath)
 			if err != nil {
-				cfg.ChariotLogger.Error("Failed to read bootstrap script", zap.Error(err))
+				cfg.ChariotLogger.Error("Failed to read bootstrap script", zap.String("path", fullPath), zap.Error(err))
 			} else {
 				if _, err := bootstrapRuntime.ExecProgram(string(content)); err != nil {
-					cfg.ChariotLogger.Error("Failed to load bootstrap script in handlers", zap.Error(err))
+					cfg.ChariotLogger.Error("Failed to execute bootstrap script in handlers", zap.String("path", fullPath), zap.Error(err))
 				} else {
+					cfg.ChariotLogger.Info("Bootstrap script executed (handlers)", zap.String("path", fullPath))
 					bootstrapLoaded = true
 				}
 			}
 		}
+	} else {
+		cfg.ChariotLogger.Warn("Bootstrap filename not configured; skipping handlers bootstrap")
 	}
 
 	// Initialize a listeners manager using the bootstrap runtime

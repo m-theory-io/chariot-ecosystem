@@ -107,17 +107,22 @@ func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token st
 	if cfg.ChariotConfig.Bootstrap != "" {
 		fullPath, err := getSecureFilePath(cfg.ChariotConfig.Bootstrap, "data")
 		if err != nil {
-			session.Logger.Error("Failed to get secure file path", zap.Error(err))
+			session.Logger.Error("Failed to get secure file path", zap.String("bootstrap", cfg.ChariotConfig.Bootstrap), zap.Error(err))
 		} else {
+			session.Logger.Info("Loading bootstrap script (session)", zap.String("path", fullPath))
 			content, err := os.ReadFile(fullPath)
 			if err != nil {
-				session.Logger.Error("Failed to read bootstrap script", zap.Error(err))
+				session.Logger.Error("Failed to read bootstrap script", zap.String("path", fullPath), zap.Error(err))
 			} else {
 				if _, err := session.Runtime.ExecProgram(string(content)); err != nil {
-					session.Logger.Error("Failed to load bootstrap script", zap.Error(err))
+					session.Logger.Error("Failed to execute bootstrap script (session)", zap.String("path", fullPath), zap.Error(err))
+				} else {
+					session.Logger.Info("Bootstrap script executed (session)", zap.String("path", fullPath))
 				}
 			}
 		}
+	} else {
+		session.Logger.Warn("Bootstrap filename not configured; skipping session bootstrap")
 	}
 
 	// Store the session
