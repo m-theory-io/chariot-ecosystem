@@ -47,6 +47,24 @@ export default defineConfig({
     port: 5174,      // Set a consistent port
     https: getHttpsConfig(),
     strictPort: true, // Don't try another port if 5174 is busy
+    proxy: {
+      // Proxy backend API to go-chariot during development
+      '/api': {
+        target: process.env.VITE_PROXY_API || 'http://localhost:8087',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/login': {
+        target: process.env.VITE_PROXY_API || 'http://localhost:8087',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/logout': {
+        target: process.env.VITE_PROXY_API || 'http://localhost:8087',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
     // Firefox CSP compatibility
     headers: {
       'Content-Security-Policy': [

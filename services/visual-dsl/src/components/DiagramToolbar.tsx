@@ -37,13 +37,47 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [saveDirectory, setSaveDirectory] = useState('');
   const [pendingSaveDirectory, setPendingSaveDirectory] = useState('');
+  // Storage mode: local folder (default) or server API
+  const [storageMode, setStorageMode] = useState<'local' | 'server'>('local');
+  const [serverBaseUrl, setServerBaseUrl] = useState('');
+  const [pendingStorageMode, setPendingStorageMode] = useState<'local' | 'server'>('local');
+  const [pendingServerBaseUrl, setPendingServerBaseUrl] = useState('');
+  const [testConnStatus, setTestConnStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
+  const [testConnMessage, setTestConnMessage] = useState<string>('');
+  const getAuthToken = () => localStorage.getItem('chariot_auth_token') || '';
+  const setAuthToken = (t: string) => localStorage.setItem('chariot_auth_token', t);
   const directoryInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load saved diagrams list on component mount and after saves
-  const loadSavedDiagrams = () => {
+  // Load saved diagrams list (local or server based on storage mode)
+  const loadSavedDiagrams = async () => {
+    if (storageMode === 'server') {
+      try {
+        const token = localStorage.getItem('chariot_auth_token') || '';
+        const res = await fetch(serverBaseUrl, { credentials: 'include', headers: token ? { Authorization: token } : undefined });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json();
+        const list = Array.isArray(payload?.Data)
+          ? payload.Data
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+        const diagrams: SavedDiagram[] = list.map((d: any) => ({
+          key: d.Name || d.name,
+          name: (d.Name || d.name) ?? 'Untitled',
+          modified: (d.Modified || d.modified) ? new Date(d.Modified || d.modified).toISOString() : new Date().toISOString(),
+        }));
+        diagrams.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+        setSavedDiagrams(diagrams);
+      } catch (err) {
+        console.warn('Failed to fetch server diagrams list:', err);
+        setSavedDiagrams([]);
+      }
+      return;
+    }
+
+    // Local storage fallback
     const diagramList = JSON.parse(localStorage.getItem('diagram_list') || '[]');
     const diagrams: SavedDiagram[] = [];
-    
     diagramList.forEach((key: string) => {
       const diagramData = localStorage.getItem(key);
       if (diagramData) {
@@ -59,17 +93,26 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
         }
       }
     });
-    
-    // Sort by most recently modified
     diagrams.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
     setSavedDiagrams(diagrams);
   };
 
   useEffect(() => {
+    // initial
     loadSavedDiagrams();
     const storedPath = localStorage.getItem('diagram_save_path') || '';
     setSaveDirectory(storedPath);
+    const storedMode = (localStorage.getItem('diagram_storage_mode') as 'local' | 'server') || 'local';
+    setStorageMode(storedMode);
+    const defaultServer = '/api/diagrams';
+    const storedServer = localStorage.getItem('diagram_server_base_url') || defaultServer;
+    setServerBaseUrl(storedServer);
   }, []);
+
+  // Refresh list when mode/base URL changes
+  useEffect(() => {
+    loadSavedDiagrams();
+  }, [storageMode, serverBaseUrl]);
 
   useEffect(() => {
     if (directoryInputRef.current) {
@@ -105,7 +148,22 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     }
   };
 
-  const loadDiagramFromStorage = (key: string) => {
+  const loadDiagramFromStorage = async (key: string) => {
+    if (storageMode === 'server') {
+      try {
+        const url = `${serverBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(key)}`;
+        const token = localStorage.getItem('chariot_auth_token') || '';
+        const res = await fetch(url, { credentials: 'include', headers: token ? { Authorization: token } : undefined });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        onLoad(text);
+        onDiagramNameChange(key);
+        setIsDropdownOpen(false);
+      } catch (err) {
+        alert('Failed to load diagram from server.');
+      }
+      return;
+    }
     const storageData = localStorage.getItem(key);
     if (storageData) {
       // Always pass the raw JSON string to the loader; it will normalize/parse safely
@@ -124,22 +182,53 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     }
   };
 
-  const deleteDiagram = (key: string, name: string) => {
+  const deleteDiagram = async (key: string, name: string) => {
     const confirmed = window.confirm(`Delete diagram "${name}"? This cannot be undone.`);
     if (confirmed) {
-      localStorage.removeItem(key);
-      
-      // Remove from diagram list
-      const diagramList = JSON.parse(localStorage.getItem('diagram_list') || '[]');
-      const updatedList = diagramList.filter((k: string) => k !== key);
-      localStorage.setItem('diagram_list', JSON.stringify(updatedList));
-      
+      if (storageMode === 'server') {
+        try {
+          const url = `${serverBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(key)}`;
+          const token = localStorage.getItem('chariot_auth_token') || '';
+          const res = await fetch(url, { method: 'DELETE', credentials: 'include', headers: token ? { Authorization: token } : undefined });
+          if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+        } catch (err) {
+          alert('Failed to delete diagram on server.');
+          return;
+        }
+      } else {
+        localStorage.removeItem(key);
+        const diagramList = JSON.parse(localStorage.getItem('diagram_list') || '[]');
+        const updatedList = diagramList.filter((k: string) => k !== key);
+        localStorage.setItem('diagram_list', JSON.stringify(updatedList));
+      }
       loadSavedDiagrams();
     }
   };
 
-  const duplicateDiagram = (key: string, name: string) => {
+  const duplicateDiagram = async (key: string, name: string) => {
     const diagramData = localStorage.getItem(key);
+    if (storageMode === 'server') {
+      try {
+        // fetch original
+        const url = `${serverBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(key)}`;
+        const token = localStorage.getItem('chariot_auth_token') || '';
+        const res = await fetch(url, { credentials: 'include', headers: token ? { Authorization: token } : undefined });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const original = await res.json();
+        const newName = `${name} Copy`;
+        const saveRes = await fetch(serverBaseUrl, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: token } : {}) },
+          body: JSON.stringify({ name: newName, content: original }),
+        });
+        if (!saveRes.ok && saveRes.status !== 204) throw new Error(`HTTP ${saveRes.status}`);
+        loadSavedDiagrams();
+      } catch (err) {
+        alert('Failed to duplicate diagram on server.');
+      }
+      return;
+    }
     if (diagramData) {
       try {
         const parsed = JSON.parse(diagramData);
@@ -190,6 +279,10 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
 
   const openSettings = () => {
     setPendingSaveDirectory(saveDirectory);
+    setPendingStorageMode(storageMode);
+    setPendingServerBaseUrl(serverBaseUrl);
+    setTestConnStatus('idle');
+    setTestConnMessage('');
     setIsSettingsOpen(true);
   };
 
@@ -201,7 +294,76 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     const trimmedPath = pendingSaveDirectory.trim();
     setSaveDirectory(trimmedPath);
     localStorage.setItem('diagram_save_path', trimmedPath);
+    // Persist storage mode and server URL
+    setStorageMode(pendingStorageMode);
+    localStorage.setItem('diagram_storage_mode', pendingStorageMode);
+    const trimmedServer = pendingServerBaseUrl.trim() || '/api/diagrams';
+    setServerBaseUrl(trimmedServer);
+    localStorage.setItem('diagram_server_base_url', trimmedServer);
     setIsSettingsOpen(false);
+  };
+
+  const testServerConnection = async () => {
+    if (!pendingServerBaseUrl.trim()) return;
+    setTestConnStatus('testing');
+    setTestConnMessage('');
+    try {
+      const url = pendingServerBaseUrl.replace(/\/$/, '');
+      const token = getAuthToken();
+      const res = await fetch(url, { 
+        credentials: 'include', 
+        headers: token ? { Authorization: token } : undefined,
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Try auto-login for dev
+          try {
+            const loginRes = await fetch('/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ username: 'dev', password: 'dev' }),
+            });
+            if (loginRes.ok) {
+              const body = await loginRes.json();
+              const t = body?.Data?.token || body?.data?.token;
+              if (t) {
+                setAuthToken(t);
+                // retry ping with token
+                const retry = await fetch(url, { credentials: 'include', headers: { Authorization: t } });
+                if (retry.ok) {
+                  setTestConnStatus('ok');
+                  setTestConnMessage('Connected');
+                  return;
+                } else {
+                  setTestConnStatus('error');
+                  setTestConnMessage(`HTTP ${retry.status}`);
+                  return;
+                }
+              }
+            }
+          } catch (e) {
+            // fallthrough to error below
+          }
+        }
+        setTestConnStatus('error');
+        setTestConnMessage(`HTTP ${res.status}`);
+        return;
+      }
+      // Expect ResultJSON: { Result: 'OK', Data: [...] }
+      const body = await res.json();
+      const result = body?.Result || body?.result || '';
+      if (result && String(result).toUpperCase() !== 'OK') {
+        setTestConnStatus('error');
+        setTestConnMessage(typeof body?.Data === 'string' ? body.Data : 'Unexpected response');
+        return;
+      }
+      setTestConnStatus('ok');
+      setTestConnMessage('Connected');
+    } catch (err: any) {
+      setTestConnStatus('error');
+      setTestConnMessage(err?.message || 'Network error');
+    }
   };
 
   const handleDirectorySelection = async () => {
@@ -433,11 +595,11 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
             />
 
             <div className="flex items-center gap-2 ml-auto">
-              {saveDirectory && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  Save Path: {saveDirectory}
-                </span>
-              )}
+              <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                {storageMode === 'local'
+                  ? (saveDirectory ? `Save Path: ${saveDirectory}` : 'Storage: Local')
+                  : `Storage: Server (${serverBaseUrl})`}
+              </span>
               <Button
                 onClick={openSettings}
                 className="h-8 text-xs px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
@@ -492,6 +654,31 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
               Settings
             </h3>
             <div className="space-y-4">
+              {/* Storage Mode */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Storage Mode
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${pendingStorageMode === 'local' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                    onClick={() => setPendingStorageMode('local')}
+                  >
+                    Local
+                  </button>
+                  <button
+                    className={`px-3 py-1 text-sm rounded border ${pendingStorageMode === 'server' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                    onClick={() => setPendingStorageMode('server')}
+                  >
+                    Server
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Choose where to save and open diagrams. Server mode uses your backend endpoints.
+                </p>
+              </div>
+
+              {pendingStorageMode === 'local' ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Diagram Save Path
@@ -518,6 +705,38 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
                   Tip: Some browsers label the confirmation button "Upload" when granting folder access. No files are uploaded—this simply authorizes reading from the chosen directory.
                 </p>
               </div>
+              ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Server Base URL
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    type="text"
+                    value={pendingServerBaseUrl}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPendingServerBaseUrl(e.target.value)}
+                    placeholder="e.g., https://your-host/api/diagrams"
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={testServerConnection}
+                    className={`h-8 text-xs px-3 border whitespace-nowrap ${testConnStatus === 'testing' ? 'bg-gray-300 dark:bg-gray-600 text-gray-600' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                    disabled={testConnStatus === 'testing'}
+                    title="Ping the server URL"
+                  >
+                    {testConnStatus === 'testing' ? 'Testing…' : 'Test Connection'}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Used for Save/Open when Storage Mode is Server. Defaults to your site origin at /api/diagrams.
+                </p>
+                {testConnStatus !== 'idle' && (
+                  <p className={`text-xs mt-1 ${testConnStatus === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+                    {testConnStatus === 'ok' ? '✓ ' : '✗ '} {testConnMessage}
+                  </p>
+                )}
+              </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <Button

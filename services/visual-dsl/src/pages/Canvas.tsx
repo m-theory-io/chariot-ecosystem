@@ -364,6 +364,27 @@ export default function VisualDSLPrototype() {
   const exportDiagram = async () => {
     const diagramData = createDiagramData();
     const jsonString = JSON.stringify(diagramData, null, 2);
+
+    // Check settings for server mode
+    const storageMode = (localStorage.getItem('diagram_storage_mode') as 'local' | 'server') || 'local';
+    if (storageMode === 'server') {
+      const defaultServer = typeof window !== 'undefined' ? `${window.location.origin}/api/diagrams` : '/api/diagrams';
+      const baseUrl = (localStorage.getItem('diagram_server_base_url') || defaultServer).replace(/\/$/, '');
+      try {
+        const token = localStorage.getItem('chariot_auth_token') || '';
+        const res = await fetch(baseUrl, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: token } : {}) },
+          body: JSON.stringify({ name: currentDiagramName, content: JSON.parse(jsonString) }),
+        });
+        if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+        alert(`Diagram "${currentDiagramName}" saved to server.`);
+        return;
+      } catch (err) {
+        alert('Failed to save to server. Falling back to local download.');
+      }
+    }
     
     // Try to use the modern File System Access API if available
     if ('showSaveFilePicker' in window) {
