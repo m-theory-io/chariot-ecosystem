@@ -77,6 +77,7 @@ import { SwitchNodePropertiesDialog, SwitchNodeProperties } from "../components/
 import { CaseNodePropertiesDialog, CaseNodeProperties } from "../components/dialogs/CaseNodeProperties";
 import { DefaultNodePropertiesDialog, DefaultNodeProperties } from "../components/dialogs/DefaultNodeProperties";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
+import SymbolNodePropertiesDialog, { SymbolNodeProperties } from "../components/dialogs/SymbolNodeProperties";
 import { DirectionToggle } from "../components/ui/DirectionToggle";
 import { NestingToggle } from "../components/NestingToggle";
 import { useTheme } from "../contexts/ThemeContext";
@@ -582,6 +583,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'start';
       } else if ((label === 'Declare' || label === 'declare') && category === 'value') {
         nodeType = 'declare';
+      } else if ((label === 'Symbol' || label === 'symbol') && category === 'value') {
+        nodeType = 'symbol';
       } else if ((label === 'Set Equal' || label === 'Set Value' || label === 'setq') && category === 'value') {
         nodeType = 'setValue';
       } else if ((label === 'If' || label === 'if') && category === 'control') {
@@ -1695,6 +1698,10 @@ export default function VisualDSLPrototype() {
         variableName: 'myVar',
         typeSpecifier: 'S'
       };
+    } else if (logicon.label === 'Symbol') {
+      defaultProperties = {
+        symbolName: 'myVar'
+      };
     } else if (logicon.label === 'Create') {
       defaultProperties = {
         nodeName: 'MyNode'
@@ -1934,6 +1941,10 @@ export default function VisualDSLPrototype() {
           variableName: 'myVar',
           typeSpecifier: 'S'
         };
+      } else if (logicon.label === 'Symbol') {
+        defaultProperties = {
+          symbolName: 'myVar'
+        };
       } else if (logicon.label === 'Create') {
         defaultProperties = {
           nodeName: 'MyNode'
@@ -2133,6 +2144,10 @@ export default function VisualDSLPrototype() {
         isGlobal: false,
         variableName: 'myVar',
         typeSpecifier: 'S'
+      };
+    } else if (logicon.label === 'Symbol') {
+      defaultProperties = {
+        symbolName: 'myVar'
       };
     } else if (logicon.label === 'Create') {
       defaultProperties = {
@@ -2555,6 +2570,21 @@ export default function VisualDSLPrototype() {
                 variableName: 'myVar',
                 value: '',
                 valueType: 'string'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'symbol' && (
+            <SymbolNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SymbolNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={(propertiesDialog.properties as SymbolNodeProperties) || {
+                symbolName: 'myVar'
               }}
             />
           )}

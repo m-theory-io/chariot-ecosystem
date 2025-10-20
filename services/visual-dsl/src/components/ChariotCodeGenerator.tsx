@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ChariotCodeGenerator } from 'chariot-codegen';
+import { ChariotCodeGenerator, type GenerateOptions } from 'chariot-codegen';
 
 interface ChariotCodeGeneratorProps {
   diagramData: any;
@@ -24,7 +24,8 @@ export const ChariotCodeGeneratorComponent: React.FC<ChariotCodeGeneratorProps> 
 
     try {
       const generator = new ChariotCodeGenerator(diagramData);
-      const code = generator.generateChariotCode();
+      const opts: GenerateOptions = { embedSource: false };
+      const code = generator.generateChariotCode(opts);
       setGeneratedCode(code);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate code');

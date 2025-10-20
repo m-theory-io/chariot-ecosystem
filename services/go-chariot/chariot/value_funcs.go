@@ -676,6 +676,33 @@ func RegisterValues(rt *Runtime) {
 		}
 	})
 
+	// symbol accepts a string variable name and returns the variable or an error if not found
+	//    equivalent to a Chariot line with just a variable name, used for visual-dsl
+	rt.Register("symbol", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("symbol requires 1 argument: string of variable name")
+		}
+
+		// Get variable name
+		name, ok := args[0].(Str)
+		if !ok {
+			return nil, errors.New("variable name must be a string")
+		}
+
+		// Search for name in runtime current scope
+		if tvar, exists := rt.CurrentScope().Get(string(name)); exists {
+			return tvar, nil
+		}
+
+		// Search for name in runtime global scope
+		if tvar, exists := rt.GlobalScope().Get(string(name)); exists {
+			return tvar, nil
+		}
+
+		return nil, errors.New("variable name not found")
+
+	})
+
 	rt.Register("destroy", func(args ...Value) (Value, error) {
 		if len(args) != 1 {
 			return nil, errors.New("destroy requires 1 argument: variable name")

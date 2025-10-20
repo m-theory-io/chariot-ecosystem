@@ -33,6 +33,13 @@ export interface NestingRelation {
   order: number;
 }
 
+// Public options for code generation
+export type GenerateOptions = {
+  // When true (default), append a base64-encoded diagram payload for reverse mapping
+  // Set to false to omit the trailing metadata comment
+  embedSource?: boolean;
+};
+
 export class ChariotCodeGenerator {
   private diagram: VisualDSLDiagram;
   private nodeMap: Map<string, VisualDSLNode>;
@@ -79,6 +86,7 @@ export class ChariotCodeGenerator {
       'logprint': 'LogPrint',
       'log print': 'Log Print',
       'loop body': 'Loop Body',
+      'symbol': 'Symbol',
     };
     return aliasMap[lowerKey] || normalized;
   }
@@ -87,7 +95,7 @@ export class ChariotCodeGenerator {
     return this.canonicalLabel(node.data.label);
   }
 
-  public generateChariotCode(): string {
+  public generateChariotCode(options?: GenerateOptions): string {
     const lines: string[] = [];
     lines.push(`// ${this.diagram.name}`);
     lines.push('');
@@ -128,13 +136,16 @@ export class ChariotCodeGenerator {
       }
     }
     // Append embedded diagram payload for reverse mapping (code -> diagram)
-    try {
-      const payload = JSON.stringify(this.diagram);
-      const encoded = encodeBase64(payload);
-      lines.push('');
-      lines.push(`// __VDSL_SOURCE__: base64:${encoded}`);
-    } catch (e) {
-      // If embedding fails, skip silently to avoid breaking codegen
+  const shouldEmbed = options?.embedSource !== false;
+    if (shouldEmbed) {
+      try {
+        const payload = JSON.stringify(this.diagram);
+        const encoded = encodeBase64(payload);
+        lines.push('');
+        lines.push(`// __VDSL_SOURCE__: base64:${encoded}`);
+      } catch (e) {
+        // If embedding fails, skip silently to avoid breaking codegen
+      }
     }
     return lines.join('\n');
   }
@@ -201,6 +212,8 @@ export class ChariotCodeGenerator {
         return `// Starting ${props.name || this.diagram.name}`;
       case 'Declare':
         return this.generateDeclareCode(node);
+      case 'Symbol':
+        return this.generateSymbolCode(node);
       case 'Create':
         return this.generateCreateCode(node);
       case 'New Tree':
@@ -330,6 +343,14 @@ export class ChariotCodeGenerator {
       default:
         return this.generateGenericFunctionCode(node);
     }
+  }
+
+  private generateSymbolCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const raw = (props.symbolName ?? '').toString().trim();
+    const name = raw === '' ? 'value' : raw; // default to a generic name if missing
+    const escaped = name.replace(/'/g, "\\'");
+    return `symbol('${escaped}')`;
   }
 
   private generateDeclareCode(node: VisualDSLNode): string {
@@ -1389,6 +1410,8 @@ export class ChariotCodeGenerator {
       return null;
     }
     switch (label) {
+      case 'Symbol':
+        return this.generateSymbolCode(childNode);
       case 'Create':
         return this.generateCreateCode(childNode);
       case 'New Tree':
@@ -1988,11 +2011,11 @@ export class ChariotCodeGenerator {
   }
 }
 
-export function generateChariotCodeFromDiagram(diagramJson: string): string {
+export function generateChariotCodeFromDiagram(diagramJson: string, options?: GenerateOptions): string {
   try {
     const diagram: VisualDSLDiagram = JSON.parse(diagramJson);
     const generator = new ChariotCodeGenerator(diagram);
-    return generator.generateChariotCode();
+    return generator.generateChariotCode(options);
   } catch (error) {
     throw new Error(`Failed to generate Chariot code: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
