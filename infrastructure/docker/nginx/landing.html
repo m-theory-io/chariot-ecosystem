@@ -1,71 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chariot Ecosystem</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 50px auto; 
-            padding: 20px; 
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .service { 
-            margin: 20px 0; 
-            padding: 15px; 
-            border: 1px solid #ddd; 
-            border-radius: 5px; 
-            background: #fafafa;
-        }
-        .service h3 { 
-            margin-top: 0; 
-            color: #333; 
-        }
-        .service a { 
-            text-decoration: none; 
-            color: #0066cc; 
-            font-weight: bold; 
-        }
-        .service a:hover { 
-            text-decoration: underline; 
-        }
-        .description { 
-            color: #666; 
-            margin: 10px 0; 
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chariot Orchestrator</title>
+  <style>
+    :root {
+      --bg: #151a20; --panel: #1f2630; --accent: #2b7fff; --text: #e6eef8; --muted: #8aa2c0;
+    }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+    .toolbar {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid #2d3947; position: sticky; top: 0; z-index: 10;
+    }
+    .toolbar h1 { font-size: 16px; margin: 0 14px 0 0; color: var(--muted); font-weight: 600; }
+    .tabs { display: flex; gap: 6px; }
+    .tab {
+      appearance: none; border: 1px solid #324252; background: #222b36; color: var(--text);
+      padding: 6px 10px; border-radius: 6px; cursor: pointer;
+    }
+    .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .spacer { flex: 1; }
+    .btn {
+      appearance: none; border: 1px solid #324252; background: #1a212a; color: var(--text);
+      padding: 6px 10px; border-radius: 6px; cursor: pointer;
+    }
+    .btn:hover { border-color: #3b4e64; }
+    .frame {
+      position: fixed; inset: 52px 0 0 0; border: 0; width: 100%; height: calc(100% - 52px); background: #0f141a;
+    }
+    .status { color: var(--muted); font-size: 12px; }
+    a.btn { text-decoration: none; display: inline-block; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 Chariot Ecosystem</h1>
-        <p>Welcome to the Chariot Ecosystem - A distributed platform for data processing and visualization.</p>
-        
-        <div class="service">
-            <h3><a href="/visual-dsl/">📊 Visual DSL</a></h3>
-            <div class="description">Interactive React frontend for building and managing data workflows</div>
-        </div>
-        
-        <div class="service">
-            <h3><a href="/charioteer/editor">⚙️ Charioteer</a></h3>
-            <div class="description">Monaco editor-based service for code editing and execution</div>
-        </div>
-        
-        <div class="service">
-            <h3><a href="/go-chariot/">🔧 Go-Chariot</a></h3>
-            <div class="description">Core Go service handling data processing and business logic</div>
-        </div>
+  <div class="toolbar">
+    <h1>Chariot</h1>
+    <div class="tabs">
+      <button class="tab" data-app="visual-dsl" title="Visual DSL">📊 Visual DSL</button>
+      <button class="tab" data-app="charioteer" title="Charioteer">⚙️ Charioteer</button>
     </div>
+    <div class="spacer"></div>
+    <span class="status" id="status"></span>
+    <a id="openNewTab" class="btn" href="#" target="_blank" rel="noopener">Open in new tab</a>
+  </div>
+
+  <iframe id="microframe" class="frame" src="about:blank" allow="clipboard-read; clipboard-write"></iframe>
+
+  <script>
+    (function () {
+      const ROUTES = {
+        "visual-dsl": "/visual-dsl/",
+        "charioteer": "/charioteer/editor"
+      };
+      const tabs = Array.from(document.querySelectorAll(".tab"));
+      const frame = document.getElementById("microframe");
+      const statusEl = document.getElementById("status");
+      const link = document.getElementById("openNewTab");
+      const LS_KEY = "chariot.orchestrator.app";
+
+      function setActive(app) {
+        tabs.forEach(t => t.classList.toggle("active", t.dataset.app === app));
+        const url = ROUTES[app] || ROUTES["visual-dsl"];
+        frame.src = url;
+        link.href = url;
+        statusEl.textContent = app === "visual-dsl" ? "Visual DSL" : "Charioteer";
+        localStorage.setItem(LS_KEY, app);
+        // reflect in hash for deep links
+        if (location.hash !== "#" + app) history.replaceState(null, "", "#" + app);
+      }
+
+      tabs.forEach(t => t.addEventListener("click", () => setActive(t.dataset.app)));
+
+      // pick app from hash, then localStorage, else default
+      const fromHash = location.hash.replace(/^#/, "");
+      const initial = ROUTES[fromHash] ? fromHash : (localStorage.getItem(LS_KEY) || "visual-dsl");
+      setActive(initial);
+
+      // allow external hash switch (#visual-dsl / #charioteer)
+      window.addEventListener("hashchange", () => {
+        const h = location.hash.replace(/^#/, "");
+        if (ROUTES[h]) setActive(h);
+      });
+    })();
+  </script>
 </body>
 </html>
