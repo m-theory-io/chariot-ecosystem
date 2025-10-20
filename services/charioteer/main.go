@@ -958,7 +958,7 @@ const editorTemplate = `<!DOCTYPE html>
                         <button id="loginButton" class="auth-button">Login</button>
                     </div>
                     <div id="loggedInSection" style="display: none;">
-                        <span class="user-info">Logged in as: <span id="currentUserSpan"></span></span>
+                        <span class="user-info"><span id="currentUserSpan"></span></span>
                         <button id="logoutButton" class="auth-button logout">Logout</button>
                     </div>
                 </div>
@@ -1026,7 +1026,7 @@ const editorTemplate = `<!DOCTYPE html>
             [/\b(append|ascii|atPos|char|charAt|concat|digits|format|hasPrefix|hasSuffix|interpolate|join|lastPos|lower|occurs|padLeft|padRight|repeat|replace|right|split|sprintf|string|strlen|substr|substring|trim|trimLeft|trimRight|upper)\b(?=\s*\()/, 'keyword.chariot.string'],
             [/\b(exit|getEnv|hasEnv|listen|logPrint|platform|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
             [/\b(newTree|treeFind|treeGetMetadata|treeLoad|treeLoadSecure|treeSave|treeSaveSecure|treeSearch||treeToYAML|treeToXML|treeValidateSecure|treeWalk)\b(?=\s*\()/, 'keyword.chariot.tree'],
-            [/\b(boolean|call|declare|declareGlobal|deleteFunction|destroy|empty|exists|func|function|getFunction|getVariable|hasMeta|inspectRuntime|isNull|isNumeric|listFunctions|loadFunctions|mapValue|merge|offerVar|offerVariable|registerFunction|saveFunctions|setValue|setq|toBool|toMapValue|toNumber|toString|typeOf|valueOf)\b(?=\s*\()/, 'keyword.chariot.value'],
+            [/\b(boolean|call|declare|declareGlobal|deleteFunction|destroy|empty|exists|func|function|getFunction|getVariable|hasMeta|inspectRuntime|isNull|isNumeric|listFunctions|loadFunctions|mapValue|merge|offerVar|offerVariable|registerFunction|saveFunctions|setValue|setq|symbol|toBool|toMapValue|toNumber|toString|typeOf|valueOf)\b(?=\s*\()/, 'keyword.chariot.value'],
             [/\bfunction\b/, 'keyword.control.chariot'], // Always highlight 'function' as a keyword
             [/[a-zA-Z_$][\w$]*/, 'identifier'], 
         ];

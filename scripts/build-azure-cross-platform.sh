@@ -60,6 +60,24 @@ docker buildx inspect --bootstrap
 
 print_status "Building for platform: $TARGET_PLATFORM"
 
+# Prebuild shared chariot-codegen package to avoid stale bundles/types
+prebuild_codegen() {
+    if [ -d "packages/chariot-codegen" ]; then
+        print_building "Prebuilding packages/chariot-codegen..."
+        pushd packages/chariot-codegen >/dev/null
+        if command -v npm &> /dev/null; then
+            npm ci && npm run build
+        else
+            print_warning "npm not found. Skipping local codegen prebuild. Docker builds will still build the package inside the image."
+        fi
+        popd >/dev/null
+    else
+        print_warning "packages/chariot-codegen not found. Skipping local codegen prebuild."
+    fi
+}
+
+prebuild_codegen
+
 # Function to build go-chariot
 build_go_chariot() {
     print_building "Building go-chariot binary..."
