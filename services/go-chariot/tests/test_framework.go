@@ -3,6 +3,9 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -12,6 +15,7 @@ import (
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
+	"github.com/bhouse1273/kissflag"
 	"go.uber.org/zap"
 )
 
@@ -31,14 +35,30 @@ func init() {
 		slogger := logs.NewZapLogger()
 		cfg.ChariotLogger = slogger
 	}
+
+	// Resolve test dirs relative to this file (no ~, no user-specific absolute paths)
+	_, thisFile, _, _ := runtime.Caller(0)
+	testsDir := filepath.Dir(thisFile)
+	dataDir := filepath.Join(testsDir, "data")
+	treesDir := filepath.Join(dataDir, "trees")
+	diagramsDir := filepath.Join(dataDir, "diagrams")
+
+	// Ensure directories exist
+	_ = os.MkdirAll(treesDir, 0o755)
+	_ = os.MkdirAll(diagramsDir, 0o755)
+
+	// Bind via canonical env vars (one place for all tests)
+	os.Setenv("CHARIOT_DATA_PATH", dataDir)
+	os.Setenv("CHARIOT_TREE_PATH", treesDir)
+	os.Setenv("CHARIOT_DIAGRAM_PATH", diagramsDir)
+	os.Setenv("CHARIOT_VAULT_KEY_PREFIX", "local")
+
+	kissflag.SetPrefix("CHARIOT_")
+	_ = kissflag.BindAllEVars(cfg.ChariotConfig)
+	// Normalize any configured paths (expand ~, make absolute, clean)
+	cfg.ExpandAndNormalizePaths()
+
 	cfg.ChariotConfig.VaultName = "chariot-vault"
-
-	// Set DataPath for file operations in tests - use absolute path
-	cfg.ChariotConfig.DataPath = "/home/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data"
-	cfg.ChariotConfig.TreePath = "/home/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees"
-	// Use the data directory for diagram persistence during tests unless overridden
-	cfg.ChariotConfig.DiagramPath = "/home/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/diagrams"
-
 	// Initialize Vault client for all tests
 	if err := vault.InitVaultClient(); err != nil {
 		cfg.ChariotLogger.Error("vault client init failed", zap.String("error", err.Error()))

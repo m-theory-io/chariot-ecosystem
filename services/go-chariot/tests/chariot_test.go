@@ -76,6 +76,14 @@ func TestBasicExpressions(t *testing.T) {
 			},
 			ExpectedValue: chariot.Number(120),
 		},
+		{
+			Name: "Symbol Variable Access",
+			Script: []string{
+				"declare(myVar, 'N', 42)",
+				"symbol('myVar')",
+			},
+			ExpectedValue: chariot.Number(42),
+		},
 	}
 
 	RunTestCases(t, tests)

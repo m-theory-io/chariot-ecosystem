@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -138,4 +139,52 @@ func (c *Config) FloatVar(evar string, receiver *float64, defValue float64) {
 	} else {
 		*receiver = defValue
 	}
+}
+
+// expandUserPath expands a leading ~ to the current user's home directory.
+// If the path doesn't start with ~, it's returned as-is.
+func expandUserPath(p string) string {
+	if p == "" {
+		return p
+	}
+	if strings.HasPrefix(p, "~") {
+		if home, err := os.UserHomeDir(); err == nil {
+			// handle cases: "~", "~/..."
+			if p == "~" {
+				return home
+			}
+			// replace only the leading tilde
+			return filepath.Join(home, strings.TrimPrefix(p, "~/"))
+		}
+	}
+	return p
+}
+
+// ExpandAndNormalizePaths expands ~ and cleans configured filesystem paths.
+// Call this after binding environment variables.
+func ExpandAndNormalizePaths() {
+	// Expand
+	ChariotConfig.DataPath = expandUserPath(ChariotConfig.DataPath)
+	ChariotConfig.TreePath = expandUserPath(ChariotConfig.TreePath)
+	ChariotConfig.DiagramPath = expandUserPath(ChariotConfig.DiagramPath)
+	ChariotConfig.CertPath = expandUserPath(ChariotConfig.CertPath)
+
+	// Clean and, if relative, make absolute relative to current working directory
+	normalize := func(p string) string {
+		if p == "" {
+			return p
+		}
+		p = filepath.Clean(p)
+		if !filepath.IsAbs(p) {
+			if abs, err := filepath.Abs(p); err == nil {
+				return abs
+			}
+		}
+		return p
+	}
+
+	ChariotConfig.DataPath = normalize(ChariotConfig.DataPath)
+	ChariotConfig.TreePath = normalize(ChariotConfig.TreePath)
+	ChariotConfig.DiagramPath = normalize(ChariotConfig.DiagramPath)
+	ChariotConfig.CertPath = normalize(ChariotConfig.CertPath)
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 )
 
 var (
@@ -20,8 +21,8 @@ var (
 func initTestPaths() {
 	if testDataPath == "" {
 		initCouchbaseConfig() // This sets up the config
-		testDataPath = dataPath
-		testTreePath = treePath
+		testDataPath = cfg.ChariotConfig.DataPath
+		testTreePath = cfg.ChariotConfig.TreePath
 	}
 }
 
@@ -472,7 +473,7 @@ func TestUnsupportedFileFormat(t *testing.T) {
 	initTestPaths()
 
 	// Use the configured tree path
-	testDir := filepath.Join(treePath, "test_unsupported")
+	testDir := filepath.Join(cfg.ChariotConfig.TreePath, "test_unsupported")
 	err := os.MkdirAll(testDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)

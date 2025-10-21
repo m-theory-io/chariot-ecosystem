@@ -68,6 +68,8 @@ func init() {
 
 	// Bind evars
 	kissflag.BindAllEVars(cfg.ChariotConfig)
+	// Normalize any configured paths (expand ~, make absolute, clean)
+	cfg.ExpandAndNormalizePaths()
 
 	// Policy: do not accept legacy env var names. If legacy is present, warn and ignore.
 	if legacy := os.Getenv("CHARIOT_BOOTSTRAP_FILE"); legacy != "" {

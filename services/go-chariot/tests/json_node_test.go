@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // TestJSONNodes tests JSON node creation and manipulation
@@ -448,7 +449,7 @@ func TestJSONFileOperations(t *testing.T) {
 	RunTestCases(t, tests)
 
 	// format fullPath to ensure it works correctly
-	folder := dataPath
+	folder := cfg.ChariotConfig.DataPath
 	if folder == "" {
 		folder = "."
 	}

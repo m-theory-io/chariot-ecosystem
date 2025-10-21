@@ -25,9 +25,9 @@ func initMySQLConfig() {
 		os.Setenv("CHARIOT_SQL_PASSWORD", "chariot123")
 		os.Setenv("CHARIOT_SQL_DATABASE", "testsql")
 		os.Setenv("CHARIOT_SQL_PORT", "3306")
-		os.Setenv("CHARIOT_DATA_PATH", "~/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
-		os.Setenv("CHARIOT_TREE_PATH", "~/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
+		// Data/Tree paths are centrally configured in test_framework.go; avoid using ~ here
 		os.Setenv("CHARIOT_VAULT_NAME", "chariot-vault")
+		os.Setenv("CHARIOT_VAULT_KEY_PREFIX", "local")
 		kissflag.SetPrefix("CHARIOT_")
 
 		// Read configuration from environment variables
@@ -45,9 +45,10 @@ func initMySQLConfig() {
 		cfg.ChariotConfig.IntVar("sql_port", &cfg.ChariotConfig.SQLPort, 3306)
 
 		cfg.ChariotConfig.StringVar("vault_name", &cfg.ChariotConfig.VaultName, "chariot-vault")
+		cfg.ChariotConfig.StringVar("vault_key_prefix", &cfg.ChariotConfig.VaultKeyPrefix, "local")
 
 		// Bind environment variables
-		kissflag.BindAllEVars(cfg.ChariotConfig)
+		_ = kissflag.BindAllEVars(cfg.ChariotConfig)
 	})
 }
 

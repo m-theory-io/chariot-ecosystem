@@ -237,6 +237,6 @@ func makeSecretName(orgKey string) string {
 	}
 	normalizedKey := fmt.Sprintf("%s-%s", keyPrefix, orgKey)
 	cfg.ChariotLogger.Debug("Generated secret name", zap.String("secret_name", normalizedKey))
-	normalizedKey = "azure-BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA" // HARDCODED for now
+	// normalizedKey = "azure-BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA" // HARDCODED for now
 	return normalizedKey
 }

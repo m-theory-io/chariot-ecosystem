@@ -18,26 +18,22 @@ var (
 	cbPassword          string
 	cbBucket            string
 	cbScope             string
-	dataPath            string
-	treePath            string
 )
 
 // initCouchbaseConfig ensures config is loaded once
 func initCouchbaseConfig() {
 	couchbaseConfigOnce.Do(func() {
 		// Set the env vars in the os
+		// Couchbase-specific env for tests
 		os.Setenv("CHARIOT_COUCHBASE_URL", "localhost")
 		os.Setenv("CHARIOT_COUCHBASE_USER", "mtheory")
 		os.Setenv("CHARIOT_COUCHBASE_PASSWORD", "Borg12731273")
 		os.Setenv("CHARIOT_COUCHBASE_BUCKET", "chariot")
 		os.Setenv("CHARIOT_COUCHBASE_SCOPE", "_default")
 		os.Setenv("CHARIOT_CBDL", "true")
-		os.Setenv("CHARIOT_DATA_PATH", "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data")
-		os.Setenv("CHARIOT_TREE_PATH", "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/tree")
-		os.Setenv("CHARIOT_DIAGRAM_PATH", "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/diagrams")
 
 		kissflag.SetPrefix("CHARIOT_")
-		kissflag.BindAllEVars(cfg.ChariotConfig)
+		_ = kissflag.BindAllEVars(cfg.ChariotConfig)
 
 		// Capture values after binding
 		cbURL = fmt.Sprintf("couchbase://%s", cfg.ChariotConfig.CBUrl)
@@ -45,9 +41,6 @@ func initCouchbaseConfig() {
 		cbPassword = cfg.ChariotConfig.CBPassword
 		cbBucket = cfg.ChariotConfig.CBBucket
 		cbScope = cfg.ChariotConfig.CBScope
-		// Persistence
-		dataPath = cfg.ChariotConfig.DataPath
-		treePath = cfg.ChariotConfig.TreePath
 
 		// Debug logging
 		fmt.Printf("🔧 Couchbase Config Initialized:\n")
