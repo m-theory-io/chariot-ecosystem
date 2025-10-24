@@ -69,11 +69,11 @@ func init() {
 	cfg.ChariotConfig.StringVar("listeners_file", &cfg.ChariotConfig.ListenersFile, "listeners.json")
 	// MCP configuration
 	cfg.ChariotConfig.BoolVar("mcp_enabled", &cfg.ChariotConfig.MCPEnabled, false)
-	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "stdio")
+	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "ws")
 	cfg.ChariotConfig.StringVar("mcp_ws_path", &cfg.ChariotConfig.MCPWSPath, "/mcp")
 
 	// Bind evars
-	kissflag.BindAllEVars(cfg.ChariotConfig)
+	_ = kissflag.BindAllEVars(cfg.ChariotConfig)
 	// Normalize any configured paths (expand ~, make absolute, clean)
 	cfg.ExpandAndNormalizePaths()
 

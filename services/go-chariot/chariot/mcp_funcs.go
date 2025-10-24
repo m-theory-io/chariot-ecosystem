@@ -1,13 +1,18 @@
 package chariot
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/gorilla/websocket"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -97,6 +102,38 @@ func RegisterMCPFunctions(rt *Runtime) {
 				return nil, fmt.Errorf("mcpConnect(stdio): connect failed: %w", err)
 			}
 			session = s
+		case "ws":
+			// Optional: options.url; else default to local server derived from config
+			var wsURL string
+			if v, ok := opts.Values["url"].(Str); ok && v != "" {
+				wsURL = string(v)
+			} else {
+				// Build default: ws://127.0.0.1:<port><path>
+				path := cfg.ChariotConfig.MCPWSPath
+				if path == "" {
+					path = "/mcp"
+				}
+				if path[0] != '/' {
+					path = "/" + path
+				}
+				wsURL = fmt.Sprintf("ws://127.0.0.1:%d%s", cfg.ChariotConfig.Port, path)
+			}
+
+			dialer := websocket.DefaultDialer
+			conn, _, err := dialer.Dial(wsURL, nil)
+			if err != nil {
+				return nil, fmt.Errorf("mcpConnect(ws): dial failed: %w", err)
+			}
+			// Wrap in IOTransport using an adapter
+			rwc := newWSRWC(conn)
+			transport := &mcp.IOTransport{Reader: rwc, Writer: rwc}
+			s, err := client.Connect(ctx, transport, nil)
+			if err != nil {
+				_ = conn.Close()
+				return nil, fmt.Errorf("mcpConnect(ws): connect failed: %w", err)
+			}
+			session = s
+			// cmd remains nil for ws transport
 		default:
 			return nil, fmt.Errorf("unsupported transport: %s", transport)
 		}
@@ -215,4 +252,71 @@ func asMCPHandle(v Value) (*mcpClientHandle, error) {
 	default:
 		return nil, fmt.Errorf("expected MCP client handle, got %T", v)
 	}
+}
+
+// wsrwc is a minimal websocket -> io.ReadWriteCloser adapter for newline-delimited JSON.
+type wsrwc struct {
+	conn   *websocket.Conn
+	rbuf   bytes.Buffer
+	mu     sync.Mutex
+	closed bool
+}
+
+func newWSRWC(conn *websocket.Conn) *wsrwc { return &wsrwc{conn: conn} }
+
+func (w *wsrwc) Read(p []byte) (int, error) {
+	// Do not hold the lock while waiting on network IO to avoid deadlocks
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return 0, io.EOF
+	}
+	if w.rbuf.Len() > 0 {
+		n, err := w.rbuf.Read(p)
+		w.mu.Unlock()
+		return n, err
+	}
+	w.mu.Unlock()
+
+	mt, data, err := w.conn.ReadMessage()
+	if err != nil {
+		return 0, err
+	}
+	if mt != websocket.TextMessage {
+		return 0, fmt.Errorf("unsupported ws message type")
+	}
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return 0, io.EOF
+	}
+	w.rbuf.Write(data)
+	return w.rbuf.Read(p)
+}
+
+func (w *wsrwc) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return 0, io.ErrClosedPipe
+	}
+	if err := w.conn.WriteMessage(websocket.TextMessage, p); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (w *wsrwc) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return nil
+	}
+	w.closed = true
+	_ = w.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	return w.conn.Close()
 }

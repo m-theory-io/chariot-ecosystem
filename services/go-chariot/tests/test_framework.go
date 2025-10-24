@@ -52,6 +52,9 @@ func init() {
 	os.Setenv("CHARIOT_TREE_PATH", treesDir)
 	os.Setenv("CHARIOT_DIAGRAM_PATH", diagramsDir)
 	os.Setenv("CHARIOT_VAULT_KEY_PREFIX", "local")
+	os.Setenv("CHARIOT_MCP_ENABLED", "true")
+	os.Setenv("CHARIOT_MCP_TRANSPORT", "ws")
+	os.Setenv("CHARIOT_MCP_WS_PATH", "/mcp")
 
 	kissflag.SetPrefix("CHARIOT_")
 	_ = kissflag.BindAllEVars(cfg.ChariotConfig)

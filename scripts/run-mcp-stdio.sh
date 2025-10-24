@@ -28,11 +28,11 @@ if [[ "${NO_BUILD}" != "true" ]]; then
   go build -o "${BIN_PATH}" ./cmd
 fi
 
-# Default env (can be overridden by caller)
-export CHARIOT_MCP_ENABLED="${CHARIOT_MCP_ENABLED:-true}"
-export CHARIOT_MCP_TRANSPORT="${CHARIOT_MCP_TRANSPORT:-stdio}"
+# Force stdio MCP mode regardless of parent environment to avoid interference from test globals
+export CHARIOT_MCP_ENABLED="true"
+export CHARIOT_MCP_TRANSPORT="stdio"
 # Optional: disable REST explicitly (stdio mode short-circuits before REST anyway)
-export CHARIOT_DEV_REST_ENABLED="${CHARIOT_DEV_REST_ENABLED:-false}"
+export CHARIOT_DEV_REST_ENABLED="false"
 
 # Run the MCP server (stdio). Process exits when the MCP client disconnects.
 echo "[MCP] Launching go-chariot (stdio transport)." >&2
