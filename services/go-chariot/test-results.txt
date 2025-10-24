@@ -1,4 +1,4 @@
-{"level":"info","ts":1760999000.435009,"caller":"logs/logger.go:29","msg":"Successfully initialized Key Vault client","vault_uri":"https://chariot-vault.vault.azure.net"}
+{"level":"info","ts":1761334297.402121,"caller":"logs/logger.go:33","msg":"Successfully initialized Key Vault client","vault_uri":"https://chariot-vault.vault.azure.net"}
 === RUN   TestAgentMinimal
 🔧 Couchbase Config Initialized:
   URL: couchbase://localhost
@@ -19,12 +19,12 @@ DEBUG: Processing part[0]='profile', current=map[profile:map[age:30 debt:7000.25
 DEBUG: getJSONProperty returning: {"age":30,"debt":7000.25,"is_employed":true}
 DEBUG: getProp returning: {"age":30,"debt":7000.25,"is_employed":true}
 DEBUG: getProp called with path='decision'
-DEBUG: getProp sees data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-11-04. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
-DEBUG: getJSONProperty called with path='decision', data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-11-04. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.]
-DEBUG: Processing part[0]='decision', current=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-11-04. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
+DEBUG: getProp sees data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-11-08. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='decision', data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-11-08. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.]
+DEBUG: Processing part[0]='decision', current=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-11-08. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
 DEBUG: getJSONProperty returning: approved
 DEBUG: getProp returning: approved
-    test_framework.go:253: ✅ Test passed: approved
+    test_framework.go:256: ✅ Test passed: approved
 --- PASS: TestAgentMinimal (0.00s)
     --- PASS: TestAgentMinimal/Agent_with_Handler_Node_-_Decision_Request (0.00s)
 === RUN   TestArrayMinimal
@@ -101,14 +101,14 @@ DEBUG: getProp returning: approved
     --- PASS: TestArrayErrorHandling/Too_Few_Arguments_for_AddTo (0.00s)
 === RUN   TestUserAccountManagement
 === RUN   TestUserAccountManagement/Create_User_Agent
-    test_framework.go:244: No expected value to compare for test Create User Agent
-    test_framework.go:245: ✅ Test passed: Node(usersAgent)
+    test_framework.go:247: No expected value to compare for test Create User Agent
+    test_framework.go:248: ✅ Test passed: Node(usersAgent)
 === RUN   TestUserAccountManagement/Add_User_Account
-    test_framework.go:253: ✅ Test passed: bhouse
+    test_framework.go:256: ✅ Test passed: bhouse
 === RUN   TestUserAccountManagement/Find_User_by_ID
-    test_framework.go:253: ✅ Test passed: Bill House
+    test_framework.go:256: ✅ Test passed: Bill House
 === RUN   TestUserAccountManagement/Update_User_Roles
-    test_framework.go:253: ✅ Test passed: 3
+    test_framework.go:256: ✅ Test passed: 3
 --- PASS: TestUserAccountManagement (0.00s)
     --- PASS: TestUserAccountManagement/Create_User_Agent (0.00s)
     --- PASS: TestUserAccountManagement/Add_User_Account (0.00s)
@@ -198,55 +198,55 @@ DEBUG: getProp returning: approved
     --- PASS: TestSwitchStatements/Nested_Switch_Statements (0.00s)
 === RUN   TestCouchbaseOperations
 === RUN   TestCouchbaseOperations/Connect_to_Couchbase_Cluster
-{"level":"info","ts":1760999002.7761128,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:253: ✅ Test passed: Connected to Couchbase cluster
+{"level":"info","ts":1761334298.4203808,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:256: ✅ Test passed: Connected to Couchbase cluster
 === RUN   TestCouchbaseOperations/Open_Bucket
-    test_framework.go:253: ✅ Test passed: Opened bucket: chariot
+    test_framework.go:256: ✅ Test passed: Opened bucket: chariot
 === RUN   TestCouchbaseOperations/Set_Scope_and_Collection
-    test_framework.go:253: ✅ Test passed: Set scope: _default._default
+    test_framework.go:256: ✅ Test passed: Set scope: _default._default
 === RUN   TestCouchbaseOperations/Cleanup_Bucket
-    test_framework.go:253: ✅ Test passed: All documents deleted
+    test_framework.go:256: ✅ Test passed: All documents deleted
 === RUN   TestCouchbaseOperations/Insert_Document
-    test_framework.go:253: ✅ Test passed: true
+    test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/Get_Document
-    test_framework.go:253: ✅ Test passed: John Doe
+    test_framework.go:256: ✅ Test passed: John Doe
 === RUN   TestCouchbaseOperations/Upsert_Document
-    test_framework.go:253: ✅ Test passed: true
+    test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/Verify_Upsert
-    test_framework.go:253: ✅ Test passed: John Doe
+    test_framework.go:256: ✅ Test passed: John Doe
 === RUN   TestCouchbaseOperations/Basic_N1QL_Query
-    test_framework.go:253: ✅ Test passed: 1
+    test_framework.go:256: ✅ Test passed: 1
 === RUN   TestCouchbaseOperations/Parameterized_N1QL_Query
-    test_framework.go:253: ✅ Test passed: 1
+    test_framework.go:256: ✅ Test passed: 1
 === RUN   TestCouchbaseOperations/Query_Result_Content
-    test_framework.go:253: ✅ Test passed: John Doe
+    test_framework.go:256: ✅ Test passed: John Doe
 === RUN   TestCouchbaseOperations/Insert_Complex_Document
-    test_framework.go:253: ✅ Test passed: true
+    test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/Query_Nested_Properties
-    test_framework.go:253: ✅ Test passed: alice@example.com
+    test_framework.go:256: ✅ Test passed: alice@example.com
 === RUN   TestCouchbaseOperations/Insert_Multiple_Documents
-    test_framework.go:253: ✅ Test passed: Bulk insert completed
+    test_framework.go:256: ✅ Test passed: Bulk insert completed
 === RUN   TestCouchbaseOperations/Query_Multiple_Products
-    test_framework.go:253: ✅ Test passed: 3
+    test_framework.go:256: ✅ Test passed: 3
 === RUN   TestCouchbaseOperations/Aggregate_Query
-    test_framework.go:253: ✅ Test passed: 3
+    test_framework.go:256: ✅ Test passed: 3
 === RUN   TestCouchbaseOperations/Remove_Document
-    test_framework.go:253: ✅ Test passed: Document removed
+    test_framework.go:256: ✅ Test passed: Document removed
 === RUN   TestCouchbaseOperations/Verify_Removal
-    test_framework.go:253: ✅ Test passed: 0
+    test_framework.go:256: ✅ Test passed: 0
 === RUN   TestCouchbaseOperations/CAS_String_Preservation
-{"level":"info","ts":1760999005.986376,"caller":"logs/logger.go:29","msg":"CAS exists in metadata"}
-    test_framework.go:253: ✅ Test passed: true
+{"level":"info","ts":1761334301.6542542,"caller":"logs/logger.go:33","msg":"CAS exists in metadata"}
+    test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/CAS-based_Replace_Operation
-    test_framework.go:253: ✅ Test passed: 456
+    test_framework.go:256: ✅ Test passed: 456
 === RUN   TestCouchbaseOperations/Couchbase_Metadata_Structure
-    test_framework.go:253: ✅ Test passed: true
+    test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/CAS_Precision_Preservation
-    test_framework.go:253: ✅ Test passed: true
+    test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/Clean_JSON_Serialization_(No_Metadata_Pollution)
-    test_framework.go:253: ✅ Test passed: true
---- PASS: TestCouchbaseOperations (5.55s)
-    --- PASS: TestCouchbaseOperations/Connect_to_Couchbase_Cluster (2.34s)
+    test_framework.go:256: ✅ Test passed: true
+--- PASS: TestCouchbaseOperations (4.25s)
+    --- PASS: TestCouchbaseOperations/Connect_to_Couchbase_Cluster (1.02s)
     --- PASS: TestCouchbaseOperations/Open_Bucket (0.06s)
     --- PASS: TestCouchbaseOperations/Set_Scope_and_Collection (0.00s)
     --- PASS: TestCouchbaseOperations/Cleanup_Bucket (0.03s)
@@ -254,11 +254,11 @@ DEBUG: getProp returning: approved
     --- PASS: TestCouchbaseOperations/Get_Document (0.00s)
     --- PASS: TestCouchbaseOperations/Upsert_Document (0.00s)
     --- PASS: TestCouchbaseOperations/Verify_Upsert (0.00s)
-    --- PASS: TestCouchbaseOperations/Basic_N1QL_Query (1.02s)
+    --- PASS: TestCouchbaseOperations/Basic_N1QL_Query (1.03s)
     --- PASS: TestCouchbaseOperations/Parameterized_N1QL_Query (0.01s)
     --- PASS: TestCouchbaseOperations/Query_Result_Content (0.01s)
     --- PASS: TestCouchbaseOperations/Insert_Complex_Document (0.00s)
-    --- PASS: TestCouchbaseOperations/Query_Nested_Properties (1.02s)
+    --- PASS: TestCouchbaseOperations/Query_Nested_Properties (1.03s)
     --- PASS: TestCouchbaseOperations/Insert_Multiple_Documents (0.00s)
     --- PASS: TestCouchbaseOperations/Query_Multiple_Products (1.02s)
     --- PASS: TestCouchbaseOperations/Aggregate_Query (0.01s)
@@ -271,78 +271,78 @@ DEBUG: getProp returning: approved
     --- PASS: TestCouchbaseOperations/Clean_JSON_Serialization_(No_Metadata_Pollution) (0.00s)
 === RUN   TestCouchbaseErrorHandling
 === RUN   TestCouchbaseErrorHandling/Invalid_Connection_String
-{"level":"info","ts":1760999006.055447,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:244: No expected value to compare for test Invalid Connection String
-    test_framework.go:245: ✅ Test passed: Connected to Couchbase cluster
+{"level":"info","ts":1761334301.718376,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:247: No expected value to compare for test Invalid Connection String
+    test_framework.go:248: ✅ Test passed: Connected to Couchbase cluster
 === RUN   TestCouchbaseErrorHandling/Invalid_Credentials
-{"level":"info","ts":1760999006.2562299,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:244: No expected value to compare for test Invalid Credentials
-    test_framework.go:245: ✅ Test passed: Opened bucket: chariot
+{"level":"info","ts":1761334301.8190012,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:247: No expected value to compare for test Invalid Credentials
+    test_framework.go:248: ✅ Test passed: Opened bucket: chariot
 === RUN   TestCouchbaseErrorHandling/Query_Non-existent_Node
-    test_framework.go:230: ✅ Expected error caught: couchbase node 'nonexistent' not found
+    test_framework.go:233: ✅ Expected error caught: couchbase node 'nonexistent' not found
 === RUN   TestCouchbaseErrorHandling/Get_from_Non-existent_Node
-    test_framework.go:230: ✅ Expected error caught: couchbase node 'nonexistent' not found
+    test_framework.go:233: ✅ Expected error caught: couchbase node 'nonexistent' not found
 === RUN   TestCouchbaseErrorHandling/Get_Non-existent_Document
-{"level":"info","ts":1760999006.480364,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:230: ✅ Expected error caught: failed to get document: document not found | {"status_code":1,"document_id":"nonexistent::document","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_ENOENT","error_description":"Not Found","opaque":9,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:57691","last_connection_id":"33caa3a29d27e896/28ecd2e28cb564c5"}
+{"level":"info","ts":1761334302.0630422,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: failed to get document: document not found | {"status_code":1,"document_id":"nonexistent::document","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_ENOENT","error_description":"Not Found","opaque":9,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:50009","last_connection_id":"d39445db4f3ea091/3cf497ce274bbfa1"}
 === RUN   TestCouchbaseErrorHandling/Invalid_N1QL_Syntax
-{"level":"info","ts":1760999006.725783,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:230: ✅ Expected error caught: query failed: parsing failure | {"statement":"INVALID SQL SYNTAX HERE","client_context_id":"5292b995-e575-4351-8d37-7dd7f894a90d","errors":[{"code":3000,"message":"syntax error - line 1, column 17, near 'PREPARE INVALID ', at: SQL"}],"http_status_code":400}
+{"level":"info","ts":1761334302.219601,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: query failed: parsing failure | {"statement":"INVALID SQL SYNTAX HERE","client_context_id":"435ed04b-9daa-4c66-96d8-d53b11937a20","errors":[{"code":3000,"message":"syntax error - line 1, column 17, near 'PREPARE INVALID ', at: SQL"}],"http_status_code":400}
 === RUN   TestCouchbaseErrorHandling/Open_Non-existent_Bucket
-{"level":"info","ts":1760999006.865332,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:230: ✅ Expected error caught: failed to open bucket: unambiguous timeout | {"operation_id":"WaitUntilReady","time_observed":15000735,"retry_reasons":["NOT_READY","CONNECTION_ERROR"],"retry_attempts":38}
+{"level":"info","ts":1761334302.4620428,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: failed to open bucket: unambiguous timeout | {"operation_id":"WaitUntilReady","time_observed":15000739,"retry_reasons":["NOT_READY","CONNECTION_ERROR"],"retry_attempts":38}
 === RUN   TestCouchbaseErrorHandling/Connect_with_Wrong_Argument_Count
-    test_framework.go:230: ✅ Expected error caught: cbConnect requires 4 arguments: nodeName, connectionString, username, password
+    test_framework.go:233: ✅ Expected error caught: cbConnect requires 4 arguments: nodeName, connectionString, username, password
 === RUN   TestCouchbaseErrorHandling/Query_with_Wrong_Argument_Count
-    test_framework.go:230: ✅ Expected error caught: cbQuery requires at least 2 arguments: nodeName, query, [params...]
+    test_framework.go:233: ✅ Expected error caught: cbQuery requires at least 2 arguments: nodeName, query, [params...]
 === RUN   TestCouchbaseErrorHandling/Insert_with_Wrong_Argument_Count
-    test_framework.go:230: ✅ Expected error caught: cbInsert requires 3-4 arguments: nodeName, documentId, document, [expiryDuration]
+    test_framework.go:233: ✅ Expected error caught: cbInsert requires 3-4 arguments: nodeName, documentId, document, [expiryDuration]
 === RUN   TestCouchbaseErrorHandling/Invalid_CAS_Format
-{"level":"info","ts":1760999021.94266,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:230: ✅ Expected error caught: failed to replace document: invalid CAS value: strconv.ParseUint: parsing "invalid_cas": invalid syntax
+{"level":"info","ts":1761334317.633736,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: failed to replace document: invalid CAS value: strconv.ParseUint: parsing "invalid_cas": invalid syntax
 === RUN   TestCouchbaseErrorHandling/CAS_Mismatch
-    test_framework.go:230: ✅ Expected error caught: failed to replace document: cas mismatch | {"status_code":2,"document_id":"cas_mismatch::test","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_EEXISTS","error_description":"key already exists, or CAS mismatch","opaque":11,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:57703","last_connection_id":"bbc6d6dad3945feb/da680b5ed9bf01fc"}
+    test_framework.go:233: ✅ Expected error caught: failed to replace document: cas mismatch | {"status_code":2,"document_id":"cas_mismatch::test","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_EEXISTS","error_description":"key already exists, or CAS mismatch","opaque":11,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:50021","last_connection_id":"fddf4e9acc010813/a9c66329ee1852b2"}
 === RUN   TestCouchbaseErrorHandling/Enhanced_Cleanup
-    test_framework.go:253: ✅ Test passed: All documents deleted
---- PASS: TestCouchbaseErrorHandling (15.98s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_Connection_String (0.07s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_Credentials (0.27s)
+    test_framework.go:256: ✅ Test passed: All documents deleted
+--- PASS: TestCouchbaseErrorHandling (16.06s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_Connection_String (0.06s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_Credentials (0.16s)
     --- PASS: TestCouchbaseErrorHandling/Query_Non-existent_Node (0.00s)
     --- PASS: TestCouchbaseErrorHandling/Get_from_Non-existent_Node (0.00s)
-    --- PASS: TestCouchbaseErrorHandling/Get_Non-existent_Document (0.22s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_N1QL_Syntax (0.25s)
-    --- PASS: TestCouchbaseErrorHandling/Open_Non-existent_Bucket (15.07s)
+    --- PASS: TestCouchbaseErrorHandling/Get_Non-existent_Document (0.25s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_N1QL_Syntax (0.16s)
+    --- PASS: TestCouchbaseErrorHandling/Open_Non-existent_Bucket (15.17s)
     --- PASS: TestCouchbaseErrorHandling/Connect_with_Wrong_Argument_Count (0.00s)
     --- PASS: TestCouchbaseErrorHandling/Query_with_Wrong_Argument_Count (0.00s)
     --- PASS: TestCouchbaseErrorHandling/Insert_with_Wrong_Argument_Count (0.00s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_CAS_Format (0.09s)
-    --- PASS: TestCouchbaseErrorHandling/CAS_Mismatch (0.00s)
-    --- PASS: TestCouchbaseErrorHandling/Enhanced_Cleanup (0.01s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_CAS_Format (0.23s)
+    --- PASS: TestCouchbaseErrorHandling/CAS_Mismatch (0.01s)
+    --- PASS: TestCouchbaseErrorHandling/Enhanced_Cleanup (0.02s)
 === RUN   TestCouchbaseIntegration
 === RUN   TestCouchbaseIntegration/Complete_Workflow
-{"level":"info","ts":1760999022.037076,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:253: ✅ Test passed: testuser:dark
+{"level":"info","ts":1761334317.987484,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:256: ✅ Test passed: testuser:dark
 === RUN   TestCouchbaseIntegration/JSON_File_to_Couchbase
-{"level":"info","ts":1760999024.37518,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:253: ✅ Test passed: 2
+{"level":"info","ts":1761334320.202406,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:256: ✅ Test passed: 2
 === RUN   TestCouchbaseIntegration/Array_Processing_with_Couchbase
-{"level":"info","ts":1760999026.666807,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:253: ✅ Test passed: 3
---- PASS: TestCouchbaseIntegration (5.80s)
-    --- PASS: TestCouchbaseIntegration/Complete_Workflow (2.13s)
-    --- PASS: TestCouchbaseIntegration/JSON_File_to_Couchbase (2.38s)
-    --- PASS: TestCouchbaseIntegration/Array_Processing_with_Couchbase (1.28s)
+{"level":"info","ts":1761334322.4766028,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:256: ✅ Test passed: 3
+--- PASS: TestCouchbaseIntegration (5.83s)
+    --- PASS: TestCouchbaseIntegration/Complete_Workflow (2.39s)
+    --- PASS: TestCouchbaseIntegration/JSON_File_to_Couchbase (2.21s)
+    --- PASS: TestCouchbaseIntegration/Array_Processing_with_Couchbase (1.24s)
 === RUN   TestCryptoOperations
 === RUN   TestCryptoOperations/SHA256_Hash
 === RUN   TestCryptoOperations/SHA512_Hash
 === RUN   TestCryptoOperations/AES_Encryption/Decryption_with_Direct_Functions
-{"level":"info","ts":1760999027.766764,"caller":"logs/logger.go:29","msg":"AES key generated","key_size":"256"}
-{"level":"info","ts":1760999027.766964,"caller":"logs/logger.go:29","msg":"AES encryption completed","data_size":"11","ciphertext_size":"39","key_size":"256"}
-{"level":"info","ts":1760999027.766979,"caller":"logs/logger.go:29","msg":"AES decryption completed","plaintext_size":"11","key_size":"256"}
+{"level":"info","ts":1761334323.554993,"caller":"logs/logger.go:33","msg":"AES key generated","key_size":"256"}
+{"level":"info","ts":1761334323.555074,"caller":"logs/logger.go:33","msg":"AES encryption completed","data_size":"11","ciphertext_size":"39","key_size":"256"}
+{"level":"info","ts":1761334323.555081,"caller":"logs/logger.go:33","msg":"AES decryption completed","plaintext_size":"11","key_size":"256"}
 === RUN   TestCryptoOperations/Multiple_Round-trip_Encryption
-{"level":"info","ts":1760999027.767064,"caller":"logs/logger.go:29","msg":"AES key generated","key_size":"256"}
-{"level":"info","ts":1760999027.7670898,"caller":"logs/logger.go:29","msg":"AES encryption completed","data_size":"60","ciphertext_size":"88","key_size":"256"}
-{"level":"info","ts":1760999027.7670982,"caller":"logs/logger.go:29","msg":"AES decryption completed","plaintext_size":"60","key_size":"256"}
+{"level":"info","ts":1761334323.5550988,"caller":"logs/logger.go:33","msg":"AES key generated","key_size":"256"}
+{"level":"info","ts":1761334323.555108,"caller":"logs/logger.go:33","msg":"AES encryption completed","data_size":"60","ciphertext_size":"88","key_size":"256"}
+{"level":"info","ts":1761334323.555112,"caller":"logs/logger.go:33","msg":"AES decryption completed","plaintext_size":"60","key_size":"256"}
 --- PASS: TestCryptoOperations (0.00s)
     --- PASS: TestCryptoOperations/SHA256_Hash (0.00s)
     --- PASS: TestCryptoOperations/SHA512_Hash (0.00s)
@@ -477,17 +477,17 @@ DEBUG: getProp returning: approved
 === RUN   TestDoETLTypeDebugging
 === RUN   TestDoETLTypeDebugging/Transform_Creation_and_Mapping_Success
 === RUN   TestDoETLTypeDebugging/doETL_Processing_Success
-{"level":"info","ts":1760999027.774879,"caller":"logs/logger.go:29","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
-{"level":"info","ts":1760999027.774962,"caller":"logs/logger.go:29","msg":"DEBUG: Using direct field mapping","field":"name"}
-{"level":"info","ts":1760999027.774972,"caller":"logs/logger.go:29","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
-{"level":"info","ts":1760999027.774977,"caller":"logs/logger.go:29","msg":"DEBUG: Using direct field mapping","field":"name"}
-{"level":"info","ts":1760999027.774983,"caller":"logs/logger.go:29","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
-{"level":"info","ts":1760999027.774987,"caller":"logs/logger.go:29","msg":"DEBUG: Using direct field mapping","field":"name"}
-NSQ Message to etl.completed: map[archiveError:Failed to create archive directory: mkdir /archive: read-only file system batches:[map[batchNumber:1 duration:177.625µs endTime:2025-10-20T15:23:47-07:00 errorRows:0 errors:[] rowCount:3 startTime:2025-10-20T15:23:47-07:00 successRows:3]] endTime:2025-10-20T15:23:47-07:00 errorRows:0 errors:[] jobId:test_job startTime:2025-10-20T15:23:47-07:00 status:processing successRows:3 totalDuration:775.026ms totalRows:3]
+{"level":"info","ts":1761334323.558651,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
+{"level":"info","ts":1761334323.558681,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
+{"level":"info","ts":1761334323.5587041,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
+{"level":"info","ts":1761334323.558707,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
+{"level":"info","ts":1761334323.5587132,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
+{"level":"info","ts":1761334323.5587149,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
+NSQ Message to etl.completed: map[archiveError:Failed to create archive directory: mkdir /archive: read-only file system batches:[map[batchNumber:1 duration:97.167µs endTime:2025-10-24T12:32:03-07:00 errorRows:0 errors:[] rowCount:3 startTime:2025-10-24T12:32:03-07:00 successRows:3]] endTime:2025-10-24T12:32:03-07:00 errorRows:0 errors:[] jobId:test_job startTime:2025-10-24T12:32:03-07:00 status:processing successRows:3 totalDuration:558.733ms totalRows:3]
 DEBUG: getProp called with path='status'
-DEBUG: getProp sees data=map[archivePath: batchesProcessed:1 duration:775.026ms endTime:2025-10-20T15:23:47-07:00 jobId:test_job rowsProcessed:3 startTime:2025-10-20T15:23:47-07:00 status:completed] (type map[string]interface {})
-DEBUG: getJSONProperty called with path='status', data=map[archivePath: batchesProcessed:1 duration:775.026ms endTime:2025-10-20T15:23:47-07:00 jobId:test_job rowsProcessed:3 startTime:2025-10-20T15:23:47-07:00 status:completed]
-DEBUG: Processing part[0]='status', current=map[archivePath: batchesProcessed:1 duration:775.026ms endTime:2025-10-20T15:23:47-07:00 jobId:test_job rowsProcessed:3 startTime:2025-10-20T15:23:47-07:00 status:completed] (type map[string]interface {})
+DEBUG: getProp sees data=map[archivePath: batchesProcessed:1 duration:558.733ms endTime:2025-10-24T12:32:03-07:00 jobId:test_job rowsProcessed:3 startTime:2025-10-24T12:32:03-07:00 status:completed] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='status', data=map[archivePath: batchesProcessed:1 duration:558.733ms endTime:2025-10-24T12:32:03-07:00 jobId:test_job rowsProcessed:3 startTime:2025-10-24T12:32:03-07:00 status:completed]
+DEBUG: Processing part[0]='status', current=map[archivePath: batchesProcessed:1 duration:558.733ms endTime:2025-10-24T12:32:03-07:00 jobId:test_job rowsProcessed:3 startTime:2025-10-24T12:32:03-07:00 status:completed] (type map[string]interface {})
 DEBUG: getJSONProperty returning: completed
 DEBUG: getProp returning: completed
 === RUN   TestDoETLTypeDebugging/Transform_Type_Verification
@@ -511,7 +511,7 @@ DEBUG: getProp returning: completed
     env_test.go:22: TEST_VAR (just set): test_value
     env_test.go:25: CHARIOT_COUCHBASE_USER: 'mtheory'
     env_test.go:26: CHARIOT_COUCHBASE_PASSWORD: 'Borg12731273'
-    env_test.go:31: CHARIOT_CONFIG: &{Headless:false DevRESTEnabled:false Port:0 Timeout:0 Verbose:false SSL:false OnStart: OnExit: CBUrl:localhost CBUser:mtheory CBPassword:Borg12731273 CBBucket:chariot CBScope:_default CBDL:false SQLDriver: SQLHost: SQLUser: SQLPassword: SQLDatabase: SQLPort:0 VaultName:chariot-vault VaultURI: VaultKeyPrefix:local DataPath:/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data TreePath:/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees TreeFormat: DiagramPath:/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/diagrams CertPath: FunctionLib: Bootstrap: ListenersFile:}
+    env_test.go:31: CHARIOT_CONFIG: &{Headless:false DevRESTEnabled:false Port:0 Timeout:0 Verbose:false SSL:false OnStart: OnExit: CBUrl:localhost CBUser:mtheory CBPassword:Borg12731273 CBBucket:chariot CBScope:_default CBDL:false SQLDriver: SQLHost: SQLUser: SQLPassword: SQLDatabase: SQLPort:0 VaultName:chariot-vault VaultURI: VaultKeyPrefix:local DataPath:/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data TreePath:/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees TreeFormat: DiagramPath:/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/diagrams CertPath: FunctionLib: Bootstrap: ListenersFile: MCPEnabled:true MCPTransport:ws MCPWSPath:/mcp}
     env_test.go:37: ENV[0]: MallocNanoZone=0
     env_test.go:37: ENV[1]: USER=williamhouse
     env_test.go:37: ENV[2]: COMMAND_MODE=unix2003
@@ -522,7 +522,7 @@ DEBUG: getProp returning: completed
     env_test.go:37: ENV[7]: SHELL=/bin/zsh
     env_test.go:37: ENV[8]: TMPDIR=/var/folders/2x/jzskm9rs4432rxjylnhkt9gm0000gn/T/
     env_test.go:37: ENV[9]: __CF_USER_TEXT_ENCODING=0x1F5:0x0:0x0
-    env_test.go:41: Total environment variables: 58
+    env_test.go:41: Total environment variables: 61
 --- PASS: TestEnvironmentVariables (0.00s)
 === RUN   TestETLOperations
 === RUN   TestETLOperations/Extract_CSV_Data
@@ -619,30 +619,30 @@ DEBUG: getProp returning: completed
 === RUN   TestExtractFromInterface
 --- PASS: TestExtractFromInterface (0.00s)
 === RUN   TestExtractFromTreeFile
-{"level":"info","ts":1760999027.780844,"caller":"logs/logger.go:29","msg":"Worker started","id":1}
-{"level":"info","ts":1760999027.78087,"caller":"logs/logger.go:29","msg":"Worker started","id":3}
-{"level":"info","ts":1760999027.780844,"caller":"logs/logger.go:29","msg":"Worker started","id":4}
-{"level":"info","ts":1760999027.780852,"caller":"logs/logger.go:29","msg":"Worker started","id":0}
-{"level":"info","ts":1760999027.780875,"caller":"logs/logger.go:29","msg":"Worker started","id":2}
-{"level":"info","ts":1760999027.780915,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_extraction/test.json","path_type":"tree"}
-{"level":"info","ts":1760999027.781002,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"test_extraction/test.json"}
-{"level":"info","ts":1760999027.781077,"caller":"logs/logger.go:29","msg":"Load successful","filename":"test_extraction/test.json"}
+{"level":"info","ts":1761334323.561763,"caller":"logs/logger.go:33","msg":"Worker started","id":4}
+{"level":"info","ts":1761334323.5617652,"caller":"logs/logger.go:33","msg":"Worker started","id":0}
+{"level":"info","ts":1761334323.561771,"caller":"logs/logger.go:33","msg":"Worker started","id":2}
+{"level":"info","ts":1761334323.561763,"caller":"logs/logger.go:33","msg":"Worker started","id":1}
+{"level":"info","ts":1761334323.561784,"caller":"logs/logger.go:33","msg":"Worker started","id":3}
+{"level":"info","ts":1761334323.561785,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_extraction/test.json","path_type":"tree"}
+{"level":"info","ts":1761334323.5618691,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_extraction/test.json"}
+{"level":"info","ts":1761334323.561915,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_extraction/test.json"}
 --- PASS: TestExtractFromTreeFile (0.00s)
 === RUN   TestExtractFromMultipleFiles
-{"level":"info","ts":1760999027.7820659,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test1.json","path_type":"tree"}
-{"level":"info","ts":1760999027.782105,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"test_multiple/test1.json"}
-{"level":"info","ts":1760999027.782122,"caller":"logs/logger.go:29","msg":"Load successful","filename":"test_multiple/test1.json"}
-{"level":"info","ts":1760999027.7821481,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test2.json","path_type":"tree"}
-{"level":"info","ts":1760999027.782177,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"test_multiple/test2.json"}
-{"level":"info","ts":1760999027.7821949,"caller":"logs/logger.go:29","msg":"Load successful","filename":"test_multiple/test2.json"}
+{"level":"info","ts":1761334323.5625138,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test1.json","path_type":"tree"}
+{"level":"info","ts":1761334323.562538,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_multiple/test1.json"}
+{"level":"info","ts":1761334323.562551,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_multiple/test1.json"}
+{"level":"info","ts":1761334323.5625658,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test2.json","path_type":"tree"}
+{"level":"info","ts":1761334323.562585,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_multiple/test2.json"}
+{"level":"info","ts":1761334323.562602,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_multiple/test2.json"}
 --- PASS: TestExtractFromMultipleFiles (0.00s)
 === RUN   TestExtractFromDirectory
-{"level":"info","ts":1760999027.782955,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test1.json","path_type":"tree"}
-{"level":"info","ts":1760999027.7829819,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"test_directory/test1.json"}
-{"level":"info","ts":1760999027.782998,"caller":"logs/logger.go:29","msg":"Load successful","filename":"test_directory/test1.json"}
-{"level":"info","ts":1760999027.783024,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test2.yaml","path_type":"tree"}
-{"level":"info","ts":1760999027.7830489,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"yaml","file":"test_directory/test2.yaml"}
-{"level":"error","ts":1760999027.783218,"caller":"logs/logger.go:37","msg":"Load failed","filename":"test_directory/test2.yaml","error":"node data missing 'name' field","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:37\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
+{"level":"info","ts":1761334323.563137,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test1.json","path_type":"tree"}
+{"level":"info","ts":1761334323.5631602,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_directory/test1.json"}
+{"level":"info","ts":1761334323.5631738,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_directory/test1.json"}
+{"level":"info","ts":1761334323.563195,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test2.yaml","path_type":"tree"}
+{"level":"info","ts":1761334323.56322,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"yaml","file":"test_directory/test2.yaml"}
+{"level":"error","ts":1761334323.563315,"caller":"logs/logger.go:41","msg":"Load failed","filename":"test_directory/test2.yaml","error":"node data missing 'name' field","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
 --- PASS: TestExtractFromDirectory (0.00s)
 === RUN   TestUnsupportedFileFormat
 --- PASS: TestUnsupportedFileFormat (0.00s)
@@ -1078,21 +1078,37 @@ DEBUG: getProp returning: 42
     --- PASS: TestMathErrorHandling/Min_-_No_Arguments (0.00s)
     --- PASS: TestMathErrorHandling/Max_-_Non-numeric_Argument (0.00s)
     --- PASS: TestMathErrorHandling/Power_-_Invalid_Arguments (0.00s)
+=== RUN   TestMCPClient_ListAndExecute
+=== RUN   TestMCPClient_ListAndExecute/Connect,_list_tools_includes_ping
+=== RUN   TestMCPClient_ListAndExecute/Execute_code_via_MCP_execute_tool
+--- PASS: TestMCPClient_ListAndExecute (1.12s)
+    --- PASS: TestMCPClient_ListAndExecute/Connect,_list_tools_includes_ping (0.79s)
+    --- PASS: TestMCPClient_ListAndExecute/Execute_code_via_MCP_execute_tool (0.33s)
+=== RUN   TestMCP_WebSocket_Client_ToExternal
+--- PASS: TestMCP_WebSocket_Client_ToExternal (0.00s)
+=== RUN   TestMCP_WebSocket_Server_ListAndExecute
+2025/10/24 12:32:04 http: response.WriteHeader on hijacked connection from github.com/labstack/echo/v4.(*Response).WriteHeader (response.go:65)
+2025/10/24 12:32:04 http: response.Write on hijacked connection from github.com/labstack/echo/v4.(*Response).Write (response.go:77)
+{"time":"2025-10-24T12:32:04.688437-07:00","level":"ERROR","prefix":"echo","file":"echo.go","line":"462","message":"http: connection has been hijacked"}
+--- PASS: TestMCP_WebSocket_Server_ListAndExecute (0.00s)
 === RUN   TestMySQLOperations
+2025/10/24 12:32:04 http: response.WriteHeader on hijacked connection from github.com/labstack/echo/v4.(*Response).WriteHeader (response.go:65)
+2025/10/24 12:32:04 http: response.Write on hijacked connection from github.com/labstack/echo/v4.(*Response).Write (response.go:77)
+{"time":"2025-10-24T12:32:04.689479-07:00","level":"ERROR","prefix":"echo","file":"echo.go","line":"462","message":"http: connection has been hijacked"}
 === RUN   TestMySQLOperations/Connect_to_MySQL
-{"level":"info","ts":1760999027.790833,"caller":"logs/logger.go:29","msg":"sqlConnect called","arg_count":5}
-{"level":"info","ts":1760999027.790865,"caller":"logs/logger.go:29","msg":"sqlConnect args","node_name":"mysql-test","arg1":"localhost","arg2":"chariot"}
-{"level":"info","ts":1760999028.009333,"caller":"logs/logger.go:29","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1761334324.689574,"caller":"logs/logger.go:33","msg":"sqlConnect called","arg_count":5}
+{"level":"info","ts":1761334324.689609,"caller":"logs/logger.go:33","msg":"sqlConnect args","node_name":"mysql-test","arg1":"localhost","arg2":"chariot"}
+{"level":"info","ts":1761334324.77861,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
 === RUN   TestMySQLOperations/Create_Table
 === RUN   TestMySQLOperations/Insert_Row
 === RUN   TestMySQLOperations/Query_Row
 === RUN   TestMySQLOperations/Delete_Row
 === RUN   TestMySQLOperations/Drop_Table
 === RUN   TestMySQLOperations/Close_Connection
---- PASS: TestMySQLOperations (0.29s)
-    --- PASS: TestMySQLOperations/Connect_to_MySQL (0.24s)
-    --- PASS: TestMySQLOperations/Create_Table (0.04s)
-    --- PASS: TestMySQLOperations/Insert_Row (0.00s)
+--- PASS: TestMySQLOperations (0.14s)
+    --- PASS: TestMySQLOperations/Connect_to_MySQL (0.10s)
+    --- PASS: TestMySQLOperations/Create_Table (0.03s)
+    --- PASS: TestMySQLOperations/Insert_Row (0.01s)
     --- PASS: TestMySQLOperations/Query_Row (0.00s)
     --- PASS: TestMySQLOperations/Delete_Row (0.00s)
     --- PASS: TestMySQLOperations/Drop_Table (0.01s)
@@ -1241,18 +1257,18 @@ DEBUG: getProp returning: 42
     --- PASS: TestPolymorphicIntegration/Conditional_Processing_with_Contains (0.00s)
 === RUN   TestUserAuthenticationSystem
 === RUN   TestUserAuthenticationSystem/Create_Users_Agent
-    test_framework.go:244: No expected value to compare for test Create Users Agent
-    test_framework.go:245: ✅ Test passed: Node(usersAgent)
+    test_framework.go:247: No expected value to compare for test Create Users Agent
+    test_framework.go:248: ✅ Test passed: Node(usersAgent)
 === RUN   TestUserAuthenticationSystem/Create_Test_User
-    test_framework.go:253: ✅ Test passed: 1
+    test_framework.go:256: ✅ Test passed: 1
 === RUN   TestUserAuthenticationSystem/Find_User_by_Username
-    test_framework.go:253: ✅ Test passed: testuser@example.com
+    test_framework.go:256: ✅ Test passed: testuser@example.com
 === RUN   TestUserAuthenticationSystem/Authenticate_Valid_User
-    test_framework.go:253: ✅ Test passed: testuser@example.com
+    test_framework.go:256: ✅ Test passed: testuser@example.com
 === RUN   TestUserAuthenticationSystem/Reject_Invalid_Password
-    test_framework.go:230: ✅ Expected error caught: invalid password
+    test_framework.go:233: ✅ Expected error caught: invalid password
 === RUN   TestUserAuthenticationSystem/User_Not_Found
-    test_framework.go:230: ✅ Expected error caught: user not found: nonexistent@example.com
+    test_framework.go:233: ✅ Expected error caught: user not found: nonexistent@example.com
 --- PASS: TestUserAuthenticationSystem (0.00s)
     --- PASS: TestUserAuthenticationSystem/Create_Users_Agent (0.00s)
     --- PASS: TestUserAuthenticationSystem/Create_Test_User (0.00s)
@@ -1310,50 +1326,50 @@ DEBUG: getProp returning: 42
     --- PASS: TestStringErrorHandling/Replace_-_Non-string_Input (0.00s)
 === RUN   TestTreeOperations
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Simple
-{"level":"info","ts":1760999028.081963,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0819871,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.082452,"caller":"logs/logger.go:29","msg":"Save successful","filename":"simple_tree.json","format":"json"}
-{"level":"info","ts":1760999028.0824902,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.082526,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"simple_tree.json"}
-{"level":"info","ts":1760999028.082544,"caller":"logs/logger.go:29","msg":"Load successful","filename":"simple_tree.json"}
+{"level":"info","ts":1761334324.8370292,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.8370528,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.837211,"caller":"logs/logger.go:33","msg":"Save successful","filename":"simple_tree.json","format":"json"}
+{"level":"info","ts":1761334324.8372328,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.837248,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"simple_tree.json"}
+{"level":"info","ts":1761334324.837395,"caller":"logs/logger.go:33","msg":"Load successful","filename":"simple_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Complex_Structure
-{"level":"info","ts":1760999028.082602,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.08261,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0828748,"caller":"logs/logger.go:29","msg":"Save successful","filename":"complex_tree.json","format":"json"}
-{"level":"info","ts":1760999028.0829,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0829198,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"complex_tree.json"}
-{"level":"info","ts":1760999028.082935,"caller":"logs/logger.go:29","msg":"Load successful","filename":"complex_tree.json"}
+{"level":"info","ts":1761334324.837456,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.837464,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.8375869,"caller":"logs/logger.go:33","msg":"Save successful","filename":"complex_tree.json","format":"json"}
+{"level":"info","ts":1761334324.8376052,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.837625,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"complex_tree.json"}
+{"level":"info","ts":1761334324.838942,"caller":"logs/logger.go:33","msg":"Load successful","filename":"complex_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Array_Root
-{"level":"info","ts":1760999028.082977,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.082984,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.083331,"caller":"logs/logger.go:29","msg":"Save successful","filename":"array_tree.json","format":"json"}
-{"level":"info","ts":1760999028.083343,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.083356,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"array_tree.json"}
-{"level":"info","ts":1760999028.083366,"caller":"logs/logger.go:29","msg":"Load successful","filename":"array_tree.json"}
+{"level":"info","ts":1761334324.838979,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.838986,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.839069,"caller":"logs/logger.go:33","msg":"Save successful","filename":"array_tree.json","format":"json"}
+{"level":"info","ts":1761334324.839079,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.839091,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"array_tree.json"}
+{"level":"info","ts":1761334324.8391,"caller":"logs/logger.go:33","msg":"Load successful","filename":"array_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Nested_Objects
-{"level":"info","ts":1760999028.083406,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.083411,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.083483,"caller":"logs/logger.go:29","msg":"Save successful","filename":"nested_tree.json","format":"json"}
-{"level":"info","ts":1760999028.0834932,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0835042,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"nested_tree.json"}
-{"level":"info","ts":1760999028.083515,"caller":"logs/logger.go:29","msg":"Load successful","filename":"nested_tree.json"}
+{"level":"info","ts":1761334324.839139,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.839145,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.839218,"caller":"logs/logger.go:33","msg":"Save successful","filename":"nested_tree.json","format":"json"}
+{"level":"info","ts":1761334324.839232,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.839247,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"nested_tree.json"}
+{"level":"info","ts":1761334324.839948,"caller":"logs/logger.go:33","msg":"Load successful","filename":"nested_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_-_Overwrite_Existing
-{"level":"info","ts":1760999028.08355,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0835562,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1760999028.083619,"caller":"logs/logger.go:29","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
-{"level":"info","ts":1760999028.083631,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1760999028.083637,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0836868,"caller":"logs/logger.go:29","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
-{"level":"info","ts":1760999028.0836968,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0837078,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"overwrite_test.json"}
-{"level":"info","ts":1760999028.083717,"caller":"logs/logger.go:29","msg":"Load successful","filename":"overwrite_test.json"}
+{"level":"info","ts":1761334324.839989,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1761334324.8399968,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1761334324.840074,"caller":"logs/logger.go:33","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
+{"level":"info","ts":1761334324.840089,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1761334324.840095,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1761334324.840362,"caller":"logs/logger.go:33","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
+{"level":"info","ts":1761334324.8403761,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1761334324.840389,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"overwrite_test.json"}
+{"level":"info","ts":1761334324.840417,"caller":"logs/logger.go:33","msg":"Load successful","filename":"overwrite_test.json"}
 === RUN   TestTreeOperations/Tree_Save_-_Subdirectory
-{"level":"info","ts":1760999028.0837429,"caller":"logs/logger.go:29","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0837498,"caller":"logs/logger.go:29","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.08382,"caller":"logs/logger.go:29","msg":"Save successful","filename":"trees/subdir_tree.json","format":"json"}
-{"level":"info","ts":1760999028.083835,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
-{"level":"info","ts":1760999028.0838459,"caller":"logs/logger.go:29","msg":"Using format for loading","format":"json","file":"trees/subdir_tree.json"}
-{"level":"info","ts":1760999028.0838542,"caller":"logs/logger.go:29","msg":"Load successful","filename":"trees/subdir_tree.json"}
+{"level":"info","ts":1761334324.840458,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.8404648,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.840663,"caller":"logs/logger.go:33","msg":"Save successful","filename":"trees/subdir_tree.json","format":"json"}
+{"level":"info","ts":1761334324.840682,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
+{"level":"info","ts":1761334324.840693,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"trees/subdir_tree.json"}
+{"level":"info","ts":1761334324.8407009,"caller":"logs/logger.go:33","msg":"Load successful","filename":"trees/subdir_tree.json"}
 === RUN   TestTreeOperations/Tree_Find_-_Simple_Search
 === RUN   TestTreeOperations/Tree_Find_-_Not_Found
 === RUN   TestTreeOperations/Tree_Find_-_Nested_Search
@@ -1377,10 +1393,10 @@ DEBUG: getProp returning: 42
     --- PASS: TestTreeOperations/Tree_Walk_-_Collect_Values (0.00s)
 === RUN   TestTreeErrorHandling
 === RUN   TestTreeErrorHandling/Tree_Load_-_Non-existent_File
-{"level":"info","ts":1760999028.0841558,"caller":"logs/logger.go:29","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json","path_type":"tree"}
-{"level":"error","ts":1760999028.084167,"caller":"logs/logger.go:37","msg":"Load failed","filename":"nonexistent.json","error":"open /Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json: no such file or directory","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:37\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
+{"level":"info","ts":1761334324.8410602,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json","path_type":"tree"}
+{"level":"error","ts":1761334324.841086,"caller":"logs/logger.go:41","msg":"Load failed","filename":"nonexistent.json","error":"open /Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json: no such file or directory","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
 === RUN   TestTreeErrorHandling/Tree_Save_-_Invalid_Path
-{"level":"error","ts":1760999028.084197,"caller":"logs/logger.go:37","msg":"save failed","filename":"../../../invalid/path.json","error":"invalid filename: directory traversal not allowed","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:37\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:196\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
+{"level":"error","ts":1761334324.841137,"caller":"logs/logger.go:41","msg":"save failed","filename":"../../../invalid/path.json","error":"invalid filename: directory traversal not allowed","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:196\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
 === RUN   TestTreeErrorHandling/Tree_Save_-_Invalid_Data
 === RUN   TestTreeErrorHandling/Tree_Find_-_Wrong_Argument_Count
 === RUN   TestTreeErrorHandling/Tree_Walk_-_Invalid_Function
@@ -1485,4 +1501,4 @@ DEBUG: getProp returning: 42
     --- PASS: TestTypeUtilityErrorHandling/To_Bool_-_Invalid_String (0.00s)
     --- PASS: TestTypeUtilityErrorHandling/Type_Of_-_No_Arguments (0.00s)
 PASS
-ok  	github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests	27.971s
+ok  	github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests	27.929s

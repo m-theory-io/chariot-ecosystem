@@ -17,7 +17,11 @@ type ZapLogger struct {
 }
 
 func NewZapLogger() *ZapLogger {
-	logger, _ := zap.NewProduction()
+	// Write logs to stderr to avoid interfering with stdio protocols (e.g., MCP)
+	cfg := zap.NewProductionConfig()
+	cfg.OutputPaths = []string{"stderr"}
+	cfg.ErrorOutputPaths = []string{"stderr"}
+	logger, _ := cfg.Build()
 	return &ZapLogger{logger: logger}
 }
 

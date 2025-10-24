@@ -1024,7 +1024,7 @@ const editorTemplate = `<!DOCTYPE html>
             [/\b(csvHeaders|csvRowCount|csvColumnCount|csvGetRow|csvGetCell|csvToCSV|csvLoad)\b(?=\s*\()/, 'keyword.chariot.csv'],
             [/\b(generateCreateTable|sqlBegin|sqlConnect|sqlClose|sqlCommit|sqlExecute|sqlListTables|sqlQuery|sqlRollback)\b(?=\s*\()/, 'keyword.chariot.sql'],
             [/\b(append|ascii|atPos|char|charAt|concat|digits|format|hasPrefix|hasSuffix|interpolate|join|lastPos|lower|occurs|padLeft|padRight|repeat|replace|right|split|sprintf|string|strlen|substr|substring|trim|trimLeft|trimRight|upper)\b(?=\s*\()/, 'keyword.chariot.string'],
-            [/\b(exit|getEnv|hasEnv|listen|logPrint|platform|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
+            [/\b(exit|getEnv|hasEnv|listen|logPrint|mcpCallTool|mcpConnect|mcpClose|mcpListTools|platform|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
             [/\b(newTree|treeFind|treeGetMetadata|treeLoad|treeLoadSecure|treeSave|treeSaveSecure|treeSearch||treeToYAML|treeToXML|treeValidateSecure|treeWalk)\b(?=\s*\()/, 'keyword.chariot.tree'],
             [/\b(boolean|call|declare|declareGlobal|deleteFunction|destroy|empty|exists|func|function|getFunction|getVariable|hasMeta|inspectRuntime|isNull|isNumeric|listFunctions|loadFunctions|mapValue|merge|offerVar|offerVariable|registerFunction|saveFunctions|setValue|setq|symbol|toBool|toMapValue|toNumber|toString|typeOf|valueOf)\b(?=\s*\()/, 'keyword.chariot.value'],
             [/\bfunction\b/, 'keyword.control.chariot'], // Always highlight 'function' as a keyword

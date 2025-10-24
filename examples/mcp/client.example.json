@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "chariot": {
+      "command": "./scripts/run-mcp-stdio.sh",
+      "args": [],
+      "env": {
+        "CHARIOT_MCP_ENABLED": "true",
+        "CHARIOT_MCP_TRANSPORT": "stdio"
+      },
+      "workingDirectory": "${repoRoot}"
+    }
+  }
+}

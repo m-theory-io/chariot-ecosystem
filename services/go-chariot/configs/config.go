@@ -54,6 +54,10 @@ type Config struct {
 	Bootstrap   string `evar:"bootstrap"`    // Bootstrap script to run on startup
 	// Listeners registry persistence file (under data path)
 	ListenersFile string `evar:"listeners_file"`
+	// MCP (Model Context Protocol) integration
+	MCPEnabled   bool   `evar:"mcp_enabled"`   // Enable MCP server
+	MCPTransport string `evar:"mcp_transport"` // stdio | ws (websocket)
+	MCPWSPath    string `evar:"mcp_ws_path"`   // WebSocket path when using ws
 }
 
 var ChariotConfig = &Config{}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/handlers"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/routes"
+	mcpserver "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
 	"github.com/bhouse1273/kissflag"
 
 	"github.com/labstack/echo/v4"
@@ -65,9 +67,13 @@ func init() {
 	cfg.ChariotConfig.StringVar("bootstrap", &cfg.ChariotConfig.Bootstrap, "bootstrap.ch")
 	// Listeners registry file (under data path by default)
 	cfg.ChariotConfig.StringVar("listeners_file", &cfg.ChariotConfig.ListenersFile, "listeners.json")
+	// MCP configuration
+	cfg.ChariotConfig.BoolVar("mcp_enabled", &cfg.ChariotConfig.MCPEnabled, false)
+	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "ws")
+	cfg.ChariotConfig.StringVar("mcp_ws_path", &cfg.ChariotConfig.MCPWSPath, "/mcp")
 
 	// Bind evars
-	kissflag.BindAllEVars(cfg.ChariotConfig)
+	_ = kissflag.BindAllEVars(cfg.ChariotConfig)
 	// Normalize any configured paths (expand ~, make absolute, clean)
 	cfg.ExpandAndNormalizePaths()
 
@@ -107,6 +113,15 @@ func main() {
 	sessionManager := chariot.NewSessionManager(timeOut, cleanUpInterval)
 	if err := vault.InitVaultClient(); err != nil { // Initialize Azure Key Vault client
 		cfg.ChariotLogger.Error("Failed to initialize Vault client", zap.Error(err))
+		return
+	}
+
+	// Start MCP server in stdio mode if enabled, then exit (intended to be launched as a subprocess by clients)
+	if cfg.ChariotConfig.MCPEnabled && strings.ToLower(cfg.ChariotConfig.MCPTransport) == "stdio" {
+		cfg.ChariotLogger.Info("Starting MCP (stdio) server")
+		if err := mcpserver.RunSTDIO(); err != nil {
+			cfg.ChariotLogger.Error("MCP stdio server error", zap.Error(err))
+		}
 		return
 	}
 
@@ -194,6 +209,12 @@ func main() {
 		fmt.Println("Current working directory:", func() string { dir, _ := os.Getwd(); return dir }())
 		fmt.Println("Looking for cert at:", fullPathCrt)
 		fmt.Println("Looking for key at:", fullPathKey)
+
+		// Optionally mount MCP WebSocket endpoint (placeholder until implemented)
+		if cfg.ChariotConfig.MCPEnabled && strings.ToLower(cfg.ChariotConfig.MCPTransport) == "ws" {
+			e.GET(cfg.ChariotConfig.MCPWSPath, func(c echo.Context) error { return mcpserver.HandleWS(c) })
+			cfg.ChariotLogger.Info("MCP WebSocket route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
+		}
 
 		// Start server with or without SSL (this call blocks)
 		if cfg.ChariotConfig.SSL {
