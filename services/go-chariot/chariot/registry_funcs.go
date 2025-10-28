@@ -38,6 +38,7 @@ func RegisterAll(rt *Runtime) {
 	RegisterCSVFunctions(rt)            // Registers CSV functions
 	RegisterMCPFunctions(rt)            // Registers MCP client functions
 	RegisterTypeDispatchedFunctions(rt) // Registers polymorphic functions LAST
+	RegisterPlanFunctions(rt)           // Registers plan/agent functions
 
 	// Populate master registry from the runtime
 	PopulateMasterRegistryFromRuntime(rt)

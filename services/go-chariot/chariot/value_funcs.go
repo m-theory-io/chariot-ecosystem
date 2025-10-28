@@ -1324,6 +1324,10 @@ func validateTypeCompatibility(typeStr string, value Value) error {
 		if _, ok := value.(*FunctionValue); !ok {
 			return fmt.Errorf("type mismatch: expected function, got %T", value)
 		}
+	case TypePlan:
+		if _, ok := value.(*Plan); !ok {
+			return fmt.Errorf("type mismatch: expected plan, got %T", value)
+		}
 	case "V", "any":
 		// Accept any type
 		return nil
@@ -1456,6 +1460,9 @@ func defaultValue(typeStr string) (Value, error) {
 		return DBNull, nil
 	case TypeVariableExpr:
 		// Any type - return null as default
+		return DBNull, nil
+	case TypePlan:
+		// Plans should be constructed via plan(...); default to null
 		return DBNull, nil
 	default:
 		return nil, fmt.Errorf("unknown type specifier '%s'", typeStr)

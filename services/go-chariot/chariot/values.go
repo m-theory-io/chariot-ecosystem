@@ -171,6 +171,8 @@ func GetValueTypeSpec(val Value) string {
 		return "X"
 	case TreeNode, *TreeNode, TreeNodeImpl, *TreeNodeImpl:
 		return "T" // TreeNode
+	case *Plan:
+		return "P"
 	case nil:
 		return "V" // Variable/untyped
 	default:
