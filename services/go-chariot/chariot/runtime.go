@@ -874,6 +874,7 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 		objects:           make(map[string]interface{}),
 		lists:             make(map[string]map[string]Value),
 		nodes:             make(map[string]TreeNode),
+		functions:         make(map[string]*FunctionValue),
 		tables:            make(map[string][]map[string]Value),
 		keyColumns:        make(map[string]string),
 		cursors:           make(map[string]int),
@@ -911,6 +912,13 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 	// Copy functions
 	for k, v := range rt.funcs {
 		clone.funcs[k] = v
+	}
+
+	// Copy user-defined functions and REBIND closure scope to the clone's global scope
+	if rt.functions != nil {
+		for name, fn := range rt.functions {
+			clone.functions[name] = cloneFunctionValueWithScope(fn, clone.globalScope)
+		}
 	}
 
 	// Clone vars and globalVars
@@ -974,6 +982,22 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 	RegisterAll(clone)
 
 	return clone
+}
+
+// cloneFunctionValueWithScope creates a shallow copy of a FunctionValue but points its closure to newScope.
+// This preserves lexical semantics when moving functions across runtimes (e.g., bootstrap -> per-agent clone).
+func cloneFunctionValueWithScope(src *FunctionValue, newScope *Scope) *FunctionValue {
+	if src == nil {
+		return nil
+	}
+	return &FunctionValue{
+		Body:            src.Body,
+		Parameters:      append([]string(nil), src.Parameters...),
+		SourceCode:      src.SourceCode,
+		FormattedSource: src.FormattedSource,
+		IsParsed:        src.IsParsed,
+		Scope:           newScope,
+	}
 }
 
 // FindVariable searches for a variable in the current scope chain

@@ -22,6 +22,8 @@ const (
 	TypeTree       = "T" // Tree structure
 	TypeFunction   = "F" // Function reference
 	TypeObject     = "O" // HostObject reference
+	// Agent/Plan types
+	TypePlan = "P" // Plan value (BDI plan)
 
 	// Special types
 	TypeVariableExpr = "V" // Variable expression
@@ -253,6 +255,7 @@ func isValidTypeCode(typeCode string) bool {
 	case TypeNumber, TypeString, TypeBoolean, TypeDate,
 		TypeArray, TypeExpression, TypeXML, TypeJSON,
 		TypeMap, TypeTree, TypeFunction, TypeObject,
+		TypePlan,
 		TypeVariableExpr:
 		return true
 	default:

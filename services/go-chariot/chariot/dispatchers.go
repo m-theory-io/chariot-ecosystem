@@ -330,6 +330,8 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			return getPropMapValue(args...)
 		case *JSONNode:
 			return getPropJSON(args...)
+		case *Plan:
+			return getPropPlan(args...)
 		case map[string]Value:
 			return getPropMap(args...)
 		case map[string]interface{}:
@@ -366,6 +368,8 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			return setPropJSON(args...)
 		case *TreeNode:
 			return setPropTreeNode(args...)
+		case *Plan:
+			return setPropPlan(args...)
 		case *HostObjectValue:
 			return setPropHostObject(rt, args...)
 		}
@@ -1541,6 +1545,128 @@ func setPropHostObject(rt *Runtime, args ...Value) (Value, error) {
 
 	// Set the property
 	return rt.SetObjectProperty(objName, string(propName), value)
+}
+
+// getPropPlan - dynamic property access for Plan
+func getPropPlan(args ...Value) (Value, error) {
+	if len(args) != 2 {
+		return nil, errors.New("getProp requires 2 arguments: object and property name")
+	}
+	p, ok := args[0].(*Plan)
+	if !ok {
+		return nil, fmt.Errorf("expected Plan, got %T", args[0])
+	}
+	propName, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("property name must be a string, got %T", args[1])
+	}
+	switch strings.ToLower(string(propName)) {
+	case "name":
+		return Str(p.Name), nil
+	case "params":
+		arr := NewArray()
+		for _, s := range p.Params {
+			arr.Append(Str(s))
+		}
+		return arr, nil
+	case "trigger":
+		if p.Trigger == nil {
+			return DBNull, nil
+		}
+		return p.Trigger, nil
+	case "guard":
+		if p.Guard == nil {
+			return DBNull, nil
+		}
+		return p.Guard, nil
+	case "drop":
+		if p.Drop == nil {
+			return DBNull, nil
+		}
+		return p.Drop, nil
+	case "steps":
+		arr := NewArray()
+		for _, s := range p.Steps {
+			arr.Append(s)
+		}
+		return arr, nil
+	default:
+		return nil, fmt.Errorf("property '%s' not found in Plan", propName)
+	}
+}
+
+// setPropPlan - dynamic property set for Plan
+func setPropPlan(args ...Value) (Value, error) {
+	if len(args) != 3 {
+		return nil, errors.New("setProp requires 3 arguments: object, property name, and value")
+	}
+	p, ok := args[0].(*Plan)
+	if !ok {
+		return nil, fmt.Errorf("expected Plan, got %T", args[0])
+	}
+	propName, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("property name must be a string, got %T", args[1])
+	}
+	value := args[2]
+	switch strings.ToLower(string(propName)) {
+	case "name":
+		if s, ok := value.(Str); ok {
+			p.Name = string(s)
+			return value, nil
+		}
+		return nil, fmt.Errorf("name must be string, got %T", value)
+	case "params":
+		av, ok := value.(*ArrayValue)
+		if !ok {
+			return nil, fmt.Errorf("params must be array of strings, got %T", value)
+		}
+		params := make([]string, 0, av.Length())
+		for i := 0; i < av.Length(); i++ {
+			if s, ok := av.Get(i).(Str); ok {
+				params = append(params, string(s))
+			} else {
+				return nil, fmt.Errorf("params[%d] must be string, got %T", i, av.Get(i))
+			}
+		}
+		p.Params = params
+		return value, nil
+	case "trigger":
+		if fv, ok := value.(*FunctionValue); ok {
+			p.Trigger = fv
+			return value, nil
+		}
+		return nil, fmt.Errorf("trigger must be function, got %T", value)
+	case "guard":
+		if fv, ok := value.(*FunctionValue); ok {
+			p.Guard = fv
+			return value, nil
+		}
+		return nil, fmt.Errorf("guard must be function, got %T", value)
+	case "drop":
+		if fv, ok := value.(*FunctionValue); ok {
+			p.Drop = fv
+			return value, nil
+		}
+		return nil, fmt.Errorf("drop must be function, got %T", value)
+	case "steps":
+		av, ok := value.(*ArrayValue)
+		if !ok {
+			return nil, fmt.Errorf("steps must be array of functions, got %T", value)
+		}
+		steps := make([]*FunctionValue, 0, av.Length())
+		for i := 0; i < av.Length(); i++ {
+			if fv, ok := av.Get(i).(*FunctionValue); ok {
+				steps = append(steps, fv)
+			} else {
+				return nil, fmt.Errorf("steps[%d] must be function, got %T", i, av.Get(i))
+			}
+		}
+		p.Steps = steps
+		return value, nil
+	default:
+		return nil, fmt.Errorf("property '%s' not found in Plan", propName)
+	}
 }
 
 // Helper for TreeNodeImpl

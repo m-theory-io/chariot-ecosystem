@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>WS Agents Stream Test</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    label { display:block; margin-top: 0.5rem; }
+    input { width: 100%; padding: 0.4rem; font-size: 0.95rem; }
+    button { margin-top: 0.75rem; padding: 0.5rem 0.75rem; }
+    pre { background:#111; color:#0f0; padding:1rem; height: 40vh; overflow:auto; }
+    .row { display:flex; gap:0.5rem; }
+    .row > * { flex: 1; }
+  </style>
+</head>
+<body>
+  <h2>Agents WebSocket Stream Test</h2>
+  <p>
+    Connects to the Charioteer proxy endpoint which forwards your token to the backend.
+    Default path is <code>/charioteer/ws/agents</code>. Token is sent as <code>?token=...</code>.
+  </p>
+
+  <label>Server origin (scheme://host:port)</label>
+  <input id="origin" value="http://localhost:8080" />
+
+  <div class="row">
+    <div>
+      <label>Path</label>
+      <input id="path" value="/charioteer/ws/agents" />
+    </div>
+    <div>
+      <label>Token (optional)</label>
+      <input id="token" placeholder="paste JWT or session token" />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Filter (optional JSON, e.g. {"agent":"MyAgent"})</label>
+      <input id="filter" placeholder='{"agent":"MyAgent"}' />
+    </div>
+    <div>
+      <label>Use secure WS (wss)</label>
+      <input id="useWss" type="checkbox" />
+    </div>
+  </div>
+
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect</button>
+
+  <h3>Events</h3>
+  <pre id="log"></pre>
+
+  <script>
+    const originEl = document.getElementById('origin');
+    const pathEl = document.getElementById('path');
+    const tokenEl = document.getElementById('token');
+    const filterEl = document.getElementById('filter');
+    const useWssEl = document.getElementById('useWss');
+    const connectBtn = document.getElementById('connect');
+    const disconnectBtn = document.getElementById('disconnect');
+    const logEl = document.getElementById('log');
+
+    let ws;
+
+    function log(line) {
+      const ts = new Date().toISOString();
+      logEl.textContent += `[${ts}] ${line}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    connectBtn.onclick = () => {
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          log('Already connected');
+          return;
+        }
+        const httpOrigin = originEl.value.trim();
+        const scheme = useWssEl.checked ? 'wss' : (httpOrigin.startsWith('https') ? 'wss' : 'ws');
+        const url = new URL(httpOrigin);
+        const path = pathEl.value.trim() || '/charioteer/ws/agents';
+        const token = tokenEl.value.trim();
+
+        const wsUrl = `${scheme}://${url.host}${path}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+        log(`Connecting to ${wsUrl} ...`);
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          log('Connected');
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          const filt = filterEl.value.trim();
+          if (filt) {
+            try {
+              ws.send(filt);
+              log(`Sent filter: ${filt}`);
+            } catch (e) {
+              log(`Filter send failed: ${e}`);
+            }
+          }
+        };
+        ws.onmessage = (ev) => {
+          log(ev.data);
+        };
+        ws.onerror = (ev) => {
+          log(`Error: ${ev.message || ev}`);
+        };
+        ws.onclose = () => {
+          log('Closed');
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+        };
+      } catch (e) {
+        log(`Connect error: ${e}`);
+      }
+    };
+
+    disconnectBtn.onclick = () => {
+      if (ws) {
+        ws.close();
+      }
+    };
+  </script>
+</body>
+</html>
