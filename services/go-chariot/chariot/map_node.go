@@ -185,27 +185,41 @@ func (n *MapNode) UnmarshalJSON(data []byte) error {
 	for key, val := range jsonMap {
 		switch v := val.(type) {
 		case map[string]interface{}:
-			// Nested objects become child nodes
+			// If this looks like a serialized Chariot value (has _value_type), store as attribute
+			if _, hasType := v["_value_type"]; hasType {
+				n.Attributes[key] = FromNative(v)
+				continue
+			}
+			// Otherwise treat as nested object -> child node
 			childNode := NewMapNode(key)
 			childJSON, _ := json.Marshal(v)
 			_ = childNode.UnmarshalJSON(childJSON)
 			n.AddChild(childNode)
 
 		case []interface{}:
-			// Arrays of objects become multiple children with same name
-			for i, item := range v {
-				if itemMap, ok := item.(map[string]interface{}); ok {
-					childName := fmt.Sprintf("%s[%d]", key, i)
-					childNode := NewMapNode(childName)
-					itemJSON, _ := json.Marshal(itemMap)
-					_ = childNode.UnmarshalJSON(itemJSON)
-					n.AddChild(childNode)
-				} else {
-					// Array of primitives - store as attribute
-					n.Attributes[key] = FromNative(v)
-					break
+			// Arrays can be attributes (e.g., arrays of typed values) or children (arrays of objects)
+			if len(v) > 0 {
+				if firstMap, ok := v[0].(map[string]interface{}); ok {
+					if _, hasType := firstMap["_value_type"]; hasType {
+						// Treat as attribute array of typed values
+						n.Attributes[key] = FromNative(v)
+						continue
+					}
+					// Arrays of plain objects become multiple children with same name
+					for i, item := range v {
+						if itemMap, ok := item.(map[string]interface{}); ok {
+							childName := fmt.Sprintf("%s[%d]", key, i)
+							childNode := NewMapNode(childName)
+							itemJSON, _ := json.Marshal(itemMap)
+							_ = childNode.UnmarshalJSON(itemJSON)
+							n.AddChild(childNode)
+						}
+					}
+					continue
 				}
 			}
+			// Empty array or array of primitives -> attribute
+			n.Attributes[key] = FromNative(v)
 
 		default:
 			// Primitive values become attributes
@@ -361,33 +375,12 @@ func (m *MapNode) LoadFromReader(reader *strings.Reader) error {
 
 // Helper function to convert JSON values to Chariot Values
 func FromNative(val interface{}) Value {
-	switch v := val.(type) {
-	case string:
-		return Str(v)
-	case float64:
-		return Number(v)
-	case bool:
-		return Bool(v)
-	case nil:
-		return nil
-	default:
-		// For complex types, convert to string representation
-		return Str(fmt.Sprintf("%v", v))
-	}
+	// Delegate to the central converter so complex values (e.g., plan/function) are preserved
+	return convertFromNativeValue(val)
 }
 
 // Helper to convert Chariot values to native Go values
 func ToNative(val Value) interface{} {
-	switch v := val.(type) {
-	case Str:
-		return string(v)
-	case Number:
-		return float64(v)
-	case Bool:
-		return bool(v)
-	case nil:
-		return nil
-	default:
-		return fmt.Sprintf("%v", v)
-	}
+	// Delegate to the central converter so complex values (e.g., plan/function) are preserved
+	return convertValueToNative(val)
 }

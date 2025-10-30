@@ -22,6 +22,7 @@ const (
 	ValueJSON                          // "J"
 	ValueXML                           // "X"
 	ValueVariableExpr                  // "V" (untyped variables from setq)
+	ValuePlan                          // "P" (Plan)
 )
 
 // Basic value types
@@ -119,24 +120,24 @@ func GetValueType(v Value) ValueType {
 		return ValueString
 	case Bool:
 		return ValueBoolean
-	case ArrayValue:
+	case *ArrayValue, ArrayValue:
 		return ValueArray
-	case MapValue:
+	case *MapValue, MapValue:
 		return ValueMap
-	case TableValue:
+	case *TableValue, TableValue:
 		return ValueTable
-	//case ObjectValue:
-	//    return ValueObject
-	case HostObjectValue:
+	case *HostObjectValue, HostObjectValue:
 		return ValueHostObject
+	case *FunctionValue, FunctionValue:
+		return ValueFunction
+	case *JSONNode, JSONNode:
+		return ValueJSON
+	case *XMLNode, XMLNode:
+		return ValueXML
+	case *Plan, Plan:
+		return ValuePlan
 	case TreeNode:
 		return ValueNode
-	case FunctionValue:
-		return ValueFunction
-	case JSONNode:
-		return ValueJSON
-	case XMLNode:
-		return ValueXML
 	case nil:
 		return ValueNil
 	default:
@@ -144,7 +145,7 @@ func GetValueType(v Value) ValueType {
 	}
 }
 
-// New function that returns single-character type specifiers
+// Returns single-character type specifiers
 func GetValueTypeSpec(val Value) string {
 	switch val.(type) {
 	case Number:
@@ -159,8 +160,6 @@ func GetValueTypeSpec(val Value) string {
 		return "M"
 	case TableValue, *TableValue:
 		return "R" // Relation
-	//case Object:
-	//    return "O"
 	case HostObjectValue, *HostObjectValue:
 		return "H"
 	case FunctionValue, *FunctionValue:
@@ -171,7 +170,7 @@ func GetValueTypeSpec(val Value) string {
 		return "X"
 	case TreeNode, *TreeNode, TreeNodeImpl, *TreeNodeImpl:
 		return "T" // TreeNode
-	case *Plan:
+	case Plan, *Plan:
 		return "P"
 	case nil:
 		return "V" // Variable/untyped
@@ -212,6 +211,8 @@ func isValidTypeSpec(typeSpec string) bool {
 	case 'X': // XML
 		return true
 	case 'V': // Variable/untyped
+		return true
+	case 'P': // Plan
 		return true
 	default:
 		return false
@@ -343,6 +344,39 @@ func convertValueToNative(val Value) interface{} {
 		}
 
 		return result
+
+	case *Plan:
+		// Serialize Plan as a native map with nested serialized function values
+		res := map[string]interface{}{
+			"_value_type": "plan",
+			"name":        v.Name,
+			"params":      v.Params,
+		}
+		if v.Trigger != nil {
+			res["trigger"] = convertValueToNative(v.Trigger)
+		} else {
+			res["trigger"] = nil
+		}
+		if v.Guard != nil {
+			res["guard"] = convertValueToNative(v.Guard)
+		} else {
+			res["guard"] = nil
+		}
+		if len(v.Steps) > 0 {
+			steps := make([]interface{}, 0, len(v.Steps))
+			for _, s := range v.Steps {
+				steps = append(steps, convertValueToNative(s))
+			}
+			res["steps"] = steps
+		} else {
+			res["steps"] = []interface{}{}
+		}
+		if v.Drop != nil {
+			res["drop"] = convertValueToNative(v.Drop)
+		} else {
+			res["drop"] = nil
+		}
+		return res
 
 	case Str:
 		return string(v)
@@ -546,6 +580,46 @@ func convertFromNativeValue(val interface{}) Value {
 				IsParsed:   body != nil, // Parsed if we have a body
 				Scope:      nil,         // Will be set during execution
 			}
+		}
+
+		// Check if this is a serialized Plan
+		if valueType, ok := v["_value_type"]; ok && valueType == "plan" {
+			p := &Plan{}
+			if name, ok := v["name"].(string); ok {
+				p.Name = name
+			}
+			if paramsIface, ok := v["params"].([]interface{}); ok {
+				params := make([]string, 0, len(paramsIface))
+				for _, pi := range paramsIface {
+					params = append(params, fmt.Sprintf("%v", pi))
+				}
+				p.Params = params
+			}
+			if trg, ok := v["trigger"]; ok && trg != nil {
+				if fv, ok := convertFromNativeValue(trg).(*FunctionValue); ok {
+					p.Trigger = fv
+				}
+			}
+			if grd, ok := v["guard"]; ok && grd != nil {
+				if fv, ok := convertFromNativeValue(grd).(*FunctionValue); ok {
+					p.Guard = fv
+				}
+			}
+			if stepsIface, ok := v["steps"].([]interface{}); ok {
+				steps := make([]*FunctionValue, 0, len(stepsIface))
+				for _, si := range stepsIface {
+					if fv, ok := convertFromNativeValue(si).(*FunctionValue); ok {
+						steps = append(steps, fv)
+					}
+				}
+				p.Steps = steps
+			}
+			if drp, ok := v["drop"]; ok && drp != nil {
+				if fv, ok := convertFromNativeValue(drp).(*FunctionValue); ok {
+					p.Drop = fv
+				}
+			}
+			return p
 		}
 
 		// Regular map handling

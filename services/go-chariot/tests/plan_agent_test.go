@@ -47,6 +47,7 @@ func TestPlan_DropCondition(t *testing.T) {
 	defer ch.UnregisterRuntime("plan_drop")
 
 	code := []string{
+		"declareGlobal(flag,'N', 0)",
 		"declare(name,'S','Dropper')",
 		"declare(params,'A', array())",
 		"declare(trig,'F', func(){ True })",
@@ -72,9 +73,8 @@ func TestPlan_DropCondition(t *testing.T) {
 	if b, ok := val.(ch.Bool); !ok || !bool(b) {
 		t.Fatalf("expected true, got %v (%T)", val, val)
 	}
-	// Ensure step2 did not run
-	v, _ := rt.GetVariable("flag")
-	if num, ok := v.(ch.Number); !ok || int(num) != 1 {
-		t.Fatalf("expected flag=1, got %v", v)
+	// Ensure step2 did not run by inspecting global flag set by step1
+	if v, _ := rt.GetVariable("flag"); v == nil || v == ch.DBNull || int(v.(ch.Number)) != 1 {
+		t.Fatalf("expected global flag=1, got %v", v)
 	}
 }

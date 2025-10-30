@@ -78,8 +78,8 @@ func RegisterValues(rt *Runtime) {
 	})
 
 	rt.Register("declareGlobal", func(args ...Value) (Value, error) {
-		if len(args) != 3 {
-			return nil, fmt.Errorf("declareGlobal requires 3 arguments: variable name, type, initial value")
+		if len(args) < 2 || len(args) > 3 {
+			return nil, fmt.Errorf("declareGlobal requires 2 arguments: variable name, type. A 3rd optional initial value is used if provided. Otherwise, the value is the default for the specified type")
 		}
 
 		if tvar, ok := args[0].(ScopeEntry); ok {
@@ -90,9 +90,11 @@ func RegisterValues(rt *Runtime) {
 			// If second argument is a ScopeEntry, use its value
 			args[1] = tvar.Value
 		}
-		if tvar, ok := args[2].(ScopeEntry); ok {
-			// If third argument is a ScopeEntry, use its value
-			args[2] = tvar.Value
+		if len(args) == 3 {
+			if tvar, ok := args[2].(ScopeEntry); ok {
+				// If third argument is a ScopeEntry, use its value
+				args[2] = tvar.Value
+			}
 		}
 
 		varName, ok := args[0].(Str)
@@ -748,14 +750,11 @@ func RegisterValues(rt *Runtime) {
 		if len(args) != 1 {
 			return nil, errors.New("valueType requires 1 argument")
 		}
-
 		// Unwrap argument
 		arg := args[0]
 		if tvar, ok := arg.(ScopeEntry); ok {
 			arg = tvar.Value
 		}
-
-		// Get the actual underlying type by examining the Go type directly
 		switch arg.(type) {
 		case Number:
 			return Str("N"), nil
@@ -779,10 +778,11 @@ func RegisterValues(rt *Runtime) {
 			return Str("X"), nil
 		case TreeNode, *TreeNodeImpl, *Transform:
 			return Str("T"), nil
+		case *Plan, Plan:
+			return Str("P"), nil
 		case nil:
 			return Str("V"), nil
 		default:
-			// For unknown types, return the Go type name as a fallback
 			return Str(fmt.Sprintf("%T", arg)), nil
 		}
 	})
@@ -1184,6 +1184,30 @@ func ConvertToNativeJSON(val interface{}) interface{} {
 			m[child.Name()] = ConvertToNativeJSON(child)
 		}
 		return m
+	case *Plan:
+		// Serialize Plans as structured JSON for treeSave, inspectors, etc.
+		out := map[string]interface{}{
+			"_type":  "plan",
+			"name":   v.Name,
+			"params": v.Params,
+		}
+		if v.Trigger != nil {
+			out["trigger"] = FunctionValueToMap(v.Trigger)
+		}
+		if v.Guard != nil {
+			out["guard"] = FunctionValueToMap(v.Guard)
+		}
+		if v.Drop != nil {
+			out["drop"] = FunctionValueToMap(v.Drop)
+		}
+		steps := make([]interface{}, 0, len(v.Steps))
+		for _, s := range v.Steps {
+			if s != nil {
+				steps = append(steps, FunctionValueToMap(s))
+			}
+		}
+		out["steps"] = steps
+		return out
 	case map[string]Value:
 		m := make(map[string]interface{})
 		for k, v2 := range v {

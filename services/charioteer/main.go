@@ -280,6 +280,84 @@ func dashboardWSProxyHandler(w http.ResponseWriter, r *http.Request) {
 	<-errc
 }
 
+// agentsWSProxyHandler proxies WebSocket connections to the backend /ws/agents
+func agentsWSProxyHandler(w http.ResponseWriter, r *http.Request) {
+	// Token via query/header/cookie, same approach as dashboard proxy
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		token = r.Header.Get("Authorization")
+	}
+	if token == "" {
+		if c, err := r.Cookie("chariot_token"); err == nil {
+			token = c.Value
+		}
+	}
+	if token == "" {
+		sendError(w, http.StatusUnauthorized, "Authorization token required")
+		return
+	}
+
+	backend, err := url.Parse(getBackendURL())
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Invalid backend URL")
+		return
+	}
+	scheme := "ws"
+	if backend.Scheme == "https" {
+		scheme = "wss"
+	}
+	target := &url.URL{Scheme: scheme, Host: backend.Host, Path: "/ws/agents"}
+
+	// Dial backend WS with token header
+	header := http.Header{}
+	header.Set("Authorization", token)
+
+	// create backend connection
+	backendConn, _, err := websocket.DefaultDialer.Dial(target.String(), header)
+	if err != nil {
+		sendError(w, http.StatusBadGateway, "Failed to connect backend WS: "+err.Error())
+		return
+	}
+	defer backendConn.Close()
+
+	// Upgrade client connection
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	clientConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, "WS upgrade failed: "+err.Error())
+		return
+	}
+	defer clientConn.Close()
+
+	// Bidirectional copy loops
+	errc := make(chan struct{}, 2)
+	go func() {
+		for {
+			mt, msg, err := backendConn.ReadMessage()
+			if err != nil {
+				break
+			}
+			if err := clientConn.WriteMessage(mt, msg); err != nil {
+				break
+			}
+		}
+		errc <- struct{}{}
+	}()
+	go func() {
+		for {
+			mt, msg, err := clientConn.ReadMessage()
+			if err != nil {
+				break
+			}
+			if err := backendConn.WriteMessage(mt, msg); err != nil {
+				break
+			}
+		}
+		errc <- struct{}{}
+	}()
+	<-errc
+}
+
 func getTLSKey() (string, error) {
 	if *certPath != "" {
 		keyPath := fmt.Sprintf("%s/charioteer.key", *certPath)
@@ -808,6 +886,7 @@ const editorTemplate = `<!DOCTYPE html>
         /* Chariot syntax highlighting colors for Monaco editor */
         .monaco-editor .token.keyword.control.chariot { color: #c586c0 !important; }
         .monaco-editor .token.keyword.chariot.array { color: #4fc1ff !important; }
+        .monaco-editor .token.keyword.chariot.bdi { color: #4fc1ff !important; }
         .monaco-editor .token.keyword.chariot.comparison { color: #ffd700 !important; }
         .monaco-editor .token.keyword.chariot.couchbase { color: #ff6b6b !important; }
         .monaco-editor .token.keyword.chariot.crypto { color: #FF6B6B !important; }
@@ -1009,6 +1088,7 @@ const editorTemplate = `<!DOCTYPE html>
             // Chariot specific functions (only when followed by parens)
 			[/\b(findUser|createUser|updateUser|deleteUser|authenticateUser|setUserPassword|generateToken|validateDisplayName)\b(?=\s*\()/, 'keyword.auth'],
             [/\b(addTo|array|lastIndex|removeAt|reverse|setAt|slice)\b(?=\s*\()/, 'keyword.chariot.array'],
+            [/\b(agentBelief|agentNew|agentRegister|agentStart|agentStartNamed|agentStopNamed|agentList|agentPublish|agentStop|belief|plan|runPlanOnce|runPlanOnceBDI|runPlanOnceEx)\b(?=\s*\()/, 'keyword.chariot.bdi'],
             [/\b(and|bigger|biggerEq|equal|iif|not|or|unequal|smaller|smallerEq)\b(?=\s*\()/, 'keyword.chariot.comparison'],
             [/\b(cbClose|cbConnect|cbGet|cbInsert|cbOpenBucket|cbQuery|cbRemove|cbReplace|cbSetScope|cbUpsert|newID)\b(?=\s*\()/, 'keyword.chariot.couchbase'],
             [/\b(date|dateAdd|dateDiff|dateSchedule|day|dayCount|dayOfWeek|endOfMonth|formatDate|isBusinessDay|isDate|isEndOfMonth|julianDay|month|nextBusinessDay|now|today|utcTime|year|yearFraction)\b(?=\s*\()/, 'keyword.chariot.date'],
@@ -5295,6 +5375,8 @@ func main() {
 	http.HandleFunc("/charioteer/api/listener/stop", authMiddleware(listenersStopHandler))
 	// WebSocket proxy for dashboard stream (token passed as query param)
 	http.HandleFunc("/charioteer/ws/dashboard", dashboardWSProxyHandler)
+	// WebSocket proxy for agents stream (token passed as query param)
+	http.HandleFunc("/charioteer/ws/agents", agentsWSProxyHandler)
 
 	log.Println("Current working directory:", func() string { dir, _ := os.Getwd(); return dir }())
 	log.Println("Chariot Editor server starting on :" + getPort())
