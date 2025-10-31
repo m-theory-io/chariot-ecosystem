@@ -151,6 +151,11 @@ func listenersListHandler(w http.ResponseWriter, r *http.Request) {
 	proxyToBackendJSON(w, r, http.MethodGet, "/api/listeners", nil)
 }
 
+// agentsListHandler proxies to backend /api/agents to list agents
+func agentsListHandler(w http.ResponseWriter, r *http.Request) {
+	proxyToBackendJSON(w, r, http.MethodGet, "/api/agents", nil)
+}
+
 func listenersCreateHandler(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	proxyToBackendJSON(w, r, http.MethodPost, "/api/listeners", body)
@@ -237,7 +242,12 @@ func dashboardWSProxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Dial backend
 	header := http.Header{}
 	header.Set("Authorization", token)
-	backendConn, _, err := websocket.DefaultDialer.Dial(target.String(), header)
+	// Configure WS dialer (allow skipping TLS verify for dev if backend is https)
+	dialer := *websocket.DefaultDialer
+	if backend.Scheme == "https" && *insecureSkipVerify {
+		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	backendConn, _, err := dialer.Dial(target.String(), header)
 	if err != nil {
 		log.Printf("WS proxy dial backend failed: %v", err)
 		if err := clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "backend unavailable")); err != nil {
@@ -308,53 +318,71 @@ func agentsWSProxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	target := &url.URL{Scheme: scheme, Host: backend.Host, Path: "/ws/agents"}
 
-	// Dial backend WS with token header
-	header := http.Header{}
-	header.Set("Authorization", token)
-
-	// create backend connection
-	backendConn, _, err := websocket.DefaultDialer.Dial(target.String(), header)
-	if err != nil {
-		sendError(w, http.StatusBadGateway, "Failed to connect backend WS: "+err.Error())
-		return
+	// Upgrade incoming client first
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
-	defer backendConn.Close()
-
-	// Upgrade client connection
-	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	clientConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, "WS upgrade failed: "+err.Error())
+		log.Printf("Agents WS proxy upgrade failed: %v", err)
 		return
 	}
 	defer clientConn.Close()
 
-	// Bidirectional copy loops
-	errc := make(chan struct{}, 2)
-	go func() {
-		for {
-			mt, msg, err := backendConn.ReadMessage()
-			if err != nil {
-				break
-			}
-			if err := clientConn.WriteMessage(mt, msg); err != nil {
-				break
-			}
-		}
-		errc <- struct{}{}
-	}()
-	go func() {
+	// Dial backend with Authorization header
+	header := http.Header{}
+	header.Set("Authorization", token)
+	d := *websocket.DefaultDialer
+	if backend.Scheme == "https" && *insecureSkipVerify {
+		d.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	backendConn, _, err := d.Dial(target.String(), header)
+	if err != nil {
+		log.Printf("Agents WS proxy dial backend failed: %v", err)
+		// Signal close to client
+		_ = clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "backend unavailable"))
+		return
+	}
+	defer backendConn.Close()
+
+	// Optional: lightweight ping/pong support in proxy
+	clientConn.SetReadLimit(512)
+	clientConn.SetPongHandler(func(string) error { return nil })
+	backendConn.SetReadLimit(512)
+	backendConn.SetPongHandler(func(string) error { return nil })
+
+	// Pipe data both ways
+	errc := make(chan error, 2)
+	go func() { // browser -> backend
 		for {
 			mt, msg, err := clientConn.ReadMessage()
 			if err != nil {
-				break
+				errc <- err
+				return
 			}
 			if err := backendConn.WriteMessage(mt, msg); err != nil {
-				break
+				errc <- err
+				return
 			}
 		}
-		errc <- struct{}{}
 	}()
+	go func() { // backend -> browser
+		for {
+			mt, msg, err := backendConn.ReadMessage()
+			if err != nil {
+				errc <- err
+				return
+			}
+			if err := clientConn.WriteMessage(mt, msg); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	// Wait until one side closes
 	<-errc
 }
 
@@ -983,6 +1011,7 @@ const editorTemplate = `<!DOCTYPE html>
                     <button id="functionsTab" class="toolbar-tab">Function Library</button>
                     <button id="diagramsTab" class="toolbar-tab">Diagrams</button>
                     <button id="dashboardTab" class="toolbar-tab">Dashboard</button>
+                    <button id="agentsTab" class="toolbar-tab">Agents</button>
                 </div>
                 <div id="fileToolbar" class="toolbar-section active">
                     <div class="file-selector">
@@ -1013,6 +1042,9 @@ const editorTemplate = `<!DOCTYPE html>
                 </div>
                 <div id="dashboardToolbar" class="toolbar-section">
                     <button id="refreshDashboardButton" class="toolbar-button" onclick="refreshDashboardData()">🔄 Refresh</button>
+                </div>
+                <div id="agentsToolbar" class="toolbar-section">
+                    <button id="refreshAgentsButton" class="toolbar-button">🔄 Refresh</button>
                 </div>
                 <div id="diagramsToolbar" class="toolbar-section">
                     <div class="file-selector">
@@ -1111,13 +1143,39 @@ const editorTemplate = `<!DOCTYPE html>
             [/[a-zA-Z_$][\w$]*/, 'identifier'], 
         ];
 
-        // Wait for DOM to be ready
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeEditor();
-        });
+        // Wait for DOM to be ready (and handle already-loaded state)
+        (function initWhenReady() {
+            const start = function() {
+                try { bindAuthHandlers(); } catch (e) { console.warn('bindAuthHandlers error', e); }
+                initializeEditor();
+            };
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
+            }
+        })();
         
         // Pin Monaco to a specific version for stability
         require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+        // Ensure auth/login handlers are attached at least once
+        let authHandlersInitialized = false;
+        function bindAuthHandlers() {
+            if (authHandlersInitialized) return;
+            const loginButton = document.getElementById('loginButton');
+            const logoutButton = document.getElementById('logoutButton');
+            const passwordInput = document.getElementById('passwordInput');
+            if (loginButton) {
+                loginButton.addEventListener('click', login);
+            }
+            if (logoutButton) {
+                logoutButton.addEventListener('click', logout);
+            }
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') login(); });
+            }
+            authHandlersInitialized = true;
+        }
         
         let editor;
         let fileEditorContent = '';         // Last content loaded in Files tab
@@ -2011,7 +2069,12 @@ const editorTemplate = `<!DOCTYPE html>
         }
 
         // Add this function and call it after the editor is initialized
+        // Ensure we only bind global UI handlers once across editor rebuilds
+        let uiHandlersInitialized = false;
         function initializeEventHandlers() {
+            if (uiHandlersInitialized) { return; }
+            // Mark immediately to avoid duplicate bindings during early calls
+            uiHandlersInitialized = true;
             console.log('DEBUG: Initializing event handlers');
 
             // Activity tracking for session extension
@@ -2032,30 +2095,32 @@ const editorTemplate = `<!DOCTYPE html>
                 });
             });            
             
-            // Login functionality
+            // Login functionality (also bound in bindAuthHandlers as a fallback)
             const loginButton = document.getElementById('loginButton');
             const logoutButton = document.getElementById('logoutButton');
             const usernameInput = document.getElementById('usernameInput');
             const passwordInput = document.getElementById('passwordInput');
             
-            if (loginButton) {
+            if (loginButton && !authHandlersInitialized) {
                 loginButton.addEventListener('click', login);
                 console.log('DEBUG: Login button handler added');
             }
             
-            if (logoutButton) {
+            if (logoutButton && !authHandlersInitialized) {
                 logoutButton.addEventListener('click', logout);
                 console.log('DEBUG: Logout button handler added');
             }
             
             // Enter key in password field
-            if (passwordInput) {
+            if (passwordInput && !authHandlersInitialized) {
                 passwordInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         login();
                     }
                 });
             }
+            // Mark initialized to avoid double-binding later
+            authHandlersInitialized = true;
             
             // File selection
             const fileSelect = document.getElementById('fileSelect');
@@ -2136,13 +2201,15 @@ const editorTemplate = `<!DOCTYPE html>
             const filesTab = document.getElementById('filesTab');
             const functionsTab = document.getElementById('functionsTab');
             const dashboardTab = document.getElementById('dashboardTab');
+            const agentsTab = document.getElementById('agentsTab');
             const diagramsTab = document.getElementById('diagramsTab');
             const fileToolbar = document.getElementById('fileToolbar');
             const functionsToolbar = document.getElementById('functionsToolbar');
             const dashboardToolbar = document.getElementById('dashboardToolbar');
+            const agentsToolbar = document.getElementById('agentsToolbar');
             const diagramsToolbar = document.getElementById('diagramsToolbar');
 
-            if (filesTab && functionsTab && dashboardTab && diagramsTab && fileToolbar && functionsToolbar && dashboardToolbar && diagramsToolbar) {
+            if (filesTab && functionsTab && dashboardTab && agentsTab && diagramsTab && fileToolbar && functionsToolbar && dashboardToolbar && agentsToolbar && diagramsToolbar) {
                 // Helpers to manage dashboard auto-refresh lifecycle
                 function stopDashboardAutoRefresh() {
                     if (dashboardAutoRefresh) {
@@ -2171,16 +2238,27 @@ const editorTemplate = `<!DOCTYPE html>
                     fileToolbar.classList.remove('active');
                     functionsToolbar.classList.remove('active');
                     dashboardToolbar.classList.remove('active');
+                    agentsToolbar.classList.remove('active');
                     diagramsToolbar.classList.remove('active');
                     // Remove active from all tabs
                     filesTab.classList.remove('active');
                     functionsTab.classList.remove('active');
                     dashboardTab.classList.remove('active');
+                    agentsTab.classList.remove('active');
                     diagramsTab.classList.remove('active');
 
                     if (selected === 'files') {
                         // Leaving dashboard: stop auto refresh
                         stopDashboardAutoRefresh();
+                        // Leaving agents: stop WS and restore editor container
+                        if (currentTab === 'agents') {
+                            stopAgentsWS();
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editorContainer) {
+                                editorContainer.innerHTML = '';
+                                setupMonacoEditor();
+                            }
+                        }
                         // Save current function editor state
                         if (currentTab === 'functions') {
                             functionEditorContent = editor.getValue();
@@ -2193,8 +2271,8 @@ const editorTemplate = `<!DOCTYPE html>
                                 dashboardContent = editorContainer.innerHTML;
                             }
                         }
-                        // Restore Monaco editor if coming from dashboard
-                        if (currentTab === 'dashboard') {
+                        // Restore Monaco editor if coming from dashboard or agents
+                        if (currentTab === 'dashboard' || currentTab === 'agents') {
                             // Clear dashboard content and restore editor container
                             const editorContainer = document.getElementById('editorContainer');
                             editorContainer.innerHTML = '';
@@ -2220,6 +2298,15 @@ const editorTemplate = `<!DOCTYPE html>
                     } else if (selected === 'functions') {
                         // Leaving dashboard: stop auto refresh
                         stopDashboardAutoRefresh();
+                        // Leaving agents: stop WS and restore editor
+                        if (currentTab === 'agents') {
+                            stopAgentsWS();
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editorContainer) {
+                                editorContainer.innerHTML = '';
+                                setupMonacoEditor();
+                            }
+                        }
                         // Save current file editor state
                         if (currentTab === 'files') {
                             fileEditorContent = editor.getValue();
@@ -2232,8 +2319,8 @@ const editorTemplate = `<!DOCTYPE html>
                                 dashboardContent = editorContainer.innerHTML;
                             }
                         }
-                        // Restore Monaco editor if coming from dashboard
-                        if (currentTab === 'dashboard') {
+                        // Restore Monaco editor if coming from dashboard or agents
+                        if (currentTab === 'dashboard' || currentTab === 'agents') {
                             // Clear dashboard content and restore editor container
                             const editorContainer = document.getElementById('editorContainer');
                             editorContainer.innerHTML = '';
@@ -2267,6 +2354,9 @@ const editorTemplate = `<!DOCTYPE html>
                         } else if (currentTab === 'functions') {
                             functionEditorContent = editor.getValue();
                             functionEditorFunctionName = document.getElementById('functionSelect').value;
+                        } else if (currentTab === 'agents') {
+                            // Ensure we fully stop the Agents WS loop when switching to dashboard
+                            stopAgentsWS();
                         }
                         // Show dashboard toolbar
                         dashboardToolbar.classList.add('active');
@@ -2299,9 +2389,97 @@ const editorTemplate = `<!DOCTYPE html>
                         updateSaveButtonStates();
                         updateRunButtonState();
                         currentTab = 'dashboard';
+                    } else if (selected === 'agents') {
+                        // Ensure any dashboard auto-refresh/WS is stopped when entering Agents
+                        stopDashboardAutoRefresh();
+                        // Save current editor state when switching to Agents
+                        if (currentTab === 'files') {
+                            fileEditorContent = editor.getValue();
+                            fileEditorFileName = currentFileName;
+                        } else if (currentTab === 'functions') {
+                            functionEditorContent = editor.getValue();
+                            const fnSel = document.getElementById('functionSelect');
+                            functionEditorFunctionName = fnSel ? fnSel.value : '';
+                        }
+                        // If coming from dashboard, ensure Monaco editor is torn down (agents replaces editor area)
+                        if (currentTab === 'dashboard') {
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editor) {
+                                editor.getModel()?.dispose();
+                                editor.dispose();
+                                editor = null;
+                            }
+                            editorContainer.innerHTML = '';
+                        }
+                        // Activate Agents toolbar/tab
+                        agentsToolbar.classList.add('active');
+                        agentsTab.classList.add('active');
+                        // Load or restore Agents content
+                        const editorElement = document.getElementById('editorContainer');
+                        // reset reconnect state before enabling
+                        if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} agentsWSReconnectTimer = null; }
+                        agentsWSBackoffMs = 1000;
+                        agentsWSConnecting = false;
+                        agentsWSReconnectEnabled = true; // allow WS to reconnect while Agents is active
+                        if (agentsLoaded && agentsContent) {
+                            if (editor) {
+                                editor.getModel()?.dispose();
+                                editor.dispose();
+                                editor = null;
+                            }
+                            editorElement.innerHTML = agentsContent;
+                            // Re-bind UI handlers for restored DOM
+                            const clearBtn = document.getElementById('clearAgentsStreamButton');
+                            if (clearBtn) {
+                                clearBtn.addEventListener('click', function() {
+                                    const s = document.getElementById('agentsStream');
+                                    if (s) s.textContent = '';
+                                });
+                            }
+                            const hbToggle = document.getElementById('toggleHeartbeats');
+                            if (hbToggle) {
+                                hbToggle.checked = agentsShowHeartbeats;
+                                hbToggle.addEventListener('change', function() {
+                                    agentsShowHeartbeats = hbToggle.checked;
+                                });
+                            }
+                            try { fetchAndRenderAgents(); } catch (e) {}
+                            connectAgentsWS();
+                        } else {
+                            // Ensure content is loaded before connecting WS to avoid races with DOM elements
+                            try {
+                                loadAgentsContent().then(() => {
+                                    connectAgentsWS();
+                                });
+                            } catch (e) {
+                                // Fallback: attempt WS connect regardless
+                                connectAgentsWS();
+                            }
+                        }
+                        originalContent = '';
+                        isFileModified = false;
+                        updateSaveButtonStates();
+                        updateRunButtonState();
+                        currentTab = 'agents';
                     } else if (selected === 'diagrams') {
                         // Leaving dashboard: stop auto refresh
                         stopDashboardAutoRefresh();
+                        // Leaving agents: stop WS and restore editor
+                        if (currentTab === 'agents') {
+                            stopAgentsWS();
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editor) {
+                                editor.getModel()?.dispose();
+                                editor.dispose();
+                                editor = null;
+                            }
+                            // also clear any pending reconnects
+                            if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} agentsWSReconnectTimer = null; }
+                            if (editorContainer) {
+                                editorContainer.innerHTML = '';
+                                setupMonacoEditor();
+                            }
+                        }
                         // Save current editor states when switching away
                         if (currentTab === 'files') {
                             fileEditorContent = editor.getValue();
@@ -2341,6 +2519,9 @@ const editorTemplate = `<!DOCTYPE html>
                 });
                 dashboardTab.addEventListener('click', function() {
                     showToolbar('dashboard');
+                });
+                agentsTab.addEventListener('click', function() {
+                    showToolbar('agents');
                 });
                 diagramsTab.addEventListener('click', function() {
                     showToolbar('diagrams');
@@ -2396,6 +2577,17 @@ const editorTemplate = `<!DOCTYPE html>
 
                 diagramsToolbarInitialized = true;
             }
+
+            // Agents toolbar handlers (initialize once)
+            if (!window.agentsToolbarInitialized) {
+                const refreshAgentsButton = document.getElementById('refreshAgentsButton');
+                if (refreshAgentsButton) {
+                    refreshAgentsButton.addEventListener('click', async function() {
+                        await fetchAndRenderAgents();
+                    });
+                }
+                window.agentsToolbarInitialized = true;
+            }
         }        
 
         // Load diagrams list from backend and populate dropdown
@@ -2431,6 +2623,7 @@ const editorTemplate = `<!DOCTYPE html>
             } catch (e) {
                 showOutput('Error loading diagrams: ' + e.message, 'error');
             }
+            // already marked at entry
         }
 
         // Fetch selected diagram JSON and generate Chariot code using shared codegen
@@ -3561,6 +3754,222 @@ const editorTemplate = `<!DOCTYPE html>
                 showOutput('Failed to load dashboard: ' + error.message, 'error');
             }
         }
+
+        // Agents UI state and helpers
+    let agentsContent = '';
+    let agentsLoaded = false;
+    let agentsWS = null;
+    let agentsWSBackoffMs = 1000;
+    let agentsWSForcedPolling = false;
+    let agentsWSReconnectEnabled = false; // only reconnect when Agents tab is active
+    let agentsWSReconnectTimer = null;    // pending reconnect timer id
+    let agentsWSConnecting = false;       // prevent concurrent connect attempts
+    let agentsShowHeartbeats = false;     // UI toggle to show/hide heartbeat messages
+
+        function stopAgentsWS() {
+            // Disable reconnects and close any existing socket
+            agentsWSReconnectEnabled = false;
+            if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} agentsWSReconnectTimer = null; }
+            try { if (agentsWS) { agentsWS.onclose = null; agentsWS.onerror = null; agentsWS.close(); } } catch (e) {}
+            agentsWS = null;
+            agentsWSConnecting = false;
+        }
+
+        // Build and load the Agents UI into the editor area
+        async function loadAgentsContent() {
+            try {
+                // Hide Monaco editor when displaying agents
+                const editorElement = document.getElementById('editorContainer');
+                if (editor) {
+                    editor.getModel()?.dispose();
+                    editor.dispose();
+                    editor = null;
+                }
+                                const agentsHTML = '<div class="agents-container" style="padding: 20px; color: #d4d4d4; background-color: #1e1e1e; height: 100%; overflow-y: auto; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">' +
+                    '<div id="agentsError" style="display: none; background-color: #f44747; color: white; padding: 15px; border-radius: 4px; margin-bottom: 20px;"></div>' +
+                    '<div id="agentsLoading" style="text-align: center; padding: 40px; color: #569cd6;">' +
+                        '<p>Loading agents…</p>' +
+                    '</div>' +
+                    '<div id="agentsContent" style="display:none;">' +
+                        '<div style="display:flex; gap:24px; align-items:flex-start;">' +
+                            '<div style="flex:0 0 320px; background:#252526; border:1px solid #333; border-radius:6px; padding:12px;">' +
+                                '<h3 style="margin-top:0; color:#569cd6;">Agents</h3>' +
+                                '<div id="agentsList" style="max-height:50vh; overflow:auto; font-family: monospace;"></div>' +
+                            '</div>' +
+                            '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:12px;">' +
+                                                                '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">' +
+                                                                    '<h3 style="margin-top:0; color:#569cd6;">Agent events</h3>' +
+                                                                    '<div style="display:flex; align-items:center; gap:10px;">' +
+                                                                        '<label style="font-size:12px; color:#bbb; display:flex; align-items:center; gap:6px;">' +
+                                                                             '<input type="checkbox" id="toggleHeartbeats" /> Show heartbeats' +
+                                                                        '</label>' +
+                                                                        '<button id="clearAgentsStreamButton" class="toolbar-button">🧹 Clear</button>' +
+                                                                    '</div>' +
+                                                                '</div>' +
+                                '<pre id="agentsStream" style="height:50vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; border:1px solid #333; white-space:pre-wrap; word-break:break-word;"></pre>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+
+                // Inject and save state
+                editorElement.innerHTML = agentsHTML;
+                agentsContent = agentsHTML;
+                agentsLoaded = true;
+
+                // Bind clear button and toggle
+                const clearBtn = document.getElementById('clearAgentsStreamButton');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function() {
+                        const s = document.getElementById('agentsStream');
+                        if (s) s.textContent = '';
+                    });
+                }
+                const hbToggle = document.getElementById('toggleHeartbeats');
+                if (hbToggle) {
+                    hbToggle.checked = agentsShowHeartbeats;
+                    hbToggle.addEventListener('change', function() {
+                        agentsShowHeartbeats = hbToggle.checked;
+                    });
+                }
+
+                // Initial list load
+                await fetchAndRenderAgents();
+            } catch (error) {
+                console.error('Error loading agents content:', error);
+                showOutput('Failed to load agents: ' + error.message, 'error');
+            }
+        }
+
+        function connectAgentsWS() {
+            // Only connect/reconnect if enabled (Agents tab active)
+            if (!agentsWSReconnectEnabled) return;
+            // Prevent parallel attempts
+            if (agentsWSConnecting) return;
+            agentsWSConnecting = true;
+            // Clear any pending reconnect timer to avoid stacked connects
+            if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} agentsWSReconnectTimer = null; }
+            // Avoid duplicate sockets: if an open or connecting socket exists, don't disrupt it
+            try {
+                if (agentsWS) {
+                    const rs = agentsWS.readyState; // 0=CONNECTING,1=OPEN,2=CLOSING,3=CLOSED
+                    if (rs === 0 || rs === 1 || rs === 2) {
+                        agentsWSConnecting = false;
+                        return;
+                    }
+                    // CLOSED: allow a fresh connect
+                }
+            } catch (e) { /* ignore */ }
+            const proto = (window.location.protocol === 'https:') ? 'wss' : 'ws';
+            const basePath = window.location.pathname.startsWith('/charioteer/') ? '/charioteer' : '';
+            const token = (authToken || localStorage.getItem('chariot_token') || '').trim();
+            const qs = token ? ('?token=' + encodeURIComponent(token)) : '';
+            const wsURL = proto + '://' + window.location.host + basePath + '/ws/agents' + qs;
+            try {
+                agentsWS = new WebSocket(wsURL);
+                agentsWS.onopen = () => {
+                    console.log('Agents WS connected');
+                    agentsWSBackoffMs = 1000;
+                    agentsWSForcedPolling = false;
+                    agentsWSConnecting = false;
+                    if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} agentsWSReconnectTimer = null; }
+                    const err = document.getElementById('agentsError');
+                    if (err) { err.style.display = 'none'; }
+                };
+                agentsWS.onmessage = (evt) => {
+                    const s = document.getElementById('agentsStream');
+                    if (!s) return;
+                    try {
+                        const msg = JSON.parse(evt.data);
+                        // Filter heartbeats unless explicitly enabled
+                        if (msg && msg.type === 'heartbeat' && !agentsShowHeartbeats) {
+                            return;
+                        }
+                        const line = (typeof msg === 'string') ? msg : JSON.stringify(msg);
+                        s.textContent += (s.textContent ? '\n' : '') + line;
+                        s.scrollTop = s.scrollHeight;
+                    } catch (e) {
+                        s.textContent += (s.textContent ? '\n' : '') + evt.data;
+                        s.scrollTop = s.scrollHeight;
+                    }
+                    const loading = document.getElementById('agentsLoading');
+                    const content = document.getElementById('agentsContent');
+                    if (loading) loading.style.display = 'none';
+                    if (content) content.style.display = 'block';
+                };
+                agentsWS.onclose = (ev) => {
+                    console.log('Agents WS closed', ev && ev.code, ev && ev.reason);
+                    agentsWSConnecting = false;
+                    if (agentsWSReconnectEnabled && token && !agentsWSForcedPolling && currentTab === 'agents') {
+                        const err = document.getElementById('agentsError');
+                        if (err) { err.textContent = 'Realtime link lost, retrying…'; err.style.display = 'block'; }
+                        if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} }
+                        agentsWSReconnectTimer = setTimeout(() => { agentsWSReconnectTimer = null; connectAgentsWS(); }, Math.min(agentsWSBackoffMs, 30000));
+                        agentsWSBackoffMs = Math.min(agentsWSBackoffMs * 2, 30000);
+                    }
+                };
+                agentsWS.onerror = (e) => {
+                    console.log('Agents WS error', e);
+                    agentsWSConnecting = false;
+                    if (agentsWSReconnectEnabled && token && !agentsWSForcedPolling && currentTab === 'agents') {
+                        const err = document.getElementById('agentsError');
+                        if (err) { err.textContent = 'Realtime error, retrying…'; err.style.display = 'block'; }
+                        try { agentsWS.close(); } catch (e) {}
+                        if (agentsWSReconnectTimer) { try { clearTimeout(agentsWSReconnectTimer); } catch (e) {} }
+                        agentsWSReconnectTimer = setTimeout(() => { agentsWSReconnectTimer = null; connectAgentsWS(); }, Math.min(agentsWSBackoffMs, 30000));
+                        agentsWSBackoffMs = Math.min(agentsWSBackoffMs * 2, 30000);
+                    }
+                };
+            } catch (e) {
+                console.warn('Agents WS not available, using no-op');
+                agentsWSConnecting = false;
+            }
+        }
+
+    async function fetchAndRenderAgents() {
+            const err = document.getElementById('agentsError');
+            const loading = document.getElementById('agentsLoading');
+            const content = document.getElementById('agentsContent');
+            try {
+                if (err) err.style.display = 'none';
+                if (loading) loading.style.display = 'block';
+                if (content) content.style.display = 'none';
+                const resp = await fetch('/charioteer/api/agents', { headers: getAuthHeaders() });
+                if (!resp.ok) throw new Error('Failed to fetch agents: ' + resp.statusText);
+                const result = await resp.json();
+                let agents = [];
+                if (result) {
+                    if (Array.isArray(result)) {
+                        agents = result;
+                    } else if (Array.isArray(result.agents)) {
+                        agents = result.agents;
+                    } else if (result.data) {
+                        if (Array.isArray(result.data)) {
+                            agents = result.data;
+                        } else if (Array.isArray(result.data.agents)) {
+                            agents = result.data.agents;
+                        }
+                    }
+                }
+                const listDiv = document.getElementById('agentsList');
+                if (listDiv) {
+                    if (!agents || agents.length === 0) {
+                        listDiv.innerHTML = '<div style="color:#888;">No agents</div>';
+                    } else {
+                        listDiv.innerHTML = agents.map(a => '<div style="padding:4px 0;">' + (a && a.name ? a.name : a) + '</div>').join('');
+                    }
+                }
+                if (loading) loading.style.display = 'none';
+                if (content) content.style.display = 'block';
+            } catch (e) {
+                console.error('Agents API error:', e);
+                if (err) { err.textContent = e.message; err.style.display = 'block'; }
+                if (loading) loading.style.display = 'none';
+                if (content) content.style.display = 'none';
+            }
+        }
+
+        // (removed duplicate connectAgentsWS definition)
 
         // WebSocket client for dashboard stream
         let dashboardWS = null;
@@ -5333,6 +5742,7 @@ func main() {
 
 	// Dashboard API proxy route
 	http.HandleFunc("/charioteer/api/dashboard/status", authMiddleware(dashboardAPIHandler))
+	http.HandleFunc("/charioteer/api/agents", authMiddleware(agentsListHandler))
 
 	// Diagrams proxy endpoints -> go-chariot backend
 	http.HandleFunc("/charioteer/api/diagrams", authMiddleware(func(w http.ResponseWriter, r *http.Request) {

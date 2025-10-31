@@ -116,23 +116,65 @@ func toChariotValue(v interface{}) ch.Value {
 
 // WebSocket: stream agent events
 func (h *Handlers) HandleAgentsWS(c echo.Context) error {
-	// Reuse dashboard upgrader policy
+	// Upgrade to WebSocket (same Upgrader settings as dashboard)
 	conn, err := wsUpgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
+	// Subscribe to agent events
 	chEvents := make(chan ch.AgentEvent, 128)
 	unsubscribe := ch.RegisterAgentEventSink(chEvents)
 	defer unsubscribe()
 
-	// Simple writer loop
-	for ev := range chEvents {
-		payload, _ := json.Marshal(ev)
-		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-			break
+	// Improve stability: handle control frames and keep-alive pings
+	conn.SetReadLimit(512)
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
+	// Reader goroutine: drain incoming messages to process pings/close frames
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Send initial hello so clients immediately see something
+	_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"hello","result":"OK","service":"agents"}`))
+
+	// Periodic ping to keep intermediaries happy
+	ping := time.NewTicker(30 * time.Second)
+	defer ping.Stop()
+
+	// Visible JSON heartbeat in addition to WS ping
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
+
+	for {
+		select {
+		case ev, ok := <-chEvents:
+			if !ok {
+				return nil
+			}
+			payload, _ := json.Marshal(ev)
+			if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+				return nil
+			}
+		case <-ping.C:
+			_ = conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(5*time.Second))
+		case <-heartbeat.C:
+			// Non-blocking best-effort heartbeat
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"heartbeat","ts":`+time.Now().UTC().Format("\"2006-01-02T15:04:05Z07:00\"")+`}`))
+		case <-done:
+			return nil
 		}
 	}
-	return nil
 }
