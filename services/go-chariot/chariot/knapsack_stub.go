@@ -1,15 +1,15 @@
-//go:build !knapsack
-// +build !knapsack
+//go:build !cgo
+// +build !cgo
 
 package chariot
 
-import "fmt"
+import "errors"
 
-// Stub implementations when knapsack CGO support not built.
-func KnapsackSolve(csvPath string, teamSize int) ([]int, error) {
-	return nil, fmt.Errorf("knapsack support not built (missing 'knapsack' build tag)")
-}
+// Stub implementation when knapsack CGO support is not built.
+var ErrKnapsackUnavailable = errors.New("knapsack library not available (build with CGO_ENABLED=1 and libknapsack installed)")
 
-func KnapsackSolveAlt(csvPath string, teamSize int) error {
-	return fmt.Errorf("knapsack support not built (missing 'knapsack' build tag)")
+// SolveKnapsack stub for non-cgo builds.
+// Real signature: SolveKnapsack(configJSON string, optionsJSON string) (*V2Solution, error)
+func SolveKnapsack(configJSON string, optionsJSON string) (*V2Solution, error) {
+	return nil, ErrKnapsackUnavailable
 }
