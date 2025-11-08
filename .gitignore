@@ -46,3 +46,5 @@ services/charioteer/charioteer
 services/go-chariot/tests/data/*
 !services/go-chariot/tests/data/.gitkeep
 
+go.work
+go.work.sum
