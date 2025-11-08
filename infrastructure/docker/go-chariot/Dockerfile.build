@@ -1,0 +1,45 @@
+# Build go-chariot with knapsack library for AMD64 Linux
+
+# Stage 1: Get knapsack library artifacts from pre-built image
+FROM knapsack-builder AS knapsack-lib
+
+# Stage 2: Build go-chariot with CGO
+FROM golang:1.24 AS builder
+
+# Copy knapsack library and headers from knapsack-builder image
+# Note: knapsack-builder exports artifacts to /lib/ and /include/ (not /usr/local/)
+# Use libknapsack.a for Linux CPU-only builds (knapsack-builder builds CPU version)
+COPY --from=knapsack-lib /lib/libknapsack.a /usr/local/lib/
+COPY --from=knapsack-lib /include/knapsack_c.h /usr/local/include/
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set CGO flags for knapsack (use libknapsack for CPU-only build)
+ENV CGO_ENABLED=1
+ENV CGO_CFLAGS="-I/usr/local/include"
+ENV CGO_LDFLAGS="-L/usr/local/lib -lknapsack -lstdc++ -lm"
+
+# Disable Go workspace mode (module must build standalone)
+ENV GOWORK=off
+ENV GOWORK=off
+
+WORKDIR /build
+
+# Copy the entire go-chariot module preserving structure
+COPY services/go-chariot/ ./
+RUN go mod download
+
+# Build for AMD64 Linux
+# Build the Go binary with CGO enabled and link against libknapsack.a
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GOWORK=off \
+    go build -o go-chariot-linux-amd64 \
+    -ldflags="-w -s" \
+    ./cmd
+    
+# Stage 3: Extract binary
+FROM scratch AS artifact
+COPY --from=builder /build/go-chariot-linux-amd64 /

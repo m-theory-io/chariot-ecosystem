@@ -23,7 +23,7 @@ databases/**
 services/go-chariot/bin/**
 services/go-chariot/tests/**
 services/go-chariot/test-results.txt
-services/go-chariot/logs/**
+# NOTE: logs/ is a source package, not log files - don't exclude it
 
 # Exclude entire build dir except the linux/amd64 binary the Dockerfile copies
 services/go-chariot/build/**

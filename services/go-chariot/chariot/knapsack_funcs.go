@@ -34,7 +34,7 @@ func RegisterKnapsackFunctions(rt *Runtime) {
 			optionsJSON = string(opts)
 		}
 
-		// Call the V2 cgo API (darwin/linux implementations)
+		// Call the V2 cgo API (platform-specific implementations)
 		sol, err := SolveKnapsack(string(configJSON), optionsJSON)
 		if err != nil {
 			return nil, fmt.Errorf("knapsack solve failed: %w", err)
