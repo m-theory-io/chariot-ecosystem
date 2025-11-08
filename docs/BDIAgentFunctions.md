@@ -161,6 +161,23 @@ agentList()                   // -> ['heating']
 agentStopNamed('heating')
 ```
 
+### Beliefs vs variables
+
+- `getVariable(name)` looks up the current scope first, then the global scope; it does not read agent beliefs.
+- To use the belief store with plans, call `belief(agentName, key)` inside your plan's trigger/guard/steps to read values, and `agentBelief(agentName, key, value)` to write values (e.g., from within a step). These target agents started via `agentStartNamed` (default registry).
+- For one-shot execution (`runPlanOnce`, `runPlanOnceBDI`, `runPlanOnceEx`), prefer passing a `varsMap` to overlay per-run variables that your plan accesses via `getVariable(...)`. The `agentBelief(...)` API is not applied to these ephemeral agents.
+
+Example using beliefs with a named agent:
+
+```
+// Build plan p (uses belief('thermostat', 'currentTemp') etc.)
+agentStartNamed('thermostat', p)
+agentBelief('thermostat', 'lower', 68)
+agentBelief('thermostat', 'upper', 72)
+agentBelief('thermostat', 'currentTemp', 65)
+agentPublish('thermostat') // optional nudge
+```
+
 ## Error modes and notes
 
 - All functions validate argument counts and types; mismatches produce errors like `"runPlanOnce(plan)"` or `"first argument must be plan"`.

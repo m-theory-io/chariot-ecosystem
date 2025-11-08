@@ -1,0 +1,51 @@
+# Single-stage CUDA build for Linux ARM64
+FROM nvidia/cuda:12.6.0-devel-ubuntu22.04 AS builder
+
+# Install Go and build dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget https://go.dev/dl/go1.24.3.linux-arm64.tar.gz && \
+    tar -C /usr/local -xzf go1.24.3.linux-arm64.tar.gz && \
+    rm go1.24.3.linux-arm64.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Enable CGO
+ENV CGO_ENABLED=1
+
+# Disable Go workspace mode
+ENV GOWORK=off
+
+# Copy go-chariot source (includes vendored knapsack libraries)
+WORKDIR /build
+COPY services/go-chariot/ ./
+
+# Download dependencies
+RUN go mod download
+
+# Build with Linux ARM64 CUDA tags to select knapsack_cgo_linux_arm64_cuda.go
+# CGO will use vendored library at knapsack-library/lib/linux-cuda/
+RUN go build \
+    -tags "linux,arm64,cuda,cgo" \
+    -o go-chariot-linux-arm64-cuda \
+    -ldflags="-w -s" \
+    ./cmd
+
+# Runtime stage with CUDA runtime
+FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
+
+# Install runtime dependencies including wget for health checks
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libstdc++6 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary
+COPY --from=builder /build/go-chariot-linux-arm64-cuda /usr/local/bin/go-chariot
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/go-chariot"]

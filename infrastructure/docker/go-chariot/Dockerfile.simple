@@ -1,0 +1,41 @@
+# Simple single-stage build for go-chariot with vendored knapsack library (CPU-only)
+FROM golang:1.24 AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /build
+
+# Copy vendored knapsack CPU library and header
+COPY services/go-chariot/lib/libknapsack_cpu.a /usr/local/lib/
+COPY services/go-chariot/include/knapsack_c.h /usr/local/include/
+
+# Set CGO flags for knapsack (CPU-only)
+ENV CGO_ENABLED=1
+ENV CGO_CFLAGS="-I/usr/local/include"
+ENV CGO_LDFLAGS="-L/usr/local/lib -lknapsack_cpu -lstdc++ -lm"
+
+# Disable Go workspace mode
+ENV GOWORK=off
+
+# Copy go.mod and go.sum first for better caching
+COPY services/go-chariot/go.mod services/go-chariot/go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY services/go-chariot/ ./
+
+# Build the binary with CGO enabled (uses knapsack_linux.go via build tags)
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GOWORK=off \
+    go build -tags cgo \
+    -o go-chariot-linux-amd64 \
+    -ldflags="-w -s" \
+    ./cmd
+
+# Extract binary stage
+FROM scratch AS artifact
+COPY --from=builder /build/go-chariot-linux-amd64 /

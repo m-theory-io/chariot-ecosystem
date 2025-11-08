@@ -1,15 +1,11 @@
-//go:build !knapsack
-// +build !knapsack
+//go:build !cgo || (!linux && !darwin) || (linux && !amd64 && !arm64) || (linux && arm64 && !cuda)
 
 package chariot
 
-import "fmt"
+import "errors"
 
-// Stub implementations when knapsack CGO support not built.
-func KnapsackSolve(csvPath string, teamSize int) ([]int, error) {
-	return nil, fmt.Errorf("knapsack support not built (missing 'knapsack' build tag)")
-}
-
-func KnapsackSolveAlt(csvPath string, teamSize int) error {
-	return fmt.Errorf("knapsack support not built (missing 'knapsack' build tag)")
+// SolveKnapsack stub implementation for unsupported platforms.
+// Real signature: SolveKnapsack(configJSON string, optionsJSON string) (*V2Solution, error)
+func SolveKnapsack(configJSON string, optionsJSON string) (*V2Solution, error) {
+	return nil, errors.New("knapsack solver not available on this platform - requires CGO and specific platform support")
 }

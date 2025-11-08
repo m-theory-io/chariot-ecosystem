@@ -37,6 +37,7 @@ func RegisterAll(rt *Runtime) {
 	RegisterRBACFuncs(rt)               // Registers RBAC functions
 	RegisterCSVFunctions(rt)            // Registers CSV functions
 	RegisterMCPFunctions(rt)            // Registers MCP client functions
+	RegisterKnapsackFunctions(rt)       // Registers knapsack solver functions
 	RegisterTypeDispatchedFunctions(rt) // Registers polymorphic functions LAST
 	RegisterPlanFunctions(rt)           // Registers plan/agent functions
 

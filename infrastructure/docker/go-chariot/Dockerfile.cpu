@@ -1,0 +1,47 @@
+# Single-stage CPU-only build for Linux AMD64
+FROM golang:1.24-bookworm AS builder
+
+# Install build dependencies for CGO (bookworm has GCC 12, compatible with GCC 11)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable CGO and use g++ for linking C++ code
+ENV CGO_ENABLED=1
+ENV CXX=g++
+ENV CC=gcc
+
+# Disable Go workspace mode
+ENV GOWORK=off
+
+# Copy go-chariot source (includes vendored knapsack libraries)
+WORKDIR /build
+COPY services/go-chariot/ ./
+
+# Download dependencies
+RUN go mod download
+
+# Build with Linux AMD64 CPU tags to select knapsack_cgo_linux_amd64.go
+# CGO will use vendored library at knapsack-library/lib/linux-cpu/
+RUN go build \
+    -tags "linux,amd64,cgo" \
+    -o go-chariot-linux-amd64 \
+    -ldflags="-w -s" \
+    ./cmd
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies including wget for health checks
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libstdc++6 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary
+COPY --from=builder /build/go-chariot-linux-amd64 /usr/local/bin/go-chariot
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/go-chariot"]
