@@ -1,17 +1,36 @@
-// runtime.go
-// Defines the Chariot runtime and host-binding logic.
 package chariot
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"sync"
+	"time"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"go.uber.org/zap"
 )
+
+// LogWriter is an interface for capturing logs during script execution
+type LogWriter interface {
+	Append(entry LogEntry)
+}
+
+// LogEntry represents a single log entry
+type LogEntry struct {
+	Timestamp time.Time `json:"timestamp"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+}
+
+// JSON returns the JSON representation of the log entry
+func (e LogEntry) JSON() string {
+	data, _ := json.Marshal(e)
+	return string(data)
+}
 
 var (
 	globalNameFilter []string = []string{
@@ -45,6 +64,9 @@ type Runtime struct {
 	functions       map[string]*FunctionValue                // user-defined functions
 	currentPosition Position                                 // Current position in the source code
 	scriptErrors    []ScriptError                            // Replace string array with structured errors
+
+	// Logging
+	logWriter LogWriter // Optional log writer for capturing script execution logs
 
 	// Tables and related tracking
 	currentTable string                        // default table if none named
@@ -141,6 +163,27 @@ func (rt *Runtime) ClearCaches() {
 	rt.cursors = make(map[string]int)
 	rt.namespaces = make(map[string]Value)
 	rt.currentTable = ""
+}
+
+// SetLogWriter sets the log writer for capturing logs during script execution
+func (rt *Runtime) SetLogWriter(writer LogWriter) {
+	rt.logWriter = writer
+}
+
+// WriteLog writes a log entry if a log writer is configured
+func (rt *Runtime) WriteLog(level, message string) {
+	cfg.ChariotLogger.Debug("WriteLog called",
+		zap.String("level", level),
+		zap.String("message", message),
+		zap.Bool("has_log_writer", rt.logWriter != nil))
+
+	if rt.logWriter != nil {
+		rt.logWriter.Append(LogEntry{
+			Timestamp: time.Now(),
+			Level:     level,
+			Message:   message,
+		})
+	}
 }
 
 // GetFunction retrieves a registered user-defined function by name

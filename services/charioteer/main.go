@@ -1060,7 +1060,13 @@ const editorTemplate = `<!DOCTYPE html>
                         <button id="deleteDiagramButton" class="toolbar-button file-action delete" disabled>🗑️ Delete</button>
                     </div>
                 </div>
-                <button id="runButton" class="run-button" disabled>▶ Run</button>
+                <div class="run-controls" style="display: flex; align-items: center; gap: 8px;">
+                    <button id="runButton" class="run-button" disabled>▶ Run</button>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer;">
+                        <input type="checkbox" id="streamingToggle" checked style="cursor: pointer;">
+                        <span>Stream Logs</span>
+                    </label>
+                </div>
                 
                 <div class="auth-section">
                     <div id="loginSection">
@@ -2170,7 +2176,14 @@ const editorTemplate = `<!DOCTYPE html>
             }
             
             if (runButton) {
-                runButton.addEventListener('click', runCode);
+                runButton.addEventListener('click', function() {
+                    const streamingToggle = document.getElementById('streamingToggle');
+                    if (streamingToggle && streamingToggle.checked) {
+                        runCodeAsync();
+                    } else {
+                        runCode();
+                    }
+                });
                 console.log('DEBUG: Run button handler added');
             }
             
@@ -2879,6 +2892,165 @@ const editorTemplate = `<!DOCTYPE html>
                 runButton.disabled = false;
                 runButton.textContent = '▶ Run';
             }
+        }
+
+        // Run code with streaming logs via SSE
+        async function runCodeAsync() {
+            if (!authToken) {
+                // Try to get the token from the cookie
+                const token = getCookie('chariot_token');
+                if (token) {
+                    authToken = token;
+                    updateAuthUI(true);
+                } else {
+                    showOutput('Please log in first', 'error');
+                    return;
+                }
+            }
+            
+            const code = editor.getValue();
+            if (!code.trim()) {
+                showOutput('No code to run', 'info');
+                return;
+            }
+            
+            const runButton = document.getElementById('runButton');
+            runButton.disabled = true;
+            runButton.textContent = '⏳ Running...';
+            
+            try {
+                showOutput('Starting execution...', 'loading');
+                switchTab('output');
+
+                // Step 1: Start async execution
+                const execResponse = await fetch(getAPIPath('/api/execute-async'), {
+                    method: 'POST',
+                    headers: getAuthHeadersWithJSON(),
+                    body: JSON.stringify({ program: code })
+                });
+                
+                if (execResponse.status === 401) {
+                    showOutput('Authentication expired. Please log in again.', 'error');
+                    logout();
+                    return;
+                }
+                
+                const execResult = await execResponse.json();
+                
+                if (!execResponse.ok || execResult.result !== "OK") {
+                    const errorMsg = execResult.result === "ERROR" ? execResult.data : 'Failed to start execution';
+                    showOutput('Error: ' + errorMsg, 'error');
+                    return;
+                }
+                
+                const executionId = execResult.data.execution_id;
+                showOutput('Execution ID: ' + executionId + '\n--- Streaming Logs ---\n', 'info');
+                
+                // Step 2: Stream logs via SSE
+                await streamExecutionLogs(executionId);
+                
+                // Step 3: Get final result
+                await getExecutionResult(executionId);
+                
+                // Update left panel to reflect any changes
+                updateLeftPanel();
+                
+            } catch (error) {
+                showOutput('\nNetwork Error: ' + error.message, 'error');
+            } finally {
+                runButton.disabled = false;
+                runButton.textContent = '▶ Run';
+            }
+        }
+
+        // Stream execution logs via Server-Sent Events
+        function streamExecutionLogs(executionId) {
+            return new Promise((resolve, reject) => {
+                // EventSource doesn't support custom headers, so pass token as query param
+                const url = getAPIPath('/api/logs/' + executionId) + '?token=' + encodeURIComponent(authToken);
+                const eventSource = new EventSource(url);
+                
+                eventSource.onmessage = (event) => {
+                    try {
+                        const logEntry = JSON.parse(event.data);
+                        const timestamp = new Date(logEntry.timestamp).toLocaleTimeString();
+                        const levelColor = {
+                            'DEBUG': '#569cd6',
+                            'INFO': '#4ec9b0',
+                            'WARN': '#dcdcaa',
+                            'ERROR': '#f44747'
+                        }[logEntry.level] || '#cccccc';
+                        
+                        const logLine = '<span style="color:' + levelColor + '">[' + logEntry.level + ']</span> ' + 
+                                       '<span style="color:#666">' + timestamp + '</span> ' + 
+                                       logEntry.message;
+                        appendToOutput(logLine);
+                    } catch (err) {
+                        console.error('Failed to parse log entry:', err);
+                    }
+                };
+                
+                eventSource.addEventListener('done', () => {
+                    eventSource.close();
+                    appendToOutput('\n--- Execution Complete ---\n', 'info');
+                    resolve();
+                });
+                
+                eventSource.onerror = (error) => {
+                    eventSource.close();
+                    console.error('SSE error:', error);
+                    // Don't reject, just resolve to continue to result fetching
+                    resolve();
+                };
+            });
+        }
+
+        // Get final execution result
+        async function getExecutionResult(executionId) {
+            try {
+                const response = await fetch(getAPIPath('/api/result/' + executionId), {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) {
+                    appendToOutput('\nFailed to fetch result (status: ' + response.status + ')', 'error');
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.result === "OK") {
+                    appendToOutput('\nFinal Result: ' + JSON.stringify(result.data, null, 2), 'success');
+                } else if (result.result === "ERROR") {
+                    appendToOutput('\nExecution Error: ' + result.data, 'error');
+                } else if (result.result === "PENDING") {
+                    appendToOutput('\nExecution still running...', 'info');
+                }
+            } catch (error) {
+                appendToOutput('\nFailed to fetch result: ' + error.message, 'error');
+            }
+        }
+
+        // Helper function to append to output without clearing
+        function appendToOutput(text, type) {
+            const outputContent = document.getElementById('outputContent');
+            if (!outputContent) return;
+            
+            const line = document.createElement('div');
+            if (type === 'error') {
+                line.style.color = '#f44747';
+            } else if (type === 'success') {
+                line.style.color = '#4ec9b0';
+            } else if (type === 'info') {
+                line.style.color = '#569cd6';
+            } else if (type === 'loading') {
+                line.style.color = '#dcdcaa';
+            }
+            line.innerHTML = text;
+            outputContent.appendChild(line);
+            
+            // Auto-scroll to bottom
+            outputContent.scrollTop = outputContent.scrollHeight;
         }
 
         // Add expand/collapse handlers
@@ -4923,13 +5095,223 @@ func executeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Handler to execute code asynchronously (proxy to go-chariot)
+func executeAsyncHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// Read request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, "Failed to read request body: "+err.Error())
+		return
+	}
+
+	log.Printf("Proxying execute-async request: %s", string(body))
+
+	// Forward to backend
+	req, err := http.NewRequest("POST", getBackendURL()+"/api/execute-async", bytes.NewBuffer(body))
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to create backend request: "+err.Error())
+		return
+	}
+
+	// Copy Authorization header
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Make request to backend
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		sendError(w, http.StatusBadGateway, "Failed to reach backend: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to read backend response: "+err.Error())
+		return
+	}
+
+	log.Printf("Backend execute-async response (status %d): %s", resp.StatusCode, string(respBody))
+
+	// Copy response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	w.Write(respBody)
+}
+
+// Handler to stream logs via SSE (proxy to go-chariot)
+func streamLogsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// Extract execution ID from path
+	// Path can be /api/logs/:execId or /charioteer/api/logs/:execId
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	var execID string
+	for i, part := range pathParts {
+		if part == "logs" && i+1 < len(pathParts) {
+			execID = pathParts[i+1]
+			break
+		}
+	}
+
+	if execID == "" {
+		sendError(w, http.StatusBadRequest, "Missing execution ID")
+		return
+	}
+
+	// Get token from query parameter (EventSource doesn't support custom headers)
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		// Fallback to Authorization header if present
+		token = r.Header.Get("Authorization")
+	}
+
+	// Forward to backend SSE endpoint
+	backendURL := getBackendURL() + "/api/logs/" + execID
+	req, err := http.NewRequest("GET", backendURL, nil)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to create backend request: "+err.Error())
+		return
+	}
+
+	// Set Authorization header for backend
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+
+	log.Printf("SSE proxy: Forwarding request to backend for exec %s", execID)
+
+	// Make request to backend
+	client := &http.Client{Timeout: 0} // No timeout for SSE streaming
+	resp, err := client.Do(req)
+	if err != nil {
+		sendError(w, http.StatusBadGateway, "Failed to reach backend: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// If backend returned error (not 200), forward it
+	if resp.StatusCode != http.StatusOK {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
+		return
+	}
+
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+
+	// Stream response from backend to client
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Printf("streaming not supported")
+		return
+	}
+
+	// Copy SSE events from backend to client
+	buf := make([]byte, 4096)
+	totalBytes := 0
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			totalBytes += n
+			log.Printf("SSE proxy: received %d bytes from backend (total: %d) for exec %s", n, totalBytes, execID)
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				log.Printf("error writing SSE data: %v", writeErr)
+				return
+			}
+			flusher.Flush()
+		}
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("error reading SSE stream: %v", err)
+			} else {
+				log.Printf("SSE stream completed for exec %s (total bytes: %d)", execID, totalBytes)
+			}
+			return
+		}
+	}
+}
+
+// Handler to get execution result (proxy to go-chariot)
+func getResultHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// Extract execution ID from path
+	// Path can be /api/result/:execId or /charioteer/api/result/:execId
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	var execID string
+	for i, part := range pathParts {
+		if part == "result" && i+1 < len(pathParts) {
+			execID = pathParts[i+1]
+			break
+		}
+	}
+
+	if execID == "" {
+		sendError(w, http.StatusBadRequest, "Missing execution ID")
+		return
+	}
+
+	// Forward to backend
+	backendURL := getBackendURL() + "/api/result/" + execID
+	req, err := http.NewRequest("GET", backendURL, nil)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to create backend request: "+err.Error())
+		return
+	}
+
+	// Copy Authorization header
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+
+	// Make request to backend
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		sendError(w, http.StatusBadGateway, "Failed to reach backend: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("error copying result response: %v", err)
+	}
+}
+
 // Add authentication middleware
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
 
-		// For dashboard route, also check URL parameter
-		if token == "" && r.URL.Path == "/charioteer/dashboard" {
+		// For dashboard route and SSE endpoints, also check URL parameter
+		// (EventSource doesn't support custom headers)
+		if token == "" && (r.URL.Path == "/charioteer/dashboard" ||
+			strings.Contains(r.URL.Path, "/api/logs/") ||
+			strings.Contains(r.URL.Path, "/charioteer/api/logs/")) {
 			urlToken := r.URL.Query().Get("token")
 			if urlToken != "" {
 				token = urlToken
@@ -5705,6 +6087,9 @@ func main() {
 	http.HandleFunc("/api/rename", authMiddleware(renameFileHandler))
 	http.HandleFunc("/api/delete", authMiddleware(deleteFileHandler))
 	http.HandleFunc("/api/execute", authMiddleware(executeHandler))
+	http.HandleFunc("/api/execute-async", authMiddleware(executeAsyncHandler))
+	http.HandleFunc("/api/logs/", authMiddleware(streamLogsHandler))
+	http.HandleFunc("/api/result/", authMiddleware(getResultHandler))
 	// Protected routes -- function library operations
 	http.HandleFunc("/api/functions", authMiddleware(listFunctionsHandler))
 	http.HandleFunc("/api/function", authMiddleware(getFunctionHandler))
@@ -5721,6 +6106,9 @@ func main() {
 	http.HandleFunc("/charioteer/api/rename", authMiddleware(renameFileHandler))
 	http.HandleFunc("/charioteer/api/delete", authMiddleware(deleteFileHandler))
 	http.HandleFunc("/charioteer/api/execute", authMiddleware(executeHandler))
+	http.HandleFunc("/charioteer/api/execute-async", authMiddleware(executeAsyncHandler))
+	http.HandleFunc("/charioteer/api/logs/", authMiddleware(streamLogsHandler))
+	http.HandleFunc("/charioteer/api/result/", authMiddleware(getResultHandler))
 	http.HandleFunc("/charioteer/api/functions", authMiddleware(listFunctionsHandler))
 	http.HandleFunc("/charioteer/api/function", authMiddleware(getFunctionHandler))
 	http.HandleFunc("/charioteer/api/function/save", authMiddleware(saveFunctionHandler))

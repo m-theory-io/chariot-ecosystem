@@ -169,7 +169,7 @@ build_charioteer() {
     print_building "Building charioteer binary..."
     cd services/charioteer
     mkdir -p build
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/charioteer-linux-amd64 .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s' -o build/charioteer-linux-amd64 .
     cd ../..
 
     print_building "Building charioteer Docker image..."
