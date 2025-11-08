@@ -29,6 +29,7 @@ type Handlers struct {
 	startTime        time.Time          // Service start time for uptime metrics
 	bootstrapLoaded  bool               // Indicates whether bootstrap script loaded successfully
 	listenerManager  *listeners.Manager // Manages configured listeners
+	execManager      *ExecutionManager  // Manages async script executions with log streaming
 }
 
 // NewHandlers creates a new Handlers instance with dependencies
@@ -77,6 +78,7 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 		startTime:        time.Now(),
 		bootstrapLoaded:  bootstrapLoaded,
 		listenerManager:  lman,
+		execManager:      NewExecutionManager(),
 	}
 }
 

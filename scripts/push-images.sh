@@ -1,14 +1,16 @@
 #!/bin/bash
 # Push Docker images to Azure Container Registry
-# Usage: ./push-images.sh [TAG] [SERVICE]
+# Usage: ./push-images.sh [TAG] [SERVICE] [PLATFORM]
 #   TAG: Docker tag (default: latest)
 #   SERVICE: Specific service to push (go-chariot, charioteer, visual-dsl, nginx) or 'all' (default: all)
+#   PLATFORM: Platform target for go-chariot (cpu, cuda, metal) (default: cpu)
 
 set -e
 
 REGISTRY_NAME="${AZURE_REGISTRY:-mtheorycontainerregistry}"
 TAG=${1:-latest}
 SERVICE=${2:-all}
+PLATFORM_TARGET=${3:-cpu}
 
 # Validate service argument
 case "$SERVICE" in
@@ -22,9 +24,12 @@ case "$SERVICE" in
 esac
 
 if [ "$SERVICE" = "all" ]; then
-    echo "🚀 Pushing all Chariot images to $REGISTRY_NAME.azurecr.io with tag: $TAG..."
+    echo "🚀 Pushing all Chariot images to $REGISTRY_NAME.azurecr.io with tag: $TAG (go-chariot platform: $PLATFORM_TARGET)..."
 else
     echo "🚀 Pushing $SERVICE image to $REGISTRY_NAME.azurecr.io with tag: $TAG..."
+    if [ "$SERVICE" = "go-chariot" ]; then
+        echo "   Platform target: $PLATFORM_TARGET"
+    fi
 fi
 
 # Colors for output
@@ -57,12 +62,14 @@ fi
 
 # Function to push go-chariot
 push_go_chariot() {
-    local local_image="go-chariot:$TAG"
+    local platform=${1:-cpu}
+    local local_image="go-chariot:${TAG}-${platform}"
     local remote_image="$REGISTRY_NAME.azurecr.io/go-chariot:$TAG"
     
     print_pushing "Checking if $local_image exists locally..."
     if ! docker image inspect $local_image >/dev/null 2>&1; then
         print_error "Local image $local_image not found. Please build it first."
+        print_error "Run: ./scripts/build-azure-cross-platform.sh $TAG go-chariot $platform"
         return 1
     fi
     
@@ -72,7 +79,7 @@ push_go_chariot() {
     print_pushing "Pushing $remote_image..."
     docker push $remote_image
     
-    print_status "✅ Successfully pushed $remote_image"
+    print_status "✅ Successfully pushed $remote_image (platform: $platform)"
 }
 
 # Function to push charioteer
@@ -154,10 +161,10 @@ FAILED_IMAGES=()
 # Push services based on argument
 case "$SERVICE" in
     go-chariot)
-        if push_go_chariot; then
+        if push_go_chariot "$PLATFORM_TARGET"; then
             PUSHED_IMAGES+=("$REGISTRY_NAME.azurecr.io/go-chariot:$TAG")
         else
-            FAILED_IMAGES+=("go-chariot:$TAG")
+            FAILED_IMAGES+=("go-chariot:${TAG}-${PLATFORM_TARGET}")
         fi
         ;;
     charioteer)
@@ -182,10 +189,10 @@ case "$SERVICE" in
         fi
         ;;
     all)
-        if push_go_chariot; then
+        if push_go_chariot "$PLATFORM_TARGET"; then
             PUSHED_IMAGES+=("$REGISTRY_NAME.azurecr.io/go-chariot:$TAG")
         else
-            FAILED_IMAGES+=("go-chariot:$TAG")
+            FAILED_IMAGES+=("go-chariot:${TAG}-${PLATFORM_TARGET}")
         fi
         
         if push_charioteer; then
@@ -226,7 +233,7 @@ if [ ${#FAILED_IMAGES[@]} -gt 0 ]; then
     done
     echo ""
     echo "💡 Build missing images first:"
-    echo "   ./scripts/build-azure-cross-platform.sh $TAG $SERVICE"
+    echo "   ./scripts/build-azure-cross-platform.sh $TAG $SERVICE $PLATFORM_TARGET"
     exit 1
 fi
 

@@ -96,24 +96,28 @@ func RegisterSystem(rt *Runtime) {
 			} else {
 				logger.Debug(string(msg))
 			}
+			rt.WriteLog("DEBUG", msg)
 		case "warn":
 			if len(fields) > 0 {
 				logger.Warn(string(msg), ChariotValueToZapFields(fields)...)
 			} else {
 				logger.Warn(string(msg))
 			}
+			rt.WriteLog("WARN", msg)
 		case "error":
 			if len(fields) > 0 {
 				logger.Error(string(msg), ChariotValueToZapFields(fields)...)
 			} else {
 				logger.Error(string(msg))
 			}
+			rt.WriteLog("ERROR", msg)
 		default:
 			if len(fields) > 0 {
 				logger.Info(string(msg), ChariotValueToZapFields(fields)...)
 			} else {
 				logger.Info(string(msg))
 			}
+			rt.WriteLog("INFO", msg)
 		}
 
 		return nil, nil
