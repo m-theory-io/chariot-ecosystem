@@ -1335,6 +1335,18 @@ const editorTemplate = `<!DOCTYPE html>
         
         // Set up Monaco editor (called from initializeEditor)
         function setupMonacoEditor() {
+            // Dispose of existing editor instance completely before creating new one
+            if (editor) {
+                try {
+                    const model = editor.getModel();
+                    if (model) model.dispose();
+                    editor.dispose();
+                } catch (e) {
+                    console.warn('Editor disposal error:', e);
+                }
+                editor = null;
+            }
+            
             // Register Chariot language
             monaco.languages.register({ id: 'chariot' });
             
@@ -1361,8 +1373,12 @@ const editorTemplate = `<!DOCTYPE html>
                     bracketPairs: true,
                     bracketPairsHorizontal: false,
                     highlightActiveBracketPair: true
-                }
+                },
+                // Disable any conflicting keybindings
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: false
             });
+            
             // Add event listener for content changes            
             // Initialize UI
             trackFileChanges(); // Add this line
@@ -2199,20 +2215,38 @@ const editorTemplate = `<!DOCTYPE html>
             });
             console.log('DEBUG: Tab handlers added');
             
-            // Keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                if (e.ctrlKey || e.metaKey) {
-                    if (e.key === 's') {
-                        e.preventDefault();
-                        if (e.shiftKey) {
-                            saveAsFile();
-                        } else {
-                            saveFile();
+            // Keyboard shortcuts (only register once)
+            if (!window.chariotKeyboardHandlerRegistered) {
+                document.addEventListener('keydown', function(e) {
+                    // Skip if event is from Monaco editor
+                    if (e.target.closest('.monaco-editor')) {
+                        // Only handle Ctrl/Cmd+S, ignore arrow keys
+                        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                            e.preventDefault();
+                            if (e.shiftKey) {
+                                saveAsFile();
+                            } else {
+                                saveFile();
+                            }
+                        }
+                        return; // Don't interfere with Monaco's key handling
+                    }
+                    
+                    // Original keyboard shortcut logic for non-Monaco elements
+                    if (e.ctrlKey || e.metaKey) {
+                        if (e.key === 's') {
+                            e.preventDefault();
+                            if (e.shiftKey) {
+                                saveAsFile();
+                            } else {
+                                saveFile();
+                            }
                         }
                     }
-                }
-            });
-            console.log('DEBUG: Keyboard shortcuts added');
+                });
+                window.chariotKeyboardHandlerRegistered = true;
+                console.log('DEBUG: Keyboard shortcuts added');
+            }
             // Toolbar tab switching
             const filesTab = document.getElementById('filesTab');
             const functionsTab = document.getElementById('functionsTab');
