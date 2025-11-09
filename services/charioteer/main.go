@@ -926,6 +926,7 @@ const editorTemplate = `<!DOCTYPE html>
         .monaco-editor .token.keyword.chariot.host { color: #fd79a8 !important; }
         .monaco-editor .token.keyword.chariot.json { color: #fdcb6e !important; }
         .monaco-editor .token.keyword.chariot.math { color: #6c5ce7 !important; }
+        .monaco-editor .token.keyword.chariot.knapsack { color: #a29bfe !important; }
         .monaco-editor .token.keyword.chariot.node { color: #a29bfe !important; }
         .monaco-editor .token.keyword.chariot.csv { color: #fdcb6e !important; }
         .monaco-editor .token.keyword.chariot.sql { color: #fd79a8 !important; }
@@ -1138,6 +1139,8 @@ const editorTemplate = `<!DOCTYPE html>
             [/\b(callMethod||getHostObject|hostObject)\b(?=\s*\()/, 'keyword.chariot.host'],
             [/\b(parseJSON|parseJSONValue|toJSON|toSimpleJSON)\b(?=\s*\()/, 'keyword.chariot.json'],
             [/\b(abs|add|amortize|apr|avg|balloon|ceil|ceiling|cos|depreciation|div|e|exp|floor|fv|int|irr|ln|loanBalance|log|log10|log2|max|min|mod|mul|nper|npv|pct|pi|pmt|pow|pv|random|randomSeed|randomString|rate|round|sin|sqrt|sub|sum|tan)\b(?=\s*\()/, 'keyword.chariot.math'],
+            [/\b(parseJSON|parseJSONValue|toJSON|toSimpleJSON)\b(?=\s*\()/, 'keyword.chariot.json'],
+            [/\b(knapsack|knapsackConfig)\b(?=\s*\()/, 'keyword.chariot.knapsack'],
             [/\b(addChild|childCount|clear|cloneNode|create|csvNode|findByName|firstChild|getAttribute|getChildAt|getChildByName|getDepth|getLevel|getName|getParent|getPath|getRoot|getSiblings|getText|hasAttribute|isLeaf|isRoot|jsonNode|lastChild|list|mapNode|nodeToString|queryNode|removeAttribute|removeChild|setAttribute|setAttributes|setChildByName|setName|setText|traverseNode|xmlNode|yamlNode)\b(?=\s*\()/, 'keyword.chariot.node'],
             [/\b(csvHeaders|csvRowCount|csvColumnCount|csvGetRow|csvGetCell|csvToCSV|csvLoad)\b(?=\s*\()/, 'keyword.chariot.csv'],
             [/\b(generateCreateTable|sqlBegin|sqlConnect|sqlClose|sqlCommit|sqlExecute|sqlListTables|sqlQuery|sqlRollback)\b(?=\s*\()/, 'keyword.chariot.sql'],

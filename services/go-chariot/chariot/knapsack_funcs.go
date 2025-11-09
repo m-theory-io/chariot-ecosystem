@@ -34,10 +34,25 @@ func RegisterKnapsackFunctions(rt *Runtime) {
 			optionsJSON = string(opts)
 		}
 
+		// Log the inputs for debugging
+		if rt.logWriter != nil {
+			rt.WriteLog("DEBUG", fmt.Sprintf("knapsack() called with configJSON: %s", string(configJSON)))
+			if optionsJSON != "" {
+				rt.WriteLog("DEBUG", fmt.Sprintf("knapsack() optionsJSON: %s", optionsJSON))
+			}
+		}
+
 		// Call the V2 cgo API (platform-specific implementations)
 		sol, err := SolveKnapsack(string(configJSON), optionsJSON)
 		if err != nil {
+			if rt.logWriter != nil {
+				rt.WriteLog("ERROR", fmt.Sprintf("knapsack() SolveKnapsack failed: %v", err))
+			}
 			return nil, fmt.Errorf("knapsack solve failed: %w", err)
+		}
+
+		if rt.logWriter != nil {
+			rt.WriteLog("DEBUG", fmt.Sprintf("knapsack() returned solution: numItems=%d, total=%f", sol.NumItems, sol.Total))
 		}
 
 		// Convert V2Solution to Chariot map
@@ -125,6 +140,11 @@ func RegisterKnapsackFunctions(rt *Runtime) {
 		configJSON, err := json.Marshal(config)
 		if err != nil {
 			return nil, fmt.Errorf("knapsackConfig: failed to marshal config: %w", err)
+		}
+
+		// Log the generated config for debugging
+		if rt.logWriter != nil {
+			rt.WriteLog("DEBUG", fmt.Sprintf("knapsackConfig() generated: %s", string(configJSON)))
 		}
 
 		return Str(configJSON), nil
