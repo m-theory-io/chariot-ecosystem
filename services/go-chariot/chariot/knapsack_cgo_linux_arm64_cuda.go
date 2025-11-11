@@ -1,4 +1,4 @@
-//go:build linux && arm64 && cuda && cgo
+//go:build linux && arm64 && cuda
 
 package chariot
 
