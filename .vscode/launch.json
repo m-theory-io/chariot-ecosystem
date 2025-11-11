@@ -27,11 +27,17 @@
                 "AZURE_TENANT_ID": "82fbfa53-3046-4f39-a182-f5e0082313d4",
                 "AZURE_KEY_VAULT_URL": "https://chariot-vault.vault.azure.net",
                 "AZURE_CONFIG_DIR": "/home/nvidia/.azure",
-                "CHARIOT_VAULT_KEY_PREFIX": "azure"
+                "CHARIOT_VAULT_KEY_PREFIX": "azure",
+                // Enforce CGO for debug runs on Apple Silicon with Metal
+                "CGO_ENABLED": "1",
+                "GOOS": "darwin",
+                "GOARCH": "arm64"
             },
             "args": [],
             "showLog": true,
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            // Ensure the Metal CGO sources are selected during debug builds
+            "buildFlags": ["-tags=darwin,arm64,cgo,metal"]
         },
         {
             "name": "Attach to go-chariot process",
