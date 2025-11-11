@@ -1,8 +1,0 @@
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/knapsack.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/knapsack_v2_cli.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/edit_cache.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/rebuild_cache.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/list_install_components.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/install.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/install/local.dir
-/Users/williamhouse/go/src/github.com/bhouse1273/knapsack/knapsack-library/build-metal/CMakeFiles/install/strip.dir
