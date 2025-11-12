@@ -1,4 +1,4 @@
-//go:build darwin && cgo
+//go:build darwin && arm64 && metal && cgo
 
 package chariot
 
