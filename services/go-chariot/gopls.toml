@@ -1,0 +1,22 @@
+# gopls configuration to reduce multi-platform analysis errors
+# This tells gopls to only analyze for the current darwin/arm64 platform
+
+[build]
+buildFlags = ["-tags=darwin,arm64,cgo"]
+env = { "GOOS" = "darwin", "GOARCH" = "arm64", "CGO_ENABLED" = "1" }
+
+[ui.diagnostic]
+# Reduce noise from cross-platform analysis
+analyses = {}
+
+[ui]
+semanticTokens = true
+codelenses = {
+  "gc_details" = false,
+  "generate" = true,
+  "regenerate_cgo" = true,
+  "test" = true,
+  "tidy" = true,
+  "upgrade_dependency" = true,
+  "vendor" = true
+}
