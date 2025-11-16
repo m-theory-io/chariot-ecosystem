@@ -1,11 +1,19 @@
 # Single-stage CUDA build for Linux ARM64
 FROM nvidia/cuda:12.6.0-devel-ubuntu22.04 AS builder
 
-# Install Go and build dependencies
+# Install Go, build dependencies, and ONNX Runtime
 RUN apt-get update && apt-get install -y \
     wget \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Install ONNX Runtime for GPU inference (required by RL CUDA variant)
+RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.2/onnxruntime-linux-aarch64-gpu-1.22.2.tgz && \
+    tar -xzf onnxruntime-linux-aarch64-gpu-1.22.2.tgz && \
+    cp -r onnxruntime-linux-aarch64-gpu-1.22.2/include/* /usr/local/include/ && \
+    cp -r onnxruntime-linux-aarch64-gpu-1.22.2/lib/* /usr/local/lib/ && \
+    rm -rf onnxruntime-linux-aarch64-gpu-1.22.2* && \
+    ldconfig
 
 RUN wget https://go.dev/dl/go1.24.3.linux-arm64.tar.gz && \
     tar -C /usr/local -xzf go1.24.3.linux-arm64.tar.gz && \
@@ -19,15 +27,23 @@ ENV CGO_ENABLED=1
 # Disable Go workspace mode
 ENV GOWORK=off
 
-# Copy go-chariot source (includes vendored knapsack libraries)
+# Copy go-chariot source (includes vendored knapsack and RL libraries)
 WORKDIR /build
 COPY services/go-chariot/ ./
+
+# Verify RL support library is present (librl_support.a for LinUCB + ONNX)
+RUN if [ ! -f "knapsack-library/lib/linux-cuda/librl_support.a" ]; then \
+        echo "ERROR: RL support library not found at knapsack-library/lib/linux-cuda/librl_support.a"; \
+        exit 1; \
+    fi && \
+    echo "✅ Found RL support library ($(du -h knapsack-library/lib/linux-cuda/librl_support.a | cut -f1))"
 
 # Download dependencies
 RUN go mod download
 
-# Build with Linux ARM64 CUDA tags to select knapsack_cgo_linux_arm64_cuda.go
-# CGO will use vendored library at knapsack-library/lib/linux-cuda/
+# Build with Linux ARM64 CUDA tags to select knapsack_cgo_linux_arm64_cuda.go and rl_cgo_linux_cuda.go
+# CGO will use vendored libraries at knapsack-library/lib/linux-cuda/
+# RL support: LinUCB + ONNX Runtime GPU inference
 RUN go build \
     -tags "linux,arm64,cuda,cgo" \
     -o go-chariot-linux-arm64-cuda \
@@ -37,12 +53,19 @@ RUN go build \
 # Runtime stage with CUDA runtime
 FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
 
-# Install runtime dependencies including wget for health checks
+# Install runtime dependencies including ONNX Runtime and wget for health checks
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libstdc++6 \
     wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Install ONNX Runtime in runtime stage (required by RL CUDA variant at runtime)
+RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.2/onnxruntime-linux-aarch64-gpu-1.22.2.tgz && \
+    tar -xzf onnxruntime-linux-aarch64-gpu-1.22.2.tgz && \
+    cp -r onnxruntime-linux-aarch64-gpu-1.22.2/lib/* /usr/local/lib/ && \
+    rm -rf onnxruntime-linux-aarch64-gpu-1.22.2* && \
+    ldconfig
 
 # Copy binary
 COPY --from=builder /build/go-chariot-linux-arm64-cuda /usr/local/bin/go-chariot
