@@ -125,24 +125,49 @@ func RegisterKnapsackFunctions(rt *Runtime) {
 			return nil, fmt.Errorf("knapsackConfig: weights and values arrays must match items count (%d)", numItems)
 		}
 
-		// Build a minimal V2 config
-		// (Expand this structure based on actual V2 schema; this is a simplified example)
+		// Build a V2 config following the correct V2 JSON schema
+		// See docs/v2/README.md for complete schema documentation
 		config := map[string]interface{}{
-			"num_items": numItems,
-			"capacity":  capacity,
-			"weights":   weights,
-			"values":    values,
+			"version": 2,
+			"mode":    "select",
+			"items": map[string]interface{}{
+				"count": numItems,
+				"attributes": map[string]interface{}{
+					"value":  values,  // Values to maximize
+					"weight": weights, // Weights for capacity constraint
+				},
+			},
+			"blocks": []map[string]interface{}{
+				{
+					"name":  "all",
+					"start": 0,
+					"count": numItems,
+				},
+			},
+			"objective": []map[string]interface{}{
+				{
+					"attr":   "value",
+					"weight": 1.0,
+				},
+			},
+			"constraints": []map[string]interface{}{
+				{
+					"kind":  "capacity",
+					"attr":  "weight",
+					"limit": capacity,
+				},
+			},
 		}
 
 		// TODO: Handle optional constraints from args[4] if present (map of constraint arrays/values)
-		// For now, we provide a minimal config.
+		// For now, we provide a minimal config with single capacity constraint.
 
 		configJSON, err := json.Marshal(config)
 		if err != nil {
 			return nil, fmt.Errorf("knapsackConfig: failed to marshal config: %w", err)
 		}
 
-		// Log the generated config for debugging
+		// Log the generated config for debugging (remove this once schema is confirmed)
 		if rt.logWriter != nil {
 			rt.WriteLog("DEBUG", fmt.Sprintf("knapsackConfig() generated: %s", string(configJSON)))
 		}
