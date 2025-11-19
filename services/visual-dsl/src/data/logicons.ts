@@ -3,7 +3,7 @@ export interface LogiconData {
   label: string;
   icon: string;
   description: string;
-  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
+  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'ml' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
 }
 
 export const logiconDefinitions: LogiconData[] = [
@@ -1156,5 +1156,63 @@ export const logiconDefinitions: LogiconData[] = [
     icon: '❓',
     description: 'Check if exists',
     category: 'value'
+  },
+
+  // Machine Learning / RL Functions
+  {
+    id: 'rlInit',
+    label: 'RL Init',
+    icon: '🤖',
+    description: 'Initialize RL scorer with config',
+    category: 'ml'
+  },
+  {
+    id: 'rlScore',
+    label: 'RL Score',
+    icon: '📊',
+    description: 'Score candidates using RL model',
+    category: 'ml'
+  },
+  {
+    id: 'rlLearn',
+    label: 'RL Learn',
+    icon: '🧠',
+    description: 'Update RL model with feedback',
+    category: 'ml'
+  },
+  {
+    id: 'rlClose',
+    label: 'RL Close',
+    icon: '🔒',
+    description: 'Release RL scorer resources',
+    category: 'ml'
+  },
+  {
+    id: 'rlSelectBest',
+    label: 'RL Select Best',
+    icon: '🏆',
+    description: 'Select candidate with highest score',
+    category: 'ml'
+  },
+  {
+    id: 'extractRLFeatures',
+    label: 'Extract RL Features',
+    icon: '🔍',
+    description: 'Extract feature vectors from candidates',
+    category: 'ml'
+  },
+  {
+    id: 'rlExplore',
+    label: 'RL Explore',
+    icon: '🎲',
+    description: 'Epsilon-greedy exploration',
+    category: 'ml'
+  },
+  {
+    id: 'nbaDecision',
+    label: 'NBA Decision',
+    icon: '🎯',
+    description: 'Complete Next-Best Action workflow',
+    category: 'ml'
   }
 ];

@@ -14,6 +14,8 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
     'tree', 'node', 'control', 'array', 
     // Data manipulation and construction
     'value', 'json', 'csv', 'file', 'couchbase', 'sql',
+    // Machine Learning
+    'ml',
     // Infrastructure and system
     'system', 'host', 'dispatcher', 'etl',
     // Procedural/leaf functions last

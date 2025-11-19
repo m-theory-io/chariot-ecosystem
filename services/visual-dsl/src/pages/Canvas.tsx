@@ -69,6 +69,14 @@ import { TreeToXMLNodePropertiesDialog, TreeToXMLNodeProperties } from "../compo
 import { TreeToYAMLNodePropertiesDialog, TreeToYAMLNodeProperties } from "../components/dialogs/TreeToYAMLNodeProperties";
 import { XMLNodePropertiesDialog, XMLNodeProperties } from "../components/dialogs/XMLNodeProperties";
 import { YAMLNodePropertiesDialog, YAMLNodeProperties } from "../components/dialogs/YAMLNodeProperties";
+import { RLInitNodePropertiesDialog, RLInitNodeProperties } from "../components/dialogs/RLInitNodeProperties";
+import { RLScoreNodePropertiesDialog, RLScoreNodeProperties } from "../components/dialogs/RLScoreNodeProperties";
+import { RLLearnNodePropertiesDialog, RLLearnNodeProperties } from "../components/dialogs/RLLearnNodeProperties";
+import { RLCloseNodePropertiesDialog, RLCloseNodeProperties } from "../components/dialogs/RLCloseNodeProperties";
+import { RLSelectBestNodePropertiesDialog, RLSelectBestNodeProperties } from "../components/dialogs/RLSelectBestNodeProperties";
+import { ExtractRLFeaturesNodePropertiesDialog, ExtractRLFeaturesNodeProperties } from "../components/dialogs/ExtractRLFeaturesNodeProperties";
+import { RLExploreNodePropertiesDialog, RLExploreNodeProperties } from "../components/dialogs/RLExploreNodeProperties";
+import { NBADecisionNodePropertiesDialog, NBADecisionNodeProperties } from "../components/dialogs/NBADecisionNodeProperties";
 import { IfNodePropertiesDialog, IfNodeProperties } from "../components/dialogs/IfNodeProperties";
 import { IifNodePropertiesDialog, IifNodeProperties } from "../components/dialogs/IifNodeProperties";
 import { WhileNodePropertiesDialog, WhileNodeProperties } from "../components/dialogs/WhileNodeProperties";
@@ -718,6 +726,22 @@ export default function VisualDSLPrototype() {
         nodeType = 'array';
       } else if ((label === 'Range' || label === 'range') && category === 'array') {
         nodeType = 'range';
+      } else if ((label === 'RL Init' || label === 'rlInit') && category === 'ml') {
+        nodeType = 'rlInit';
+      } else if ((label === 'RL Score' || label === 'rlScore') && category === 'ml') {
+        nodeType = 'rlScore';
+      } else if ((label === 'RL Learn' || label === 'rlLearn') && category === 'ml') {
+        nodeType = 'rlLearn';
+      } else if ((label === 'RL Close' || label === 'rlClose') && category === 'ml') {
+        nodeType = 'rlClose';
+      } else if ((label === 'RL Select Best' || label === 'rlSelectBest') && category === 'ml') {
+        nodeType = 'rlSelectBest';
+      } else if ((label === 'Extract RL Features' || label === 'extractRLFeatures') && category === 'ml') {
+        nodeType = 'extractRLFeatures';
+      } else if ((label === 'RL Explore' || label === 'rlExplore') && category === 'ml') {
+        nodeType = 'rlExplore';
+      } else if ((label === 'NBA Decision' || label === 'nbaDecision') && category === 'ml') {
+        nodeType = 'nbaDecision';
       }
       
       console.log(`Node type determined: ${nodeType} for label: "${label}", category: "${category}"`); // Debug log
@@ -3237,6 +3261,135 @@ export default function VisualDSLPrototype() {
               initialProperties={propertiesDialog.properties as RangeNodeProperties || { 
                 start: '0',
                 end: '10'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'rlInit' && (
+            <RLInitNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RLInitNodeProperties || { 
+                feat_dim: '12',
+                alpha: '0.3'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'rlScore' && (
+            <RLScoreNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RLScoreNodeProperties || { 
+                handle: 'rlHandle',
+                featuresArray: 'features',
+                featDim: '12'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'rlLearn' && (
+            <RLLearnNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RLLearnNodeProperties || { 
+                handle: 'rlHandle',
+                rewards: '[0.8, 0.5, 0.3]'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'rlClose' && (
+            <RLCloseNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RLCloseNodeProperties || { 
+                handle: 'rlHandle'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'rlSelectBest' && (
+            <RLSelectBestNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RLSelectBestNodeProperties || { 
+                scoresArray: 'scores',
+                candidates: 'candidates'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'extractRLFeatures' && (
+            <ExtractRLFeaturesNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ExtractRLFeaturesNodeProperties || { 
+                candidates: 'candidates',
+                mode: 'normalized'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'rlExplore' && (
+            <RLExploreNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RLExploreNodeProperties || { 
+                scores: 'scores',
+                candidates: 'candidates',
+                epsilon: '0.1'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'nbaDecision' && (
+            <NBADecisionNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as NBADecisionNodeProperties || { 
+                candidates: 'candidates',
+                rlHandle: 'rlHandle'
               }}
             />
           )}
