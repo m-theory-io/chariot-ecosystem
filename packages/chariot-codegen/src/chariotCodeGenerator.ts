@@ -304,6 +304,30 @@ export class ChariotCodeGenerator {
         return this.generateArrayCode(node);
       case 'Range':
         return this.generateRangeCode(node);
+      case 'RL Init':
+      case 'rlInit':
+        return this.generateRLInitCode(node);
+      case 'RL Score':
+      case 'rlScore':
+        return this.generateRLScoreCode(node);
+      case 'RL Learn':
+      case 'rlLearn':
+        return this.generateRLLearnCode(node);
+      case 'RL Close':
+      case 'rlClose':
+        return this.generateRLCloseCode(node);
+      case 'RL Select Best':
+      case 'rlSelectBest':
+        return this.generateRLSelectBestCode(node);
+      case 'Extract RL Features':
+      case 'extractRLFeatures':
+        return this.generateExtractRLFeaturesCode(node);
+      case 'RL Explore':
+      case 'rlExplore':
+        return this.generateRLExploreCode(node);
+      case 'NBA Decision':
+      case 'nbaDecision':
+        return this.generateNBADecisionCode(node);
       case 'Function':
         return this.generateFunctionCode(node);
       case 'If':
@@ -800,6 +824,74 @@ export class ChariotCodeGenerator {
     const start = props.start || '0';
     const end = props.end || '10';
     return `range(${start}, ${end})`;
+  }
+
+  private generateRLInitCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const feat_dim = props.feat_dim || '12';
+    const alpha = props.alpha || '0.3';
+    
+    // Build JSON config object
+    const config: any = { feat_dim: Number(feat_dim), alpha: Number(alpha) };
+    if (props.model_path) config.model_path = props.model_path;
+    if (props.model_input) config.model_input = props.model_input;
+    if (props.model_output) config.model_output = props.model_output;
+    
+    const configJSON = JSON.stringify(config);
+    return `rlInit('${configJSON}')`;
+  }
+
+  private generateRLScoreCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const handle = props.handle || 'rlHandle';
+    const featuresArray = props.featuresArray || 'features';
+    const featDim = props.featDim || '12';
+    return `rlScore(${handle}, ${featuresArray}, ${featDim})`;
+  }
+
+  private generateRLLearnCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const handle = props.handle || 'rlHandle';
+    const rewards = props.rewards || '[0.8, 0.5, 0.3]';
+    
+    // Build feedback JSON
+    const feedbackJSON = `{"rewards": ${rewards}}`;
+    return `rlLearn(${handle}, '${feedbackJSON}')`;
+  }
+
+  private generateRLCloseCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const handle = props.handle || 'rlHandle';
+    return `rlClose(${handle})`;
+  }
+
+  private generateRLSelectBestCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const scoresArray = props.scoresArray || 'scores';
+    const candidates = props.candidates || 'candidates';
+    return `rlSelectBest(${scoresArray}, ${candidates})`;
+  }
+
+  private generateExtractRLFeaturesCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const candidates = props.candidates || 'candidates';
+    const mode = props.mode || 'normalized';
+    return `extractRLFeatures(${candidates}, '${mode}')`;
+  }
+
+  private generateRLExploreCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const scores = props.scores || 'scores';
+    const candidates = props.candidates || 'candidates';
+    const epsilon = props.epsilon || '0.1';
+    return `rlExplore(${scores}, ${candidates}, ${epsilon})`;
+  }
+
+  private generateNBADecisionCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const candidates = props.candidates || 'candidates';
+    const rlHandle = props.rlHandle || 'rlHandle';
+    return `nbaDecision(${candidates}, ${rlHandle})`;
   }
 
   private generateFunctionCode(node: VisualDSLNode): string {
