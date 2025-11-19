@@ -44,6 +44,7 @@ import { IsLeafNodePropertiesDialog, IsLeafNodeProperties } from "../components/
 import { IsRootNodePropertiesDialog, IsRootNodeProperties } from "../components/dialogs/IsRootNodeProperties";
 import { ParseJSONNodePropertiesDialog, ParseJSONNodeProperties } from "../components/dialogs/ParseJSONNodeProperties";
 import { ArrayNodePropertiesDialog, ArrayNodeProperties } from "../components/dialogs/ArrayNodeProperties";
+import { RangeNodePropertiesDialog, RangeNodeProperties } from "../components/dialogs/RangeNodeProperties";
 import { AddChildNodePropertiesDialog, AddChildNodeProperties } from "../components/dialogs/AddChildNodeProperties";
 import { RemoveChildNodePropertiesDialog, RemoveChildNodeProperties } from "../components/dialogs/RemoveChildNodeProperties";
 import { ChildCountNodePropertiesDialog, ChildCountNodeProperties } from "../components/dialogs/ChildCountNodeProperties";
@@ -715,6 +716,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'parseJSON';
       } else if ((label === 'Array' || label === 'array') && category === 'array') {
         nodeType = 'array';
+      } else if ((label === 'Range' || label === 'range') && category === 'array') {
+        nodeType = 'range';
       }
       
       console.log(`Node type determined: ${nodeType} for label: "${label}", category: "${category}"`); // Debug log
@@ -3218,6 +3221,22 @@ export default function VisualDSLPrototype() {
               }}
               initialProperties={propertiesDialog.properties as ArrayNodeProperties || { 
                 values: ['']
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'range' && (
+            <RangeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RangeNodeProperties || { 
+                start: '0',
+                end: '10'
               }}
             />
           )}
