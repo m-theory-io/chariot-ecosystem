@@ -50,6 +50,36 @@ func RegisterArray(rt *Runtime) {
 		return arr, nil
 	})
 
+	// Range creation function
+	rt.Register("range", func(args ...Value) (Value, error) {
+		if cfg.ChariotConfig.Verbose {
+			fmt.Printf("DEBUG: range() called with %d args: %v\n", len(args), args)
+		}
+
+		if len(args) != 2 {
+			return nil, errors.New("range requires 2 arguments: start and end")
+		}
+
+		// Get the start and end values
+		start, ok := args[0].(Number)
+		if !ok {
+			return nil, fmt.Errorf("start must be a number, got %T", args[0])
+		}
+
+		end, ok := args[1].(Number)
+		if !ok {
+			return nil, fmt.Errorf("end must be a number, got %T", args[1])
+		}
+
+		// Create a new array for the range
+		arr := NewArray()
+		for i := int(start); i < int(end); i++ {
+			arr.Append(Number(i))
+		}
+
+		return arr, nil
+	})
+
 	rt.Register("removeAt", func(args ...Value) (Value, error) {
 		if cfg.ChariotConfig.Verbose {
 			fmt.Printf("DEBUG: removeAtFunc called with '%v'", args)

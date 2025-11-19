@@ -109,6 +109,13 @@ export const logiconDefinitions: LogiconData[] = [
     category: 'array'
   },
   {
+    id: 'range',
+    label: 'Range',
+    icon: '🔢',
+    description: 'Generate numeric range array',
+    category: 'array'
+  },
+  {
     id: 'reverse',
     label: 'Reverse',
     icon: '🔄',
