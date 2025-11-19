@@ -113,7 +113,7 @@ export class ChariotCodeGenerator {
         }
         const typeSpec = parentNode.data.properties?.typeSpecifier || 'T';
         const childLabel = this.getNodeLabel(childNode);
-        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array'];
+        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array', 'Range'];
         if (inlineLabels.includes(childLabel)) {
           inlineProcessedNodes.add(childIds[0]);
         } else if (childLabel === 'Function' && typeSpec === 'F') {
@@ -302,6 +302,8 @@ export class ChariotCodeGenerator {
         return this.generateAddMappingCode(node);
       case 'Array':
         return this.generateArrayCode(node);
+      case 'Range':
+        return this.generateRangeCode(node);
       case 'Function':
         return this.generateFunctionCode(node);
       case 'If':
@@ -367,7 +369,7 @@ export class ChariotCodeGenerator {
     if (nestedChildren.length === 1) {
       const childNode = this.nodeMap.get(nestedChildren[0]);
       if (childNode) {
-        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array'];
+        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array', 'Range'];
         const isSimpleChild = inlineLabels.includes(childNode.data.label);
         const isInlineFunction = childNode.data.label === 'Function' && typeSpec === 'F';
         if (isSimpleChild || isInlineFunction) {
@@ -791,6 +793,13 @@ export class ChariotCodeGenerator {
       return `array(${valuesStr})`;
     }
     return `array()`;
+  }
+
+  private generateRangeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const start = props.start || '0';
+    const end = props.end || '10';
+    return `range(${start}, ${end})`;
   }
 
   private generateFunctionCode(node: VisualDSLNode): string {
@@ -1420,6 +1429,8 @@ export class ChariotCodeGenerator {
         return this.generateParseJSONCode(childNode);
       case 'Array':
         return this.generateArrayCode(childNode);
+      case 'Range':
+        return this.generateRangeCode(childNode);
       case 'List':
         return this.generateListCode(childNode);
       case 'Node To String':
@@ -1880,6 +1891,8 @@ export class ChariotCodeGenerator {
       }
       case 'Array':
         return this.generateArrayCode(childNode);
+      case 'Range':
+        return this.generateRangeCode(childNode);
       default:
         return this.generateGenericFunctionCode(childNode);
     }
