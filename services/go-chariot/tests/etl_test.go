@@ -28,7 +28,7 @@ func TestETLOperations(t *testing.T) {
 				`}))`,
 				`getProp(getAt(transformed, 0), "total")`,
 			},
-			ExpectedValue: chariot.Number(172.5),
+			ExpectedValue: chariot.Number(230), // First row: 10 * 23 = 230
 		},
 	}
 
