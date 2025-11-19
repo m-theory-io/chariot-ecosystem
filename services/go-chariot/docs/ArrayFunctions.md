@@ -10,6 +10,7 @@ Chariot arrays are mutable, zero-based collections of values. The following func
 |---------------------------|--------------------------------------------------|
 | `array(...)`              | Create a new array from arguments                |
 | `addTo(arr, v1, ...)`     | Append one or more values to the array (in-place)|
+| `range(start, end)`       | Generate array of integers from `start` to `end-1` |
 | `removeAt(arr, i)`        | Remove the element at index `i` (in-place)       |
 | `lastIndex(arr, v)`       | Return the last index of `v` in the array, or -1 if not found |
 | `slice(arr, start, [end])`| Return a subarray from `start` (inclusive) to `end` (exclusive); `end` defaults to array length |
@@ -35,12 +36,65 @@ Append one or more values to the array. Returns the modified array.
 addTo(numbers, 5, 6)  // numbers becomes [1, 2, 3, 4, 5, 6]
 ```
 
+#### `range(start, end)`
+
+Generate an array of consecutive integers from `start` (inclusive) to `end` (exclusive).
+
+```chariot
+range(0, 5)      // [0, 1, 2, 3, 4]
+range(10, 15)    // [10, 11, 12, 13, 14]
+range(-3, 3)     // [-3, -2, -1, 0, 1, 2]
+range(5, 5)      // [] (empty array)
+range(10, 5)     // [] (empty when start > end)
+```
+
+**Use cases:**
+- Generate sequential IDs or indices
+- Create test data arrays
+- Iterate over numeric ranges
+- Compose with other array functions
+
+**Example - Create array with ranges:**
+```chariot
+setq(nums, array(range(0, 3), 99, range(5, 8)))
+// nums contains three elements: [0,1,2], 99, [5,6,7]
+```
+
 #### `removeAt(arr, i)`
 
 Remove the element at index `i`. Returns the modified array.
 
 ```chariot
 removeAt(numbers, 2)  // numbers becomes [1, 2, 4]
+```
+
+#### `range(start, end)`
+
+Generate an array of integers from `start` (inclusive) to `end` (exclusive).
+
+```chariot
+range(0, 5)      // [0, 1, 2, 3, 4]
+range(10, 15)    // [10, 11, 12, 13, 14]
+range(-3, 3)     // [-3, -2, -1, 0, 1, 2]
+range(5, 5)      // [] (empty array)
+```
+
+**Common Use Cases:**
+- Generate sequential IDs: `range(1000, 1100)` produces 100 IDs
+- Create test data: `range(0, 1000)` for large datasets
+- Loop iteration: Use with `while` loops for index-based iteration
+
+```chariot
+# Generate sequential item IDs
+setq(itemIds, range(1, 101))  // IDs 1-100
+
+# Iterate using range
+setq(nums, range(0, 10))
+setq(idx, 0)
+while(smaller(idx, length(nums)), {
+  print(getAt(nums, idx))
+  setq(idx, add(idx, 1))
+})
 ```
 
 #### `lastIndex(arr, value)`

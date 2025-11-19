@@ -1127,7 +1127,7 @@ const editorTemplate = `<!DOCTYPE html>
 
             // Chariot specific functions (only when followed by parens)
 			[/\b(findUser|createUser|updateUser|deleteUser|authenticateUser|setUserPassword|generateToken|validateDisplayName)\b(?=\s*\()/, 'keyword.auth'],
-            [/\b(addTo|array|lastIndex|removeAt|reverse|setAt|slice)\b(?=\s*\()/, 'keyword.chariot.array'],
+            [/\b(addTo|array|lastIndex|range|removeAt|reverse|setAt|slice)\b(?=\s*\()/, 'keyword.chariot.array'],
             [/\b(agentBelief|agentNew|agentRegister|agentStart|agentStartNamed|agentStopNamed|agentList|agentPublish|agentStop|belief|plan|runPlanOnce|runPlanOnceBDI|runPlanOnceEx)\b(?=\s*\()/, 'keyword.chariot.bdi'],
             [/\b(and|bigger|biggerEq|equal|iif|not|or|unequal|smaller|smallerEq)\b(?=\s*\()/, 'keyword.chariot.comparison'],
             [/\b(cbClose|cbConnect|cbGet|cbInsert|cbOpenBucket|cbQuery|cbRemove|cbReplace|cbSetScope|cbUpsert|newID)\b(?=\s*\()/, 'keyword.chariot.couchbase'],
