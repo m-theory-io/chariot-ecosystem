@@ -44,8 +44,6 @@ import { IsLeafNodePropertiesDialog, IsLeafNodeProperties } from "../components/
 import { IsRootNodePropertiesDialog, IsRootNodeProperties } from "../components/dialogs/IsRootNodeProperties";
 import { ParseJSONNodePropertiesDialog, ParseJSONNodeProperties } from "../components/dialogs/ParseJSONNodeProperties";
 import { ParseJSONSimpleNodePropertiesDialog, ParseJSONSimpleNodeProperties } from "../components/dialogs/ParseJSONSimpleNodeProperties";
-import { ToJSONNodePropertiesDialog, ToJSONNodeProperties } from "../components/dialogs/ToJSONNodeProperties";
-import { ToSimpleJSONNodePropertiesDialog, ToSimpleJSONNodeProperties } from "../components/dialogs/ToSimpleJSONNodeProperties";
 import { ArrayNodePropertiesDialog, ArrayNodeProperties } from "../components/dialogs/ArrayNodeProperties";
 import { RangeNodePropertiesDialog, RangeNodeProperties } from "../components/dialogs/RangeNodeProperties";
 import { AddChildNodePropertiesDialog, AddChildNodeProperties } from "../components/dialogs/AddChildNodeProperties";
@@ -726,14 +724,10 @@ export default function VisualDSLPrototype() {
         nodeType = 'newTree';
       } else if (label === 'Create' && (category === 'node' || category === 'tree')) {
         nodeType = 'create';
-      } else if ((label === 'parseJSON' || label === 'Parse JSON') && category === 'json') {
+      } else if ((label === 'parseJSON' || label === 'Parse JSON' || category === 'parseJSON' || category === 'json')) {
         nodeType = 'parseJSON';
       } else if ((label === 'parseJSONSimple' || label === 'Parse JSON Simple') && category === 'json') {
         nodeType = 'parseJSONSimple';
-      } else if ((label === 'toJSON' || label === 'To JSON') && category === 'json') {
-        nodeType = 'toJSON';
-      } else if ((label === 'toSimpleJSON' || label === 'To Simple JSON') && category === 'json') {
-        nodeType = 'toSimpleJSON';
       } else if ((label === 'Array' || label === 'array') && category === 'array') {
         nodeType = 'array';
       } else if ((label === 'Range' || label === 'range') && category === 'array') {
@@ -1756,18 +1750,6 @@ export default function VisualDSLPrototype() {
         jsonString: '{"key": "value"}',
         nodeName: 'root'
       };
-    } else if (logicon.label === 'parseJSONSimple') {
-      defaultProperties = {
-        jsonString: '{"key": "value"}'
-      };
-    } else if (logicon.label === 'toJSON') {
-      defaultProperties = {
-        value: 'myValue'
-      };
-    } else if (logicon.label === 'toSimpleJSON') {
-      defaultProperties = {
-        value: 'myValue'
-      };
     } else if (logicon.label === 'If') {
       defaultProperties = {
         condition: '',
@@ -2015,14 +1997,6 @@ export default function VisualDSLPrototype() {
         defaultProperties = {
           jsonString: '{"key": "value"}'
         };
-      } else if (logicon.label === 'toJSON') {
-        defaultProperties = {
-          value: 'myValue'
-        };
-      } else if (logicon.label === 'toSimpleJSON') {
-        defaultProperties = {
-          value: 'myValue'
-        };
       } else if (logicon.label === 'Switch') {
         defaultProperties = {
           name: '',
@@ -2226,18 +2200,6 @@ export default function VisualDSLPrototype() {
       defaultProperties = {
         jsonString: '{"key": "value"}',
         nodeName: 'root'
-      };
-    } else if (logicon.label === 'parseJSONSimple') {
-      defaultProperties = {
-        jsonString: '{"key": "value"}'
-      };
-    } else if (logicon.label === 'toJSON') {
-      defaultProperties = {
-        value: 'myValue'
-      };
-    } else if (logicon.label === 'toSimpleJSON') {
-      defaultProperties = {
-        value: 'myValue'
       };
     } else if (logicon.label === 'If') {
       defaultProperties = {
@@ -3299,36 +3261,6 @@ export default function VisualDSLPrototype() {
               }}
               initialProperties={propertiesDialog.properties as ParseJSONSimpleNodeProperties || { 
                 jsonString: '{"key": "value"}'
-              }}
-            />
-          )}
-          
-          {propertiesDialog && propertiesDialog.nodeType === 'toJSON' && (
-            <ToJSONNodePropertiesDialog
-              isOpen={true}
-              onClose={() => setPropertiesDialog(null)}
-              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
-              onDelete={() => {
-                deleteNode(propertiesDialog.nodeId);
-                setPropertiesDialog(null);
-              }}
-              initialProperties={propertiesDialog.properties as ToJSONNodeProperties || { 
-                value: 'myValue'
-              }}
-            />
-          )}
-          
-          {propertiesDialog && propertiesDialog.nodeType === 'toSimpleJSON' && (
-            <ToSimpleJSONNodePropertiesDialog
-              isOpen={true}
-              onClose={() => setPropertiesDialog(null)}
-              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
-              onDelete={() => {
-                deleteNode(propertiesDialog.nodeId);
-                setPropertiesDialog(null);
-              }}
-              initialProperties={propertiesDialog.properties as ToSimpleJSONNodeProperties || { 
-                value: 'myValue'
               }}
             />
           )}
