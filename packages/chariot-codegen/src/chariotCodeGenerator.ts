@@ -113,7 +113,7 @@ export class ChariotCodeGenerator {
         }
         const typeSpec = parentNode.data.properties?.typeSpecifier || 'T';
         const childLabel = this.getNodeLabel(childNode);
-        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array', 'Range'];
+        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'parseJSON', 'parseJSONSimple', 'Array', 'Range'];
         if (inlineLabels.includes(childLabel)) {
           inlineProcessedNodes.add(childIds[0]);
         } else if (childLabel === 'Function' && typeSpec === 'F') {
@@ -219,7 +219,17 @@ export class ChariotCodeGenerator {
       case 'New Tree':
         return this.generateNewTreeCode(node);
       case 'Parse JSON':
+      case 'parseJSON':
         return this.generateParseJSONCode(node);
+      case 'parseJSONSimple':
+      case 'Parse JSON Simple':
+        return this.generateParseJSONSimpleCode(node);
+      case 'toJSON':
+      case 'To JSON':
+        return this.generateToJSONCode(node);
+      case 'toSimpleJSON':
+      case 'To Simple JSON':
+        return this.generateToSimpleJSONCode(node);
       case 'Add Child':
         return this.generateAddChildCode(node);
       case 'Remove Child':
@@ -328,6 +338,15 @@ export class ChariotCodeGenerator {
       case 'NBA Decision':
       case 'nbaDecision':
         return this.generateNBADecisionCode(node);
+      case 'Exists':
+      case 'exists':
+        return this.generateExistsCode(node);
+      case 'Type Of':
+      case 'typeOf':
+        return this.generateTypeOfCode(node);
+      case 'Value Of':
+      case 'valueOf':
+        return this.generateValueOfCode(node);
       case 'Function':
         return this.generateFunctionCode(node);
       case 'If':
@@ -393,7 +412,7 @@ export class ChariotCodeGenerator {
     if (nestedChildren.length === 1) {
       const childNode = this.nodeMap.get(nestedChildren[0]);
       if (childNode) {
-        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'Array', 'Range'];
+        const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'parseJSON', 'parseJSONSimple', 'Array', 'Range'];
         const isSimpleChild = inlineLabels.includes(childNode.data.label);
         const isInlineFunction = childNode.data.label === 'Function' && typeSpec === 'F';
         if (isSimpleChild || isInlineFunction) {
@@ -452,6 +471,29 @@ export class ChariotCodeGenerator {
       jsonString = '["admin", "contributor", "viewer"]';
     }
     return `parseJSON('${jsonString}', '${nodeName}')`;
+  }
+
+  private generateParseJSONSimpleCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let jsonString = props.jsonString || '{}';
+    if (jsonString === '{ [] }') {
+      jsonString = '[]';
+    } else if (jsonString === '{ ["admin", "contributor", "viewer"] }') {
+      jsonString = '["admin", "contributor", "viewer"]';
+    }
+    return `parseJSONSimple('${jsonString}')`;
+  }
+
+  private generateToJSONCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = props.value || 'myValue';
+    return `toJSON(${value})`;
+  }
+
+  private generateToSimpleJSONCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = props.value || 'myValue';
+    return `toSimpleJSON(${value})`;
   }
 
   private generateAddChildCode(node: VisualDSLNode): string {
@@ -892,6 +934,28 @@ export class ChariotCodeGenerator {
     const candidates = props.candidates || 'candidates';
     const rlHandle = props.rlHandle || 'rlHandle';
     return `nbaDecision(${candidates}, ${rlHandle})`;
+  }
+
+  private generateExistsCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const variableName = props.variableName || 'myVar';
+    return `exists('${variableName}')`;
+  }
+
+  private generateTypeOfCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = props.value || 'myVar';
+    return `typeOf(${value})`;
+  }
+
+  private generateValueOfCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = props.value || 'myVar';
+    const targetType = props.targetType;
+    if (targetType) {
+      return `valueOf(${value}, '${targetType}')`;
+    }
+    return `valueOf(${value})`;
   }
 
   private generateFunctionCode(node: VisualDSLNode): string {
