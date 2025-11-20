@@ -46,6 +46,14 @@ import { ParseJSONNodePropertiesDialog, ParseJSONNodeProperties } from "../compo
 import { ParseJSONSimpleNodePropertiesDialog, ParseJSONSimpleNodeProperties } from "../components/dialogs/ParseJSONSimpleNodeProperties";
 import { ToJSONNodePropertiesDialog, ToJSONNodeProperties } from "../components/dialogs/ToJSONNodeProperties";
 import { ToSimpleJSONNodePropertiesDialog, ToSimpleJSONNodeProperties } from "../components/dialogs/ToSimpleJSONNodeProperties";
+import { CSVHeadersNodePropertiesDialog, CSVHeadersNodeProperties } from "../components/dialogs/CSVHeadersNodeProperties";
+import { CSVRowCountNodePropertiesDialog, CSVRowCountNodeProperties } from "../components/dialogs/CSVRowCountNodeProperties";
+import { CSVColumnCountNodePropertiesDialog, CSVColumnCountNodeProperties } from "../components/dialogs/CSVColumnCountNodeProperties";
+import { CSVGetRowNodePropertiesDialog, CSVGetRowNodeProperties } from "../components/dialogs/CSVGetRowNodeProperties";
+import { CSVGetCellNodePropertiesDialog, CSVGetCellNodeProperties } from "../components/dialogs/CSVGetCellNodeProperties";
+import { CSVGetRowsNodePropertiesDialog, CSVGetRowsNodeProperties } from "../components/dialogs/CSVGetRowsNodeProperties";
+import { CSVToCSVNodePropertiesDialog, CSVToCSVNodeProperties } from "../components/dialogs/CSVToCSVNodeProperties";
+import { CSVLoadNodePropertiesDialog, CSVLoadNodeProperties } from "../components/dialogs/CSVLoadNodeProperties";
 import { ArrayNodePropertiesDialog, ArrayNodeProperties } from "../components/dialogs/ArrayNodeProperties";
 import { RangeNodePropertiesDialog, RangeNodeProperties } from "../components/dialogs/RangeNodeProperties";
 import { AddChildNodePropertiesDialog, AddChildNodeProperties } from "../components/dialogs/AddChildNodeProperties";
@@ -734,6 +742,22 @@ export default function VisualDSLPrototype() {
         nodeType = 'toJSON';
       } else if ((label === 'toSimpleJSON' || label === 'To Simple JSON') && category === 'json') {
         nodeType = 'toSimpleJSON';
+      } else if ((label === 'csvHeaders' || label === 'CSV Headers') && category === 'csv') {
+        nodeType = 'csvHeaders';
+      } else if ((label === 'csvRowCount' || label === 'CSV Row Count') && category === 'csv') {
+        nodeType = 'csvRowCount';
+      } else if ((label === 'csvColumnCount' || label === 'CSV Column Count') && category === 'csv') {
+        nodeType = 'csvColumnCount';
+      } else if ((label === 'csvGetRow' || label === 'CSV Get Row') && category === 'csv') {
+        nodeType = 'csvGetRow';
+      } else if ((label === 'csvGetCell' || label === 'CSV Get Cell') && category === 'csv') {
+        nodeType = 'csvGetCell';
+      } else if ((label === 'csvGetRows' || label === 'CSV Get Rows') && category === 'csv') {
+        nodeType = 'csvGetRows';
+      } else if ((label === 'csvToCSV' || label === 'CSV to CSV') && category === 'csv') {
+        nodeType = 'csvToCSV';
+      } else if ((label === 'csvLoad' || label === 'CSV Load' || label === 'CSV node load from file') && category === 'csv') {
+        nodeType = 'csvLoad';
       } else if ((label === 'Array' || label === 'array') && category === 'array') {
         nodeType = 'array';
       } else if ((label === 'Range' || label === 'range') && category === 'array') {
@@ -1768,6 +1792,42 @@ export default function VisualDSLPrototype() {
       defaultProperties = {
         value: 'myValue'
       };
+    } else if (logicon.label === 'csvHeaders') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvRowCount') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvColumnCount') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvGetRow') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode',
+        index: '0'
+      };
+    } else if (logicon.label === 'csvGetCell') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode',
+        rowIndex: '0',
+        colIndexOrName: '0'
+      };
+    } else if (logicon.label === 'csvGetRows') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvToCSV') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvLoad') {
+      defaultProperties = {
+        node: 'csvNode',
+        path: 'data/file.csv'
+      };
     } else if (logicon.label === 'If') {
       defaultProperties = {
         condition: '',
@@ -2023,6 +2083,42 @@ export default function VisualDSLPrototype() {
         defaultProperties = {
           value: 'myValue'
         };
+      } else if (logicon.label === 'csvHeaders') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode'
+        };
+      } else if (logicon.label === 'csvRowCount') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode'
+        };
+      } else if (logicon.label === 'csvColumnCount') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode'
+        };
+      } else if (logicon.label === 'csvGetRow') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode',
+          index: '0'
+        };
+      } else if (logicon.label === 'csvGetCell') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode',
+          rowIndex: '0',
+          colIndexOrName: '0'
+        };
+      } else if (logicon.label === 'csvGetRows') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode'
+        };
+      } else if (logicon.label === 'csvToCSV') {
+        defaultProperties = {
+          nodeOrPath: 'csvNode'
+        };
+      } else if (logicon.label === 'csvLoad') {
+        defaultProperties = {
+          node: 'csvNode',
+          path: 'data/file.csv'
+        };
       } else if (logicon.label === 'Switch') {
         defaultProperties = {
           name: '',
@@ -2238,6 +2334,42 @@ export default function VisualDSLPrototype() {
     } else if (logicon.label === 'toSimpleJSON') {
       defaultProperties = {
         value: 'myValue'
+      };
+    } else if (logicon.label === 'csvHeaders') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvRowCount') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvColumnCount') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvGetRow') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode',
+        index: '0'
+      };
+    } else if (logicon.label === 'csvGetCell') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode',
+        rowIndex: '0',
+        colIndexOrName: '0'
+      };
+    } else if (logicon.label === 'csvGetRows') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvToCSV') {
+      defaultProperties = {
+        nodeOrPath: 'csvNode'
+      };
+    } else if (logicon.label === 'csvLoad') {
+      defaultProperties = {
+        node: 'csvNode',
+        path: 'data/file.csv'
       };
     } else if (logicon.label === 'If') {
       defaultProperties = {
@@ -3329,6 +3461,130 @@ export default function VisualDSLPrototype() {
               }}
               initialProperties={propertiesDialog.properties as ToSimpleJSONNodeProperties || { 
                 value: 'myValue'
+              }}
+            />
+          )}
+          
+          {propertiesDialog && propertiesDialog.nodeType === 'csvHeaders' && (
+            <CSVHeadersNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVHeadersNodeProperties || { 
+                nodeOrPath: 'csvNode'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvRowCount' && (
+            <CSVRowCountNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVRowCountNodeProperties || { 
+                nodeOrPath: 'csvNode'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvColumnCount' && (
+            <CSVColumnCountNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVColumnCountNodeProperties || { 
+                nodeOrPath: 'csvNode'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvGetRow' && (
+            <CSVGetRowNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVGetRowNodeProperties || { 
+                nodeOrPath: 'csvNode',
+                index: '0'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvGetCell' && (
+            <CSVGetCellNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVGetCellNodeProperties || { 
+                nodeOrPath: 'csvNode',
+                rowIndex: '0',
+                colIndexOrName: '0'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvGetRows' && (
+            <CSVGetRowsNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVGetRowsNodeProperties || { 
+                nodeOrPath: 'csvNode'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvToCSV' && (
+            <CSVToCSVNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVToCSVNodeProperties || { 
+                nodeOrPath: 'csvNode'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'csvLoad' && (
+            <CSVLoadNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CSVLoadNodeProperties || { 
+                node: 'csvNode',
+                path: 'data/file.csv'
               }}
             />
           )}
