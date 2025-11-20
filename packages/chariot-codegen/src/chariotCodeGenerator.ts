@@ -230,6 +230,31 @@ export class ChariotCodeGenerator {
       case 'toSimpleJSON':
       case 'To Simple JSON':
         return this.generateToSimpleJSONCode(node);
+      case 'csvHeaders':
+      case 'CSV Headers':
+        return this.generateCSVHeadersCode(node);
+      case 'csvRowCount':
+      case 'CSV Row Count':
+        return this.generateCSVRowCountCode(node);
+      case 'csvColumnCount':
+      case 'CSV Column Count':
+        return this.generateCSVColumnCountCode(node);
+      case 'csvGetRow':
+      case 'CSV Get Row':
+        return this.generateCSVGetRowCode(node);
+      case 'csvGetCell':
+      case 'CSV Get Cell':
+        return this.generateCSVGetCellCode(node);
+      case 'csvGetRows':
+      case 'CSV Get Rows':
+        return this.generateCSVGetRowsCode(node);
+      case 'csvToCSV':
+      case 'CSV to CSV':
+        return this.generateCSVToCSVCode(node);
+      case 'csvLoad':
+      case 'CSV Load':
+      case 'CSV node load from file':
+        return this.generateCSVLoadCode(node);
       case 'Add Child':
         return this.generateAddChildCode(node);
       case 'Remove Child':
@@ -494,6 +519,77 @@ export class ChariotCodeGenerator {
     const props = node.data.properties || {};
     const value = props.value || 'myValue';
     return `toSimpleJSON(${value})`;
+  }
+
+  private generateCSVHeadersCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    // If it looks like a path (contains / or . or starts with quote), quote it
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    return `csvHeaders(${param})`;
+  }
+
+  private generateCSVRowCountCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    return `csvRowCount(${param})`;
+  }
+
+  private generateCSVColumnCountCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    return `csvColumnCount(${param})`;
+  }
+
+  private generateCSVGetRowCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    const index = props.index || '0';
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    return `csvGetRow(${param}, ${index})`;
+  }
+
+  private generateCSVGetCellCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    const rowIndex = props.rowIndex || '0';
+    const colIndexOrName = props.colIndexOrName || '0';
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    // If colIndexOrName is a string (column name), quote it
+    const colParam = isNaN(Number(colIndexOrName)) && !colIndexOrName.startsWith("'") ? `'${colIndexOrName}'` : colIndexOrName;
+    return `csvGetCell(${param}, ${rowIndex}, ${colParam})`;
+  }
+
+  private generateCSVGetRowsCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    return `csvGetRows(${param})`;
+  }
+
+  private generateCSVToCSVCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nodeOrPath = props.nodeOrPath || 'csvNode';
+    const param = nodeOrPath.includes('/') || nodeOrPath.includes('.') || nodeOrPath.startsWith("'") ? 
+      (nodeOrPath.startsWith("'") ? nodeOrPath : `'${nodeOrPath}'`) : nodeOrPath;
+    return `csvToCSV(${param})`;
+  }
+
+  private generateCSVLoadCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const csvNode = props.node || 'csvNode';
+    const path = props.path || 'data/file.csv';
+    // Path should always be quoted
+    const pathParam = path.startsWith("'") ? path : `'${path}'`;
+    return `csvLoad(${csvNode}, ${pathParam})`;
   }
 
   private generateAddChildCode(node: VisualDSLNode): string {

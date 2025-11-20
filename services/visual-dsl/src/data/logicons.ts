@@ -709,51 +709,58 @@ export const logiconDefinitions: LogiconData[] = [
   // CSV Functions
   {
     id: 'csvHeaders',
-    label: 'CSV Headers',
-    icon: '📄',
-    description: 'Get CSV Headers',
+    label: 'csvHeaders',
+    icon: '📋',
+    description: 'Get the header row of a CSV file as an array of strings',
     category: 'csv'
   },
   {
     id: 'csvRowCount',
-    label: 'CSV Row Count',
-    icon: '📄',
-    description: 'Get CSV Row Count',
+    label: 'csvRowCount',
+    icon: '📊',
+    description: 'Get the number of data rows in the CSV file (excluding the header row)',
     category: 'csv'
   },
   {
     id: 'csvColumnCount',
-    label: 'CSV Column Count',
-    icon: '📄',
-    description: 'Get CSV Column Count',
+    label: 'csvColumnCount',
+    icon: '📈',
+    description: 'Get the number of columns in the CSV file',
     category: 'csv'
   },
   {
     id: 'csvGetRow',
-    label: 'CSV Get Row',
+    label: 'csvGetRow',
     icon: '📄',
-    description: 'Get CSV Row at row number',
+    description: 'Get a specific row as a map where keys are column headers and values are cell values',
     category: 'csv'
   },
   {
     id: 'csvGetCell',
-    label: 'CSV Get Cell',
-    icon: '📄',
-    description: 'Get CSV Cell from file by row and col numbers',
+    label: 'csvGetCell',
+    icon: '🔍',
+    description: 'Get the value of a specific cell by row and column index or name',
+    category: 'csv'
+  },
+  {
+    id: 'csvGetRows',
+    label: 'csvGetRows',
+    icon: '📑',
+    description: 'Get all data rows as an array of arrays. Use with caution on large CSV files',
     category: 'csv'
   },
   {
     id: 'csvToCSV',
-    label: 'CSV to CSV',
-    icon: '📄',
-    description: 'Read CSV file and return normalized string',
+    label: 'csvToCSV',
+    icon: '🗂️',
+    description: 'Convert a CSVNode back to a CSV-formatted string',
     category: 'csv'
   },
   {
     id: 'csvLoad',
-    label: 'CSV node load from file',
-    icon: '📄',
-    description: 'Read CSV file into CSVNode',
+    label: 'csvLoad',
+    icon: '📥',
+    description: 'Load a CSV file into an existing CSVNode instance',
     category: 'csv'
   },
 
