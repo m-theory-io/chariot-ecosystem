@@ -287,6 +287,55 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		}
 	})
 
+	// setAttribute - simple key-value attribute setting (no path traversal)
+	rt.Register("setAttribute", func(args ...Value) (Value, error) {
+		if len(args) != 3 {
+			return nil, errors.New("setAttribute requires 3 arguments: node, key, value")
+		}
+
+		// Unwrap arguments if they are ScopeEntries
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		node := args[0]
+		key, ok := args[1].(Str)
+		if !ok {
+			return nil, fmt.Errorf("attribute key must be a string, got %T", args[1])
+		}
+		value := args[2]
+
+		// Handle different node types
+		switch n := node.(type) {
+		case *JSONNode:
+			n.Attributes[string(key)] = value
+			return value, nil
+		case *XMLNode:
+			// XML attributes must be strings
+			if str, ok := value.(Str); ok {
+				n.XMLAttributes[string(key)] = string(str)
+				return value, nil
+			}
+			return nil, fmt.Errorf("XML attributes must be strings, got %T", value)
+		case *TreeNodeImpl:
+			if n.Attributes == nil {
+				n.Attributes = make(map[string]Value)
+			}
+			n.Attributes[string(key)] = value
+			return value, nil
+		case TreeNode:
+			if n.GetAttributes() == nil {
+				n.SetAttribute("init", DBNull)
+			}
+			n.SetAttribute(string(key), value)
+			return value, nil
+		default:
+			return nil, fmt.Errorf("setAttribute not supported for type %T", node)
+		}
+	})
+
 	// Dynamic getAttributes
 	rt.Register("getAttributes", func(args ...Value) (Value, error) {
 		if len(args) != 1 {
@@ -321,6 +370,12 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		if len(args) != 2 {
 			return nil, errors.New("getProp requires 2 arguments: object and property name")
 		}
+		// Unwrap arguments if they are ScopeEntries
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
 		switch args[0].(type) {
 		case *SimpleJSON:
 			return getPropSimpleJSON(args...)
@@ -330,6 +385,10 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			return getPropMapValue(args...)
 		case *JSONNode:
 			return getPropJSON(args...)
+		case *XMLNode:
+			return getPropXML(args...)
+		case *TreeNodeImpl:
+			return getPropTreeNode(args...)
 		case *Plan:
 			return getPropPlan(args...)
 		case map[string]Value:
@@ -366,8 +425,10 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			return setPropMapValue(args...)
 		case *JSONNode:
 			return setPropJSON(args...)
-		case *TreeNode:
-			return setPropTreeNode(args...)
+		case *XMLNode:
+			return setPropXML(args...)
+		case *TreeNodeImpl:
+			return setPropTreeNodeImpl(args...)
 		case *Plan:
 			return setPropPlan(args...)
 		case *HostObjectValue:
@@ -1395,14 +1456,14 @@ func setPropSimpleJSON(args ...Value) (Value, error) {
 	return value, nil
 }
 
-func setPropTreeNode(args ...Value) (Value, error) {
+func setPropTreeNodeImpl(args ...Value) (Value, error) {
 	if len(args) != 3 {
 		return nil, errors.New("setProp requires 3 arguments: object, property name, and value")
 	}
 
 	node, ok := args[0].(*TreeNodeImpl)
 	if !ok {
-		return nil, fmt.Errorf("expected TreeNode, got %T", args[0])
+		return nil, fmt.Errorf("expected TreeNodeImpl, got %T", args[0])
 	}
 
 	propName, ok := args[1].(Str)
@@ -1411,6 +1472,15 @@ func setPropTreeNode(args ...Value) (Value, error) {
 	}
 
 	value := args[2]
+
+	// For simple keys (no dots), set in attributes
+	if !strings.Contains(string(propName), ".") {
+		if node.Attributes == nil {
+			node.Attributes = make(map[string]Value)
+		}
+		node.Attributes[string(propName)] = value
+		return value, nil
+	}
 
 	switch strings.ToLower(string(propName)) {
 	case "name":
@@ -1939,4 +2009,181 @@ func TreeNodeClone(args ...Value) (Value, error) {
 	}
 
 	return newTreeNode, nil
+}
+
+// getPropXML - dynamic property access for XMLNode
+// Checks XMLAttributes first, then content, then immediate children
+func getPropXML(args ...Value) (Value, error) {
+	if len(args) != 2 {
+		return nil, errors.New("getProp requires 2 arguments: node and property path")
+	}
+
+	xmlNode, ok := args[0].(*XMLNode)
+	if !ok {
+		return nil, fmt.Errorf("expected XMLNode, got %T", args[0])
+	}
+
+	propPath, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("property path must be a string, got %T", args[1])
+	}
+
+	path := string(propPath)
+	parts := strings.Split(path, ".")
+
+	// For simple path (no dots), check attributes then children
+	if len(parts) == 1 {
+		// Check XMLAttributes first
+		if val, ok := xmlNode.XMLAttributes[path]; ok {
+			return Str(val), nil
+		}
+
+		// Check for special content property
+		if path == "content" || path == "_text" {
+			return Str(xmlNode.Content), nil
+		}
+
+		// Check immediate children by name
+		for _, child := range xmlNode.Children {
+			if child.Name() == path {
+				return child.(Value), nil
+			}
+		}
+
+		return DBNull, nil
+	}
+
+	// For path with dots, navigate through children
+	currentNode := xmlNode
+	for i, part := range parts {
+		// Check attributes at current level
+		if i == len(parts)-1 {
+			if val, ok := currentNode.XMLAttributes[part]; ok {
+				return Str(val), nil
+			}
+			if part == "content" || part == "_text" {
+				return Str(currentNode.Content), nil
+			}
+		}
+
+		// Look for child with this name
+		found := false
+		for _, child := range currentNode.Children {
+			if child.Name() == part {
+				if i == len(parts)-1 {
+					// Last part - return the child
+					return child.(Value), nil
+				}
+				// Navigate deeper
+				if xmlChild, ok := child.(*XMLNode); ok {
+					currentNode = xmlChild
+					found = true
+					break
+				}
+				// Can't navigate deeper through non-XMLNode
+				return DBNull, nil
+			}
+		}
+
+		if !found {
+			return DBNull, nil
+		}
+	}
+
+	return DBNull, nil
+}
+
+// setPropXML - dynamic property setter for XMLNode
+// Sets XMLAttributes (must be strings)
+func setPropXML(args ...Value) (Value, error) {
+	if len(args) != 3 {
+		return nil, errors.New("setProp requires 3 arguments: node, property path, and value")
+	}
+
+	xmlNode, ok := args[0].(*XMLNode)
+	if !ok {
+		return nil, fmt.Errorf("expected XMLNode, got %T", args[0])
+	}
+
+	propPath, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("property path must be a string, got %T", args[1])
+	}
+
+	value := args[2]
+
+	path := string(propPath)
+
+	// Handle special content property
+	if path == "content" || path == "_text" {
+		if str, ok := value.(Str); ok {
+			xmlNode.Content = string(str)
+			return value, nil
+		}
+		return nil, fmt.Errorf("XML content must be a string, got %T", value)
+	}
+
+	// For simple keys (no dots), set as XML attribute
+	if !strings.Contains(path, ".") {
+		if str, ok := value.(Str); ok {
+			xmlNode.XMLAttributes[path] = string(str)
+			return value, nil
+		}
+		return nil, fmt.Errorf("XML attributes must be strings, got %T", value)
+	}
+
+	// For paths with dots, we don't support nested setting in XMLNode
+	return nil, fmt.Errorf("nested property setting not supported for XMLNode, use setProp on child nodes directly")
+}
+
+// getPropTreeNode - dynamic property access for TreeNodeImpl
+// Checks attributes first, then immediate children by name
+func getPropTreeNode(args ...Value) (Value, error) {
+	if len(args) != 2 {
+		return nil, errors.New("getProp requires 2 arguments: node and property path")
+	}
+
+	treeNode, ok := args[0].(*TreeNodeImpl)
+	if !ok {
+		return nil, fmt.Errorf("expected TreeNodeImpl, got %T", args[0])
+	}
+
+	propPath, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("property path must be a string, got %T", args[1])
+	}
+
+	path := string(propPath)
+	parts := strings.Split(path, ".")
+
+	// For simple path, check attributes then children
+	if len(parts) == 1 {
+		// Check attributes first
+		if treeNode.Attributes != nil {
+			if val, ok := treeNode.Attributes[path]; ok {
+				return val, nil
+			}
+		}
+
+		// Check immediate children by name
+		for _, child := range treeNode.Children {
+			if child.Name() == path {
+				return child.(Value), nil
+			}
+		}
+
+		return DBNull, nil
+	}
+
+	// For paths with dots, only check first part in children
+	firstPart := parts[0]
+	for _, child := range treeNode.Children {
+		if child.Name() == firstPart {
+			// Can't navigate deeper without type information
+			// User should use treeFind for complex navigation
+			return DBNull, nil
+		}
+	}
+
+	return DBNull, nil
 }

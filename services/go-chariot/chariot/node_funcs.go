@@ -325,6 +325,37 @@ func RegisterNode(rt *Runtime) {
 		return node.GetChildren()[0], nil
 	})
 
+	rt.Register("getChildren", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("getChildren requires 1 argument: node")
+		}
+
+		// Unwrap the first argument if it is a ScopeEntry
+		if tvar, ok := args[0].(ScopeEntry); ok {
+			args[0] = tvar.Value
+		}
+
+		// Get the node
+		node, ok := args[0].(TreeNode)
+		if !ok {
+			return nil, fmt.Errorf("expected node, got %T", args[0])
+		}
+
+		// Get children
+		children := node.GetChildren()
+		if children == nil {
+			return NewArray(), nil
+		}
+
+		// Convert to ArrayValue
+		arr := NewArray()
+		for _, child := range children {
+			arr.Append(child.(Value))
+		}
+
+		return arr, nil
+	})
+
 	// Add removeChild function
 	rt.Register("removeChild", func(args ...Value) (Value, error) {
 		if len(args) != 2 {

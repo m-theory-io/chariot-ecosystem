@@ -374,32 +374,27 @@ func parseXMLToMap(data []byte) (interface{}, error) {
 	if err := xml.Unmarshal(data, &element); err != nil {
 		return nil, err
 	}
+	// Return the content of the root element, not wrapped in another map
 	return xmlElementToMap(element), nil
 }
 
 func xmlElementToMap(element XMLElement) interface{} {
-	result := make(map[string]interface{})
-
-	// Add element name as root
-	elementName := element.XMLName.Local
-	if elementName == "" {
-		elementName = "element"
+	// For simple text elements (no children, no attributes), return just the text
+	if len(element.Nodes) == 0 && len(element.Attrs) == 0 && strings.TrimSpace(element.Content) != "" {
+		return strings.TrimSpace(element.Content)
 	}
 
-	elementData := make(map[string]interface{})
+	result := make(map[string]interface{})
 
-	// Add attributes
+	// Add attributes directly to result
 	if len(element.Attrs) > 0 {
-		attrs := make(map[string]interface{})
 		for _, attr := range element.Attrs {
-			attrs[attr.Name.Local] = attr.Value
+			result[attr.Name.Local] = attr.Value
 		}
-		elementData["@attributes"] = attrs
 	}
 
 	// Add child elements
 	if len(element.Nodes) > 0 {
-		children := make(map[string]interface{})
 		childArrays := make(map[string][]interface{})
 
 		for _, child := range element.Nodes {
@@ -411,41 +406,30 @@ func xmlElementToMap(element XMLElement) interface{} {
 			childData := xmlElementToMap(child)
 
 			// Check if this child name already exists
-			if existing, exists := children[childName]; exists {
+			if existing, exists := result[childName]; exists {
 				// Convert to array if not already
 				if arr, isArray := childArrays[childName]; isArray {
 					childArrays[childName] = append(arr, childData)
 				} else {
 					childArrays[childName] = []interface{}{existing, childData}
-					delete(children, childName)
+					delete(result, childName)
 				}
 			} else {
-				children[childName] = childData
+				result[childName] = childData
 			}
 		}
 
-		// Merge children and arrays
-		for name, child := range children {
-			elementData[name] = child
-		}
+		// Merge arrays back into result
 		for name, arr := range childArrays {
-			elementData[name] = arr
+			result[name] = arr
 		}
 	}
 
-	// Add text content if present and no children
-	if len(element.Nodes) == 0 && strings.TrimSpace(element.Content) != "" {
-		if len(element.Attrs) == 0 {
-			// Simple text content
-			result[elementName] = strings.TrimSpace(element.Content)
-			return result
-		} else {
-			// Text content with attributes
-			elementData["#text"] = strings.TrimSpace(element.Content)
-		}
+	// Add text content if present with attributes or children
+	if strings.TrimSpace(element.Content) != "" && (len(element.Attrs) > 0 || len(element.Nodes) > 0) {
+		result["#text"] = strings.TrimSpace(element.Content)
 	}
 
-	result[elementName] = elementData
 	return result
 }
 
