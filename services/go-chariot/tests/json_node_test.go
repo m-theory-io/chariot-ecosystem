@@ -460,3 +460,77 @@ func TestJSONFileOperations(t *testing.T) {
 	os.Remove(fullPath1)
 	os.Remove(fullPath2)
 }
+
+// TestJSONRawOperations tests raw JSON string file operations
+func TestJSONRawOperations(t *testing.T) {
+	initCouchbaseConfig()
+
+	tests := []TestCase{
+		{
+			Name: "Load JSON Raw String",
+			Script: []string{
+				`writeFile('test-raw.json', '{"name":"test","value":123}')`,
+				`setq(raw, loadJSONRaw('test-raw.json'))`,
+				`contains(raw, '"name"')`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+		{
+			Name: "Save JSON Raw String",
+			Script: []string{
+				`setq(jsonStr, '{"key":"value","number":42}')`,
+				`saveJSONRaw(jsonStr, 'test-raw-save.json')`,
+				`setq(loaded, loadJSONRaw('test-raw-save.json'))`,
+				`contains(loaded, '"key":"value"')`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+		{
+			Name: "Modify Raw JSON String",
+			Script: []string{
+				`setq(original, '{"setting":"old"}')`,
+				`saveJSONRaw(original, 'test-modify.json')`,
+				`setq(loaded, loadJSONRaw('test-modify.json'))`,
+				`setq(modified, replace(loaded, 'old', 'new'))`,
+				`saveJSONRaw(modified, 'test-modify.json')`,
+				`setq(final, loadJSONRaw('test-modify.json'))`,
+				`contains(final, '"setting":"new"')`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+		{
+			Name: "Load Raw JSON and Parse",
+			Script: []string{
+				`setq(jsonStr, '{"app":"MyApp","version":2}')`,
+				`saveJSONRaw(jsonStr, 'test-parse.json')`,
+				`setq(raw, loadJSONRaw('test-parse.json'))`,
+				`setq(node, parseJSON(raw, 'config'))`,
+				`getProp(node, 'app')`,
+			},
+			ExpectedValue: chariot.Str("MyApp"),
+		},
+		{
+			Name: "Save Pretty-Printed JSON Raw",
+			Script: []string{
+				`setq(prettyJSON, '{\n  "name": "test",\n  "nested": {\n    "value": 42\n  }\n}')`,
+				`saveJSONRaw(prettyJSON, 'test-pretty.json')`,
+				`setq(loaded, loadJSONRaw('test-pretty.json'))`,
+				`contains(loaded, '  "name"')`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+	}
+
+	RunTestCases(t, tests)
+
+	// Cleanup
+	folder := cfg.ChariotConfig.DataPath
+	if folder == "" {
+		folder = "."
+	}
+	os.Remove(folder + "/test-raw.json")
+	os.Remove(folder + "/test-raw-save.json")
+	os.Remove(folder + "/test-modify.json")
+	os.Remove(folder + "/test-parse.json")
+	os.Remove(folder + "/test-pretty.json")
+}
