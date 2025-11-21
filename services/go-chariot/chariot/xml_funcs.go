@@ -1,8 +1,10 @@
 package chariot
 
 import (
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -12,6 +14,232 @@ import (
 // - findNodeByPath
 // - evaluateXMLPredicate
 // - findXMLNode
+
+// === XML SPECIFIC ===
+func registerXMLFileOps(rt *Runtime) {
+	rt.Register("loadXML", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("loadXML requires 1 argument: filepath")
+		}
+
+		// Unwrap arguments
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		filepath, ok := args[0].(Str)
+		if !ok {
+			return nil, fmt.Errorf("filepath must be a string, got %T", args[0])
+		}
+
+		fileNameStr := string(filepath)
+		// Validate XML file extension
+		if !isValidXMLFile(fileNameStr) {
+			return nil, fmt.Errorf("file must have .xml extension, got '%s'", fileNameStr)
+		}
+		// Get secure path
+		fullPath, err := getSecureFilePath(fileNameStr, "data")
+		if err != nil {
+			return nil, err
+		}
+
+		// Read file from disk
+		data, err := os.ReadFile(string(fullPath))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read XML file '%s': %v", fileNameStr, err)
+		}
+
+		// Parse XML into a generic structure
+		xmlData, err := parseXMLToMap(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse XML from '%s': %v", filepath, err)
+		}
+
+		// Create JSONNode and populate it (XML data converted to JSON-compatible structure)
+		node := NewJSONNode("xml_loaded")
+		node.SetJSONValue(xmlData)
+
+		return node, nil
+	})
+
+	rt.Register("saveXML", func(args ...Value) (Value, error) {
+		if len(args) < 2 || len(args) > 3 {
+			return nil, errors.New("saveXML requires 2-3 arguments: node, filepath, and optional rootElementName")
+		}
+
+		// Unwrap arguments
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		jsonNode, ok := args[0].(*JSONNode)
+		if !ok {
+			return nil, fmt.Errorf("first argument must be a JSONNode, got %T", args[0])
+		}
+
+		filepath, ok := args[1].(Str)
+		if !ok {
+			return nil, fmt.Errorf("filepath must be a string, got %T", args[1])
+		}
+
+		fileNameStr := string(filepath)
+		// Validate XML file extension
+		if !isValidXMLFile(fileNameStr) {
+			return nil, fmt.Errorf("file must have .xml extension, got '%s'", fileNameStr)
+		}
+		// Get secure path
+		fullPath, err := getSecureFilePath(fileNameStr, "data")
+		if err != nil {
+			return nil, err
+		}
+
+		rootElementName := "root" // default
+		if len(args) == 3 {
+			if rootName, ok := args[2].(Str); ok {
+				rootElementName = string(rootName)
+			}
+		}
+
+		// Get data from JSONNode
+		data := jsonNode.GetJSONValue()
+
+		// Convert to XML
+		xmlData, err := convertMapToXML(data, rootElementName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert data to XML: %v", err)
+		}
+
+		// Write to file with XML header
+		xmlContent := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n%s", xmlData)
+		if err := os.WriteFile(fullPath, []byte(xmlContent), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write XML file '%s': %v", fileNameStr, err)
+		}
+
+		return Bool(true), nil
+	})
+
+	rt.Register("loadXMLRaw", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("loadXMLRaw requires 1 argument: filepath")
+		}
+
+		// Unwrap arguments
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		filepath, ok := args[0].(Str)
+		if !ok {
+			return nil, fmt.Errorf("filepath must be a string, got %T", args[0])
+		}
+
+		fileNameStr := string(filepath)
+		// Validate XML file extension
+		if !isValidXMLFile(fileNameStr) {
+			return nil, fmt.Errorf("file must have .xml extension, got '%s'", fileNameStr)
+		}
+		// Get secure path
+		fullPath, err := getSecureFilePath(fileNameStr, "data")
+		if err != nil {
+			return nil, err
+		}
+
+		// Read file and return as XML string (no parsing)
+		data, err := os.ReadFile(string(fullPath))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read XML file '%s': %v", fileNameStr, err)
+		}
+
+		// Basic XML validation
+		if err := xml.Unmarshal(data, &struct{}{}); err != nil {
+			return nil, fmt.Errorf("file '%s' contains invalid XML: %v", fileNameStr, err)
+		}
+
+		return Str(string(data)), nil
+	})
+
+	rt.Register("saveXMLRaw", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("saveXMLRaw requires 2 arguments: xml_string and filepath")
+		}
+
+		// Unwrap arguments
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		xmlStr, ok := args[0].(Str)
+		if !ok {
+			return nil, fmt.Errorf("first argument must be an XML string, got %T", args[0])
+		}
+
+		filepath, ok := args[1].(Str)
+		if !ok {
+			return nil, fmt.Errorf("filepath must be a string, got %T", args[1])
+		}
+
+		fileNameStr := string(filepath)
+		// Validate XML file extension
+		if !isValidXMLFile(fileNameStr) {
+			return nil, fmt.Errorf("file must have .xml extension, got '%s'", fileNameStr)
+		}
+		// Get secure path
+		fullPath, err := getSecureFilePath(fileNameStr, "data")
+		if err != nil {
+			return nil, err
+		}
+
+		// Validate XML string
+		if err := xml.Unmarshal([]byte(string(xmlStr)), &struct{}{}); err != nil {
+			return nil, fmt.Errorf("invalid XML string: %v", err)
+		}
+
+		// Write raw XML to file
+		if err := os.WriteFile(fullPath, []byte(string(xmlStr)), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write XML file '%s': %v", fileNameStr, err)
+		}
+
+		return Bool(true), nil
+	})
+
+	rt.Register("parseXMLString", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("parseXMLString requires 1 argument: xml_string")
+		}
+
+		// Unwrap arguments
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		xmlStr, ok := args[0].(Str)
+		if !ok {
+			return nil, fmt.Errorf("argument must be an XML string, got %T", args[0])
+		}
+
+		// Parse XML string into a map structure
+		xmlData, err := parseXMLToMap([]byte(string(xmlStr)))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse XML string: %v", err)
+		}
+
+		// Create JSONNode with the parsed data
+		node := NewJSONNode("xml_parsed")
+		node.SetJSONValue(xmlData)
+
+		return node, nil
+	})
+}
 
 // SetXMLValue sets a value in an XML document using an XPath-like expression
 func (rt *Runtime) SetXMLValue(path string, value Value, context ...Value) (Value, error) {

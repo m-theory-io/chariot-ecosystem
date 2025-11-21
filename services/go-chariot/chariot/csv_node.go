@@ -191,7 +191,12 @@ func (n *CSVNode) GetHeaders() []string {
 
 func (n *CSVNode) GetRowCount() int {
 	if count, exists := n.GetMeta("rowCount"); exists {
-		if c, ok := count.(float64); ok {
+		switch c := count.(type) {
+		case float64:
+			return int(c)
+		case int:
+			return c
+		case Number:
 			return int(c)
 		}
 	}
@@ -200,7 +205,12 @@ func (n *CSVNode) GetRowCount() int {
 
 func (n *CSVNode) GetColumnCount() int {
 	if count, exists := n.GetMeta("columnCount"); exists {
-		if c, ok := count.(float64); ok {
+		switch c := count.(type) {
+		case float64:
+			return int(c)
+		case int:
+			return c
+		case Number:
 			return int(c)
 		}
 	}
