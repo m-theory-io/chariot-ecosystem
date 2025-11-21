@@ -233,16 +233,20 @@ func registerYAMLFileOps(rt *Runtime) {
 			documents = append(documents, doc)
 		}
 
-		// Create JSONNode with array of documents
-		node := NewJSONNode("yaml_multidoc")
-		node.SetJSONValue(documents)
+		// Create ArrayValue with JSONNodes for each document
+		arr := NewArray()
+		for i, doc := range documents {
+			node := NewJSONNode(fmt.Sprintf("doc%d", i))
+			node.SetJSONValue(doc)
+			arr.Append(node)
+		}
 
-		return node, nil
+		return arr, nil
 	})
 
 	rt.Register("saveYAMLMultiDoc", func(args ...Value) (Value, error) {
 		if len(args) != 2 {
-			return nil, errors.New("saveYAMLMultiDoc requires 2 arguments: array_node and filepath")
+			return nil, errors.New("saveYAMLMultiDoc requires 2 arguments: array and filepath")
 		}
 
 		// Unwrap arguments
@@ -252,9 +256,30 @@ func registerYAMLFileOps(rt *Runtime) {
 			}
 		}
 
-		jsonNode, ok := args[0].(*JSONNode)
-		if !ok {
-			return nil, fmt.Errorf("first argument must be a JSONNode containing an array, got %T", args[0])
+		// Accept either ArrayValue or JSONNode containing array
+		var documents []interface{}
+
+		switch arr := args[0].(type) {
+		case *ArrayValue:
+			// Convert ArrayValue elements to native values
+			for i := 0; i < arr.Length(); i++ {
+				elem := arr.Get(i)
+				if jsonNode, ok := elem.(*JSONNode); ok {
+					documents = append(documents, jsonNode.GetJSONValue())
+				} else {
+					documents = append(documents, ConvertToNativeJSON(elem))
+				}
+			}
+		case *JSONNode:
+			// Try to get array from JSONNode
+			data := arr.GetJSONValue()
+			if arrData, ok := data.([]interface{}); ok {
+				documents = arrData
+			} else {
+				return nil, fmt.Errorf("JSONNode must contain an array for multi-document YAML, got %T", data)
+			}
+		default:
+			return nil, fmt.Errorf("first argument must be an ArrayValue or JSONNode containing array, got %T", args[0])
 		}
 
 		filepath, ok := args[1].(Str)
@@ -271,13 +296,6 @@ func registerYAMLFileOps(rt *Runtime) {
 		fullPath, err := getSecureFilePath(fileNameStr, "data")
 		if err != nil {
 			return nil, err
-		}
-
-		// Get array data
-		data := jsonNode.GetJSONValue()
-		documents, ok := data.([]interface{})
-		if !ok {
-			return nil, fmt.Errorf("JSONNode must contain an array for multi-document YAML, got %T", data)
 		}
 
 		// Create file

@@ -227,7 +227,7 @@ func TestYAMLMultiDocument(t *testing.T) {
 		{
 			Name: "Save Multi-Document YAML",
 			Script: []string{
-				`setq(docs, jsonNode('array'))`,
+				`setq(docs, array())`,
 				`setq(doc1, jsonNode('doc1'))`,
 				`setProp(doc1, 'name', 'First')`,
 				`addTo(docs, doc1)`,

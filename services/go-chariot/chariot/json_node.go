@@ -373,7 +373,7 @@ func (n *JSONNode) GetJSONValue() interface{} {
 	}
 
 	// Check if this is a single primitive value stored as "value" attribute
-	if len(attrs) == 1 {
+	if len(attrs) == 1 && n.GetChildren() == nil {
 		if valueAttr, exists := attrs["value"]; exists {
 			return ConvertToNativeJSON(valueAttr)
 		}
@@ -385,6 +385,34 @@ func (n *JSONNode) GetJSONValue() interface{} {
 		// Skip array keys (they start with "_")
 		if !strings.HasPrefix(key, "_") {
 			result[key] = ConvertToNativeJSON(value)
+		}
+	}
+
+	// Add children from the Children collection
+	if children := n.GetChildren(); children != nil {
+		for _, child := range children {
+			childName := child.Name()
+
+			// Get the child's value
+			var childValue interface{}
+			if jsonChild, ok := child.(*JSONNode); ok {
+				childValue = jsonChild.GetJSONValue()
+			} else {
+				// For non-JSONNode children, try to get their data
+				childValue = ConvertToNativeJSON(child)
+			}
+
+			// If a key with this name already exists, convert to array
+			if existing, exists := result[childName]; exists {
+				// Convert to array if not already
+				if existingArray, ok := existing.([]interface{}); ok {
+					result[childName] = append(existingArray, childValue)
+				} else {
+					result[childName] = []interface{}{existing, childValue}
+				}
+			} else {
+				result[childName] = childValue
+			}
 		}
 	}
 

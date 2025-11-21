@@ -1,4 +1,4 @@
-{"level":"info","ts":1763576877.7866502,"caller":"logs/logger.go:33","msg":"Successfully initialized Key Vault client","vault_uri":"https://chariot-vault.vault.azure.net"}
+{"level":"info","ts":1763746998.8260329,"caller":"logs/logger.go:33","msg":"Successfully initialized Key Vault client","vault_uri":"https://chariot-vault.vault.azure.net"}
 === RUN   TestAgentMinimal
 🔧 Couchbase Config Initialized:
   URL: couchbase://localhost
@@ -19,9 +19,9 @@ DEBUG: Processing part[0]='profile', current=map[profile:map[age:30 debt:7000.25
 DEBUG: getJSONProperty returning: {"age":30,"debt":7000.25,"is_employed":true}
 DEBUG: getProp returning: {"age":30,"debt":7000.25,"is_employed":true}
 DEBUG: getProp called with path='decision'
-DEBUG: getProp sees data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-12-04. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
-DEBUG: getJSONProperty called with path='decision', data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-12-04. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.]
-DEBUG: Processing part[0]='decision', current=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-12-04. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
+DEBUG: getProp sees data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-12-06. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='decision', data=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-12-06. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.]
+DEBUG: Processing part[0]='decision', current=map[decision:approved offer:Pay $2500 deposit and $2500 1st-month rent today, to start your lease on 2025-12-06. Remaining rent of $2500 for 12 months, to be paid on the 1st of every month.] (type map[string]interface {})
 DEBUG: getJSONProperty returning: approved
 DEBUG: getProp returning: approved
     test_framework.go:256: ✅ Test passed: approved
@@ -244,7 +244,7 @@ DEBUG: getProp returning: approved
     --- PASS: TestSwitchStatements/Nested_Switch_Statements (0.00s)
 === RUN   TestCouchbaseOperations
 === RUN   TestCouchbaseOperations/Connect_to_Couchbase_Cluster
-{"level":"info","ts":1763576880.284069,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747000.7682939,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:256: ✅ Test passed: Connected to Couchbase cluster
 === RUN   TestCouchbaseOperations/Open_Bucket
     test_framework.go:256: ✅ Test passed: Opened bucket: chariot
@@ -281,7 +281,7 @@ DEBUG: getProp returning: approved
 === RUN   TestCouchbaseOperations/Verify_Removal
     test_framework.go:256: ✅ Test passed: 0
 === RUN   TestCouchbaseOperations/CAS_String_Preservation
-{"level":"info","ts":1763576883.42797,"caller":"logs/logger.go:33","msg":"CAS exists in metadata"}
+{"level":"info","ts":1763747003.936866,"caller":"logs/logger.go:33","msg":"CAS exists in metadata"}
     test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/CAS-based_Replace_Operation
     test_framework.go:256: ✅ Test passed: 456
@@ -291,8 +291,8 @@ DEBUG: getProp returning: approved
     test_framework.go:256: ✅ Test passed: true
 === RUN   TestCouchbaseOperations/Clean_JSON_Serialization_(No_Metadata_Pollution)
     test_framework.go:256: ✅ Test passed: true
---- PASS: TestCouchbaseOperations (5.64s)
-    --- PASS: TestCouchbaseOperations/Connect_to_Couchbase_Cluster (2.50s)
+--- PASS: TestCouchbaseOperations (5.11s)
+    --- PASS: TestCouchbaseOperations/Connect_to_Couchbase_Cluster (1.94s)
     --- PASS: TestCouchbaseOperations/Open_Bucket (0.06s)
     --- PASS: TestCouchbaseOperations/Set_Scope_and_Collection (0.00s)
     --- PASS: TestCouchbaseOperations/Cleanup_Bucket (0.02s)
@@ -301,15 +301,15 @@ DEBUG: getProp returning: approved
     --- PASS: TestCouchbaseOperations/Upsert_Document (0.00s)
     --- PASS: TestCouchbaseOperations/Verify_Upsert (0.00s)
     --- PASS: TestCouchbaseOperations/Basic_N1QL_Query (1.01s)
-    --- PASS: TestCouchbaseOperations/Parameterized_N1QL_Query (0.00s)
-    --- PASS: TestCouchbaseOperations/Query_Result_Content (0.00s)
+    --- PASS: TestCouchbaseOperations/Parameterized_N1QL_Query (0.01s)
+    --- PASS: TestCouchbaseOperations/Query_Result_Content (0.01s)
     --- PASS: TestCouchbaseOperations/Insert_Complex_Document (0.00s)
-    --- PASS: TestCouchbaseOperations/Query_Nested_Properties (1.02s)
+    --- PASS: TestCouchbaseOperations/Query_Nested_Properties (1.01s)
     --- PASS: TestCouchbaseOperations/Insert_Multiple_Documents (0.00s)
     --- PASS: TestCouchbaseOperations/Query_Multiple_Products (1.01s)
     --- PASS: TestCouchbaseOperations/Aggregate_Query (0.00s)
     --- PASS: TestCouchbaseOperations/Remove_Document (0.00s)
-    --- PASS: TestCouchbaseOperations/Verify_Removal (0.00s)
+    --- PASS: TestCouchbaseOperations/Verify_Removal (0.01s)
     --- PASS: TestCouchbaseOperations/CAS_String_Preservation (0.00s)
     --- PASS: TestCouchbaseOperations/CAS-based_Replace_Operation (0.00s)
     --- PASS: TestCouchbaseOperations/Couchbase_Metadata_Structure (0.00s)
@@ -317,11 +317,11 @@ DEBUG: getProp returning: approved
     --- PASS: TestCouchbaseOperations/Clean_JSON_Serialization_(No_Metadata_Pollution) (0.00s)
 === RUN   TestCouchbaseErrorHandling
 === RUN   TestCouchbaseErrorHandling/Invalid_Connection_String
-{"level":"info","ts":1763576883.55086,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747004.138004,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:247: No expected value to compare for test Invalid Connection String
     test_framework.go:248: ✅ Test passed: Connected to Couchbase cluster
 === RUN   TestCouchbaseErrorHandling/Invalid_Credentials
-{"level":"info","ts":1763576883.643696,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747004.3031979,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:247: No expected value to compare for test Invalid Credentials
     test_framework.go:248: ✅ Test passed: Opened bucket: chariot
 === RUN   TestCouchbaseErrorHandling/Query_Non-existent_Node
@@ -329,14 +329,14 @@ DEBUG: getProp returning: approved
 === RUN   TestCouchbaseErrorHandling/Get_from_Non-existent_Node
     test_framework.go:233: ✅ Expected error caught: couchbase node 'nonexistent' not found
 === RUN   TestCouchbaseErrorHandling/Get_Non-existent_Document
-{"level":"info","ts":1763576883.755851,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:233: ✅ Expected error caught: failed to get document: document not found | {"status_code":1,"document_id":"nonexistent::document","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_ENOENT","error_description":"Not Found","opaque":9,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:58357","last_connection_id":"48f2c07267a31867/894b5ab7f9d66193"}
+{"level":"info","ts":1763747004.539882,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: failed to get document: document not found | {"status_code":1,"document_id":"nonexistent::document","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_ENOENT","error_description":"Not Found","opaque":9,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:53815","last_connection_id":"3383f1cc5a8d05b9/060a3e8cb81a806e"}
 === RUN   TestCouchbaseErrorHandling/Invalid_N1QL_Syntax
-{"level":"info","ts":1763576883.9572291,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:233: ✅ Expected error caught: query failed: parsing failure | {"statement":"INVALID SQL SYNTAX HERE","client_context_id":"3c16a84b-c3b2-4b14-8322-23025cb7e56b","errors":[{"code":3000,"message":"syntax error - line 1, column 17, near 'PREPARE INVALID ', at: SQL"}],"http_status_code":400}
+{"level":"info","ts":1763747004.7954612,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: query failed: parsing failure | {"statement":"INVALID SQL SYNTAX HERE","client_context_id":"3de423da-81bb-4953-969d-a2768f434abf","errors":[{"code":3000,"message":"syntax error - line 1, column 17, near 'PREPARE INVALID ', at: SQL"}],"http_status_code":400}
 === RUN   TestCouchbaseErrorHandling/Open_Non-existent_Bucket
-{"level":"info","ts":1763576884.20717,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
-    test_framework.go:233: ✅ Expected error caught: failed to open bucket: unambiguous timeout | {"operation_id":"WaitUntilReady","time_observed":15001063,"retry_reasons":["NOT_READY","CONNECTION_ERROR"],"retry_attempts":38}
+{"level":"info","ts":1763747005.076909,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+    test_framework.go:233: ✅ Expected error caught: failed to open bucket: unambiguous timeout | {"operation_id":"WaitUntilReady","time_observed":15001088,"retry_reasons":["NOT_READY","CONNECTION_ERROR"],"retry_attempts":38}
 === RUN   TestCouchbaseErrorHandling/Connect_with_Wrong_Argument_Count
     test_framework.go:233: ✅ Expected error caught: cbConnect requires 4 arguments: nodeName, connectionString, username, password
 === RUN   TestCouchbaseErrorHandling/Query_with_Wrong_Argument_Count
@@ -344,56 +344,102 @@ DEBUG: getProp returning: approved
 === RUN   TestCouchbaseErrorHandling/Insert_with_Wrong_Argument_Count
     test_framework.go:233: ✅ Expected error caught: cbInsert requires 3-4 arguments: nodeName, documentId, document, [expiryDuration]
 === RUN   TestCouchbaseErrorHandling/Invalid_CAS_Format
-{"level":"info","ts":1763576899.286057,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747020.3218079,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:233: ✅ Expected error caught: failed to replace document: invalid CAS value: strconv.ParseUint: parsing "invalid_cas": invalid syntax
 === RUN   TestCouchbaseErrorHandling/CAS_Mismatch
-    test_framework.go:233: ✅ Expected error caught: failed to replace document: cas mismatch | {"status_code":2,"document_id":"cas_mismatch::test","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_EEXISTS","error_description":"key already exists, or CAS mismatch","opaque":11,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:58366","last_connection_id":"0e502f052c557292/4634c77d94af5ebc"}
+    test_framework.go:233: ✅ Expected error caught: failed to replace document: cas mismatch | {"status_code":2,"document_id":"cas_mismatch::test","bucket":"chariot","scope":"_default","collection":"_default","error_name":"KEY_EEXISTS","error_description":"key already exists, or CAS mismatch","opaque":11,"last_dispatched_to":"localhost:11210","last_dispatched_from":"[::1]:53823","last_connection_id":"8dbcaa0bfbb52bc1/db52fcef8aac9608"}
 === RUN   TestCouchbaseErrorHandling/Enhanced_Cleanup
     test_framework.go:256: ✅ Test passed: All documents deleted
---- PASS: TestCouchbaseErrorHandling (15.88s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_Connection_String (0.12s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_Credentials (0.10s)
+--- PASS: TestCouchbaseErrorHandling (16.46s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_Connection_String (0.20s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_Credentials (0.23s)
     --- PASS: TestCouchbaseErrorHandling/Query_Non-existent_Node (0.00s)
     --- PASS: TestCouchbaseErrorHandling/Get_from_Non-existent_Node (0.00s)
-    --- PASS: TestCouchbaseErrorHandling/Get_Non-existent_Document (0.17s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_N1QL_Syntax (0.21s)
-    --- PASS: TestCouchbaseErrorHandling/Open_Non-existent_Bucket (15.17s)
+    --- PASS: TestCouchbaseErrorHandling/Get_Non-existent_Document (0.24s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_N1QL_Syntax (0.26s)
+    --- PASS: TestCouchbaseErrorHandling/Open_Non-existent_Bucket (15.21s)
     --- PASS: TestCouchbaseErrorHandling/Connect_with_Wrong_Argument_Count (0.00s)
     --- PASS: TestCouchbaseErrorHandling/Query_with_Wrong_Argument_Count (0.00s)
     --- PASS: TestCouchbaseErrorHandling/Insert_with_Wrong_Argument_Count (0.00s)
-    --- PASS: TestCouchbaseErrorHandling/Invalid_CAS_Format (0.09s)
-    --- PASS: TestCouchbaseErrorHandling/CAS_Mismatch (0.00s)
+    --- PASS: TestCouchbaseErrorHandling/Invalid_CAS_Format (0.31s)
+    --- PASS: TestCouchbaseErrorHandling/CAS_Mismatch (0.01s)
     --- PASS: TestCouchbaseErrorHandling/Enhanced_Cleanup (0.01s)
 === RUN   TestCouchbaseIntegration
 === RUN   TestCouchbaseIntegration/Complete_Workflow
-{"level":"info","ts":1763576899.433846,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747020.584036,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:256: ✅ Test passed: testuser:dark
 === RUN   TestCouchbaseIntegration/JSON_File_to_Couchbase
-{"level":"info","ts":1763576901.6071749,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747022.842551,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:256: ✅ Test passed: 2
 === RUN   TestCouchbaseIntegration/Array_Processing_with_Couchbase
-{"level":"info","ts":1763576903.784947,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747025.028044,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
     test_framework.go:256: ✅ Test passed: 3
---- PASS: TestCouchbaseIntegration (5.55s)
-    --- PASS: TestCouchbaseIntegration/Complete_Workflow (2.17s)
-    --- PASS: TestCouchbaseIntegration/JSON_File_to_Couchbase (2.22s)
-    --- PASS: TestCouchbaseIntegration/Array_Processing_with_Couchbase (1.16s)
+--- PASS: TestCouchbaseIntegration (5.70s)
+    --- PASS: TestCouchbaseIntegration/Complete_Workflow (2.28s)
+    --- PASS: TestCouchbaseIntegration/JSON_File_to_Couchbase (2.26s)
+    --- PASS: TestCouchbaseIntegration/Array_Processing_with_Couchbase (1.17s)
 === RUN   TestCryptoOperations
 === RUN   TestCryptoOperations/SHA256_Hash
 === RUN   TestCryptoOperations/SHA512_Hash
 === RUN   TestCryptoOperations/AES_Encryption/Decryption_with_Direct_Functions
-{"level":"info","ts":1763576904.859457,"caller":"logs/logger.go:33","msg":"AES key generated","key_size":"256"}
-{"level":"info","ts":1763576904.8595042,"caller":"logs/logger.go:33","msg":"AES encryption completed","data_size":"11","ciphertext_size":"39","key_size":"256"}
-{"level":"info","ts":1763576904.8595111,"caller":"logs/logger.go:33","msg":"AES decryption completed","plaintext_size":"11","key_size":"256"}
+{"level":"info","ts":1763747026.108272,"caller":"logs/logger.go:33","msg":"AES key generated","key_size":"256"}
+{"level":"info","ts":1763747026.10835,"caller":"logs/logger.go:33","msg":"AES encryption completed","data_size":"11","ciphertext_size":"39","key_size":"256"}
+{"level":"info","ts":1763747026.1083572,"caller":"logs/logger.go:33","msg":"AES decryption completed","plaintext_size":"11","key_size":"256"}
 === RUN   TestCryptoOperations/Multiple_Round-trip_Encryption
-{"level":"info","ts":1763576904.85953,"caller":"logs/logger.go:33","msg":"AES key generated","key_size":"256"}
-{"level":"info","ts":1763576904.859541,"caller":"logs/logger.go:33","msg":"AES encryption completed","data_size":"60","ciphertext_size":"88","key_size":"256"}
-{"level":"info","ts":1763576904.859545,"caller":"logs/logger.go:33","msg":"AES decryption completed","plaintext_size":"60","key_size":"256"}
+{"level":"info","ts":1763747026.108374,"caller":"logs/logger.go:33","msg":"AES key generated","key_size":"256"}
+{"level":"info","ts":1763747026.108383,"caller":"logs/logger.go:33","msg":"AES encryption completed","data_size":"60","ciphertext_size":"88","key_size":"256"}
+{"level":"info","ts":1763747026.108387,"caller":"logs/logger.go:33","msg":"AES decryption completed","plaintext_size":"60","key_size":"256"}
 --- PASS: TestCryptoOperations (0.00s)
     --- PASS: TestCryptoOperations/SHA256_Hash (0.00s)
     --- PASS: TestCryptoOperations/SHA512_Hash (0.00s)
     --- PASS: TestCryptoOperations/AES_Encryption/Decryption_with_Direct_Functions (0.00s)
     --- PASS: TestCryptoOperations/Multiple_Round-trip_Encryption (0.00s)
+=== RUN   TestCSVFileOperations
+=== RUN   TestCSVFileOperations/Load_and_Save_CSV_Raw
+--- PASS: TestCSVFileOperations (0.00s)
+    --- PASS: TestCSVFileOperations/Load_and_Save_CSV_Raw (0.00s)
+=== RUN   TestCSVHeaders
+=== RUN   TestCSVHeaders/Get_CSV_Headers_from_Path
+--- PASS: TestCSVHeaders (0.00s)
+    --- PASS: TestCSVHeaders/Get_CSV_Headers_from_Path (0.00s)
+=== RUN   TestCSVRowAndColumnCount
+=== RUN   TestCSVRowAndColumnCount/CSV_Row_Count
+=== RUN   TestCSVRowAndColumnCount/CSV_Column_Count
+=== RUN   TestCSVRowAndColumnCount/Empty_CSV
+--- PASS: TestCSVRowAndColumnCount (0.00s)
+    --- PASS: TestCSVRowAndColumnCount/CSV_Row_Count (0.00s)
+    --- PASS: TestCSVRowAndColumnCount/CSV_Column_Count (0.00s)
+    --- PASS: TestCSVRowAndColumnCount/Empty_CSV (0.00s)
+=== RUN   TestCSVGetRow
+=== RUN   TestCSVGetRow/Get_CSV_Row_by_Index
+=== RUN   TestCSVGetRow/Get_Second_Row
+--- PASS: TestCSVGetRow (0.00s)
+    --- PASS: TestCSVGetRow/Get_CSV_Row_by_Index (0.00s)
+    --- PASS: TestCSVGetRow/Get_Second_Row (0.00s)
+=== RUN   TestCSVGetCell
+=== RUN   TestCSVGetCell/Get_Cell_by_Column_Name
+=== RUN   TestCSVGetCell/Get_Cell_by_Column_Index
+=== RUN   TestCSVGetCell/Get_Cell_from_First_Row_First_Column
+--- PASS: TestCSVGetCell (0.00s)
+    --- PASS: TestCSVGetCell/Get_Cell_by_Column_Name (0.00s)
+    --- PASS: TestCSVGetCell/Get_Cell_by_Column_Index (0.00s)
+    --- PASS: TestCSVGetCell/Get_Cell_from_First_Row_First_Column (0.00s)
+=== RUN   TestCSVGetRows
+=== RUN   TestCSVGetRows/Get_All_CSV_Rows
+=== RUN   TestCSVGetRows/Get_Specific_Cell_from_All_Rows
+--- PASS: TestCSVGetRows (0.00s)
+    --- PASS: TestCSVGetRows/Get_All_CSV_Rows (0.00s)
+    --- PASS: TestCSVGetRows/Get_Specific_Cell_from_All_Rows (0.00s)
+=== RUN   TestCSVToCSV
+=== RUN   TestCSVToCSV/Convert_CSV_Path_to_String
+--- PASS: TestCSVToCSV (0.00s)
+    --- PASS: TestCSVToCSV/Convert_CSV_Path_to_String (0.00s)
+=== RUN   TestCSVIntegration
+=== RUN   TestCSVIntegration/CSV_Processing_Pipeline_with_Path
+=== RUN   TestCSVIntegration/Iterate_Through_CSV_Rows
+--- PASS: TestCSVIntegration (0.00s)
+    --- PASS: TestCSVIntegration/CSV_Processing_Pipeline_with_Path (0.00s)
+    --- PASS: TestCSVIntegration/Iterate_Through_CSV_Rows (0.00s)
 === RUN   TestDateTimeFunctions
 === RUN   TestDateTimeFunctions/Current_Timestamp
 === RUN   TestDateTimeFunctions/Today's_Date
@@ -523,17 +569,17 @@ DEBUG: getProp returning: approved
 === RUN   TestDoETLTypeDebugging
 === RUN   TestDoETLTypeDebugging/Transform_Creation_and_Mapping_Success
 === RUN   TestDoETLTypeDebugging/doETL_Processing_Success
-{"level":"info","ts":1763576904.863868,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
-{"level":"info","ts":1763576904.8639302,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
-{"level":"info","ts":1763576904.863945,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
-{"level":"info","ts":1763576904.863949,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
-{"level":"info","ts":1763576904.8639538,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
-{"level":"info","ts":1763576904.863957,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
-NSQ Message to etl.completed: map[archiveError:Failed to create archive directory: mkdir /archive: read-only file system batches:[map[batchNumber:1 duration:113.334µs endTime:2025-11-19T10:28:24-08:00 errorRows:0 errors:[] rowCount:3 startTime:2025-11-19T10:28:24-08:00 successRows:3]] endTime:2025-11-19T10:28:24-08:00 errorRows:0 errors:[] jobId:test_job startTime:2025-11-19T10:28:24-08:00 status:processing successRows:3 totalDuration:863.977ms totalRows:3]
+{"level":"info","ts":1763747026.11505,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
+{"level":"info","ts":1763747026.11509,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
+{"level":"info","ts":1763747026.115103,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
+{"level":"info","ts":1763747026.115105,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
+{"level":"info","ts":1763747026.115108,"caller":"logs/logger.go:33","msg":"DEBUG: Transform field processing","field":"name","program":"","program_length":0,"program_bytes":""}
+{"level":"info","ts":1763747026.11511,"caller":"logs/logger.go:33","msg":"DEBUG: Using direct field mapping","field":"name"}
+NSQ Message to etl.completed: map[archiveError:Failed to create archive directory: mkdir /archive: read-only file system batches:[map[batchNumber:1 duration:68.542µs endTime:2025-11-21T09:43:46-08:00 errorRows:0 errors:[] rowCount:3 startTime:2025-11-21T09:43:46-08:00 successRows:3]] endTime:2025-11-21T09:43:46-08:00 errorRows:0 errors:[] jobId:test_job startTime:2025-11-21T09:43:46-08:00 status:processing successRows:3 totalDuration:115.126ms totalRows:3]
 DEBUG: getProp called with path='status'
-DEBUG: getProp sees data=map[archivePath: batchesProcessed:1 duration:863.977ms endTime:2025-11-19T10:28:24-08:00 jobId:test_job rowsProcessed:3 startTime:2025-11-19T10:28:24-08:00 status:completed] (type map[string]interface {})
-DEBUG: getJSONProperty called with path='status', data=map[archivePath: batchesProcessed:1 duration:863.977ms endTime:2025-11-19T10:28:24-08:00 jobId:test_job rowsProcessed:3 startTime:2025-11-19T10:28:24-08:00 status:completed]
-DEBUG: Processing part[0]='status', current=map[archivePath: batchesProcessed:1 duration:863.977ms endTime:2025-11-19T10:28:24-08:00 jobId:test_job rowsProcessed:3 startTime:2025-11-19T10:28:24-08:00 status:completed] (type map[string]interface {})
+DEBUG: getProp sees data=map[archivePath: batchesProcessed:1 duration:115.126ms endTime:2025-11-21T09:43:46-08:00 jobId:test_job rowsProcessed:3 startTime:2025-11-21T09:43:46-08:00 status:completed] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='status', data=map[archivePath: batchesProcessed:1 duration:115.126ms endTime:2025-11-21T09:43:46-08:00 jobId:test_job rowsProcessed:3 startTime:2025-11-21T09:43:46-08:00 status:completed]
+DEBUG: Processing part[0]='status', current=map[archivePath: batchesProcessed:1 duration:115.126ms endTime:2025-11-21T09:43:46-08:00 jobId:test_job rowsProcessed:3 startTime:2025-11-21T09:43:46-08:00 status:completed] (type map[string]interface {})
 DEBUG: getJSONProperty returning: completed
 DEBUG: getProp returning: completed
 === RUN   TestDoETLTypeDebugging/Transform_Type_Verification
@@ -600,6 +646,181 @@ DEBUG: getProp returning: completed
 --- PASS: TestFinancialOperations (0.00s)
     --- PASS: TestFinancialOperations/Present_Value_Calculation (0.00s)
     --- PASS: TestFinancialOperations/Loan_Payment_Calculation (0.00s)
+=== RUN   TestJSONToYAML
+=== RUN   TestJSONToYAML/Convert_JSON_String_to_YAML
+=== RUN   TestJSONToYAML/Convert_Complex_JSON_to_YAML
+=== RUN   TestJSONToYAML/Convert_JSON_Array_to_YAML
+--- PASS: TestJSONToYAML (0.00s)
+    --- PASS: TestJSONToYAML/Convert_JSON_String_to_YAML (0.00s)
+    --- PASS: TestJSONToYAML/Convert_Complex_JSON_to_YAML (0.00s)
+    --- PASS: TestJSONToYAML/Convert_JSON_Array_to_YAML (0.00s)
+=== RUN   TestYAMLToJSON
+=== RUN   TestYAMLToJSON/Convert_YAML_String_to_JSON
+=== RUN   TestYAMLToJSON/Convert_Nested_YAML_to_JSON
+=== RUN   TestYAMLToJSON/Round-trip_YAML_to_JSON_to_YAML
+--- PASS: TestYAMLToJSON (0.00s)
+    --- PASS: TestYAMLToJSON/Convert_YAML_String_to_JSON (0.00s)
+    --- PASS: TestYAMLToJSON/Convert_Nested_YAML_to_JSON (0.00s)
+    --- PASS: TestYAMLToJSON/Round-trip_YAML_to_JSON_to_YAML (0.00s)
+=== RUN   TestJSONToYAMLNode
+=== RUN   TestJSONToYAMLNode/Convert_JSON_String_to_YAML_TreeNode
+DEBUG: getProp called with path='app'
+DEBUG: getProp sees data=map[app:MyApp version:1.0] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app', data=map[app:MyApp version:1.0]
+DEBUG: Processing part[0]='app', current=map[app:MyApp version:1.0] (type map[string]interface {})
+DEBUG: getJSONProperty returning: MyApp
+DEBUG: getProp returning: MyApp
+=== RUN   TestJSONToYAMLNode/Convert_Complex_JSON_to_TreeNode
+DEBUG: getProp called with path='database.host'
+DEBUG: getProp sees data=map[database:map[host:db.example.com port:3306]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.host', data=map[database:map[host:db.example.com port:3306]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:db.example.com port:3306]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:db.example.com port:3306] (type map[string]interface {})
+DEBUG: getJSONProperty returning: db.example.com
+DEBUG: getProp returning: db.example.com
+=== RUN   TestJSONToYAMLNode/Save_Converted_Node_as_YAML
+DEBUG: getProp called with path='enabled'
+DEBUG: getProp sees data=map[enabled:true setting:value] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='enabled', data=map[enabled:true setting:value]
+DEBUG: Processing part[0]='enabled', current=map[enabled:true setting:value] (type map[string]interface {})
+DEBUG: getJSONProperty returning: true
+DEBUG: getProp returning: true
+--- PASS: TestJSONToYAMLNode (0.00s)
+    --- PASS: TestJSONToYAMLNode/Convert_JSON_String_to_YAML_TreeNode (0.00s)
+    --- PASS: TestJSONToYAMLNode/Convert_Complex_JSON_to_TreeNode (0.00s)
+    --- PASS: TestJSONToYAMLNode/Save_Converted_Node_as_YAML (0.00s)
+=== RUN   TestYAMLToJSONNode
+=== RUN   TestYAMLToJSONNode/Convert_YAML_String_to_JSON_TreeNode
+DEBUG: getProp called with path='name'
+DEBUG: getProp sees data=map[name:TestApp version:2] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='name', data=map[name:TestApp version:2]
+DEBUG: Processing part[0]='name', current=map[name:TestApp version:2] (type map[string]interface {})
+DEBUG: getJSONProperty returning: TestApp
+DEBUG: getProp returning: TestApp
+=== RUN   TestYAMLToJSONNode/Convert_Nested_YAML_to_JSONNode
+DEBUG: getProp called with path='server.port'
+DEBUG: getProp sees data=map[server:map[host:localhost port:8080]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='server.port', data=map[server:map[host:localhost port:8080]]
+DEBUG: Processing part[0]='server', current=map[server:map[host:localhost port:8080]] (type map[string]interface {})
+DEBUG: Processing part[1]='port', current=map[host:localhost port:8080] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 8080
+DEBUG: getProp returning: 8080
+=== RUN   TestYAMLToJSONNode/Save_Converted_Node_as_JSON
+DEBUG: getProp called with path='active'
+DEBUG: getProp sees data=map[active:true id:123] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='active', data=map[active:true id:123]
+DEBUG: Processing part[0]='active', current=map[active:true id:123] (type map[string]interface {})
+DEBUG: getJSONProperty returning: true
+DEBUG: getProp returning: true
+--- PASS: TestYAMLToJSONNode (0.00s)
+    --- PASS: TestYAMLToJSONNode/Convert_YAML_String_to_JSON_TreeNode (0.00s)
+    --- PASS: TestYAMLToJSONNode/Convert_Nested_YAML_to_JSONNode (0.00s)
+    --- PASS: TestYAMLToJSONNode/Save_Converted_Node_as_JSON (0.00s)
+=== RUN   TestConvertJSONFileToYAML
+=== RUN   TestConvertJSONFileToYAML/Convert_JSON_File_to_YAML_File
+=== RUN   TestConvertJSONFileToYAML/Verify_JSON_to_YAML_File_Conversion_Content
+DEBUG: getProp called with path='database.host'
+DEBUG: getProp sees data=map[database:map[host:localhost port:5432]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.host', data=map[database:map[host:localhost port:5432]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:localhost port:5432]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:localhost port:5432] (type map[string]interface {})
+DEBUG: getJSONProperty returning: localhost
+DEBUG: getProp returning: localhost
+=== RUN   TestConvertJSONFileToYAML/Convert_Complex_JSON_File
+DEBUG: getProp called with path='app.name'
+DEBUG: getProp sees data=map[app:map[features:[auth api cache] name:MyApp]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app.name', data=map[app:map[features:[auth api cache] name:MyApp]]
+DEBUG: Processing part[0]='app', current=map[app:map[features:[auth api cache] name:MyApp]] (type map[string]interface {})
+DEBUG: Processing part[1]='name', current=map[features:[auth api cache] name:MyApp] (type map[string]interface {})
+DEBUG: getJSONProperty returning: MyApp
+DEBUG: getProp returning: MyApp
+--- PASS: TestConvertJSONFileToYAML (0.00s)
+    --- PASS: TestConvertJSONFileToYAML/Convert_JSON_File_to_YAML_File (0.00s)
+    --- PASS: TestConvertJSONFileToYAML/Verify_JSON_to_YAML_File_Conversion_Content (0.00s)
+    --- PASS: TestConvertJSONFileToYAML/Convert_Complex_JSON_File (0.00s)
+=== RUN   TestConvertYAMLFileToJSON
+=== RUN   TestConvertYAMLFileToJSON/Convert_YAML_File_to_JSON_File
+=== RUN   TestConvertYAMLFileToJSON/Verify_YAML_to_JSON_File_Conversion_Content
+DEBUG: getProp called with path='server.host'
+DEBUG: getProp sees data=map[server:map[host:example.com port:8080]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='server.host', data=map[server:map[host:example.com port:8080]]
+DEBUG: Processing part[0]='server', current=map[server:map[host:example.com port:8080]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:example.com port:8080] (type map[string]interface {})
+DEBUG: getJSONProperty returning: example.com
+DEBUG: getProp returning: example.com
+=== RUN   TestConvertYAMLFileToJSON/Convert_YAML_Array_to_JSON
+DEBUG: getProp called with path='items.0'
+DEBUG: getProp sees data=map[items:[first second third]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='items.0', data=map[items:[first second third]]
+DEBUG: Processing part[0]='items', current=map[items:[first second third]] (type map[string]interface {})
+DEBUG: Processing part[1]='0', current=[first second third] (type []interface {})
+DEBUG: Array access: v[0] = first
+DEBUG: getJSONProperty returning: first
+DEBUG: getProp returning: first
+--- PASS: TestConvertYAMLFileToJSON (0.00s)
+    --- PASS: TestConvertYAMLFileToJSON/Convert_YAML_File_to_JSON_File (0.00s)
+    --- PASS: TestConvertYAMLFileToJSON/Verify_YAML_to_JSON_File_Conversion_Content (0.00s)
+    --- PASS: TestConvertYAMLFileToJSON/Convert_YAML_Array_to_JSON (0.00s)
+=== RUN   TestFormatConversionRoundTrips
+=== RUN   TestFormatConversionRoundTrips/Round-trip_JSON_to_YAML_and_Back
+DEBUG: getProp called with path='number'
+DEBUG: getProp sees data=map[key:value number:42] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='number', data=map[key:value number:42]
+DEBUG: Processing part[0]='number', current=map[key:value number:42] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 42
+DEBUG: getProp returning: 42
+=== RUN   TestFormatConversionRoundTrips/Round-trip_File_Conversion
+DEBUG: getProp called with path='app'
+DEBUG: getProp sees data=map[app:TestApp version:1.5] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app', data=map[app:TestApp version:1.5]
+DEBUG: Processing part[0]='app', current=map[app:TestApp version:1.5] (type map[string]interface {})
+DEBUG: getJSONProperty returning: TestApp
+DEBUG: getProp returning: TestApp
+=== RUN   TestFormatConversionRoundTrips/Node_Conversion_Pipeline
+DEBUG: getProp called with path='database.host'
+DEBUG: getProp sees data=map[database:map[host:localhost]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.host', data=map[database:map[host:localhost]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:localhost]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:localhost] (type map[string]interface {})
+DEBUG: getJSONProperty returning: localhost
+DEBUG: getProp returning: localhost
+--- PASS: TestFormatConversionRoundTrips (0.00s)
+    --- PASS: TestFormatConversionRoundTrips/Round-trip_JSON_to_YAML_and_Back (0.00s)
+    --- PASS: TestFormatConversionRoundTrips/Round-trip_File_Conversion (0.00s)
+    --- PASS: TestFormatConversionRoundTrips/Node_Conversion_Pipeline (0.00s)
+=== RUN   TestFormatConversionIntegration
+=== RUN   TestFormatConversionIntegration/Load_JSON,_Convert_to_YAML,_Modify,_Convert_Back
+DEBUG: getProp called with path='setting'
+DEBUG: getProp sees data=map[count:5 setting:new] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='setting', data=map[count:5 setting:new]
+DEBUG: Processing part[0]='setting', current=map[count:5 setting:new] (type map[string]interface {})
+DEBUG: getJSONProperty returning: new
+DEBUG: getProp returning: new
+=== RUN   TestFormatConversionIntegration/Build_Config_as_JSON,_Export_as_YAML
+DEBUG: getProp called with path='app.debug'
+DEBUG: getProp sees data=map[app:map[debug:false name:MyService port:3000]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app.debug', data=map[app:map[debug:false name:MyService port:3000]]
+DEBUG: Processing part[0]='app', current=map[app:map[debug:false name:MyService port:3000]] (type map[string]interface {})
+DEBUG: Processing part[1]='debug', current=map[debug:false name:MyService port:3000] (type map[string]interface {})
+DEBUG: getJSONProperty returning: false
+DEBUG: getProp returning: false
+=== RUN   TestFormatConversionIntegration/Batch_Convert_Multiple_Files
+DEBUG: getProp called with path='id'
+DEBUG: getProp sees data=map[id:1] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='id', data=map[id:1]
+DEBUG: Processing part[0]='id', current=map[id:1] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 1
+DEBUG: getProp returning: 1
+DEBUG: getProp called with path='id'
+DEBUG: getProp sees data=map[id:2] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='id', data=map[id:2]
+DEBUG: Processing part[0]='id', current=map[id:2] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 2
+DEBUG: getProp returning: 2
+--- PASS: TestFormatConversionIntegration (0.00s)
+    --- PASS: TestFormatConversionIntegration/Load_JSON,_Convert_to_YAML,_Modify,_Convert_Back (0.00s)
+    --- PASS: TestFormatConversionIntegration/Build_Config_as_JSON,_Export_as_YAML (0.00s)
+    --- PASS: TestFormatConversionIntegration/Batch_Convert_Multiple_Files (0.00s)
 === RUN   TestNewFunctionExtractor
 --- PASS: TestNewFunctionExtractor (0.00s)
 === RUN   TestExtractFromText
@@ -665,30 +886,30 @@ DEBUG: getProp returning: completed
 === RUN   TestExtractFromInterface
 --- PASS: TestExtractFromInterface (0.00s)
 === RUN   TestExtractFromTreeFile
-{"level":"info","ts":1763576904.8673532,"caller":"logs/logger.go:33","msg":"Worker started","id":1}
-{"level":"info","ts":1763576904.867359,"caller":"logs/logger.go:33","msg":"Worker started","id":2}
-{"level":"info","ts":1763576904.867359,"caller":"logs/logger.go:33","msg":"Worker started","id":4}
-{"level":"info","ts":1763576904.8673651,"caller":"logs/logger.go:33","msg":"Worker started","id":3}
-{"level":"info","ts":1763576904.86737,"caller":"logs/logger.go:33","msg":"Worker started","id":0}
-{"level":"info","ts":1763576904.867384,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_extraction/test.json","path_type":"tree"}
-{"level":"info","ts":1763576904.8674188,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_extraction/test.json"}
-{"level":"info","ts":1763576904.867458,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_extraction/test.json"}
+{"level":"info","ts":1763747026.122533,"caller":"logs/logger.go:33","msg":"Worker started","id":4}
+{"level":"info","ts":1763747026.122543,"caller":"logs/logger.go:33","msg":"Worker started","id":0}
+{"level":"info","ts":1763747026.1225522,"caller":"logs/logger.go:33","msg":"Worker started","id":3}
+{"level":"info","ts":1763747026.1225421,"caller":"logs/logger.go:33","msg":"Worker started","id":1}
+{"level":"info","ts":1763747026.1225522,"caller":"logs/logger.go:33","msg":"Worker started","id":2}
+{"level":"info","ts":1763747026.122549,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_extraction/test.json","path_type":"tree"}
+{"level":"info","ts":1763747026.1225889,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_extraction/test.json"}
+{"level":"info","ts":1763747026.122615,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_extraction/test.json"}
 --- PASS: TestExtractFromTreeFile (0.00s)
 === RUN   TestExtractFromMultipleFiles
-{"level":"info","ts":1763576904.867979,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test1.json","path_type":"tree"}
-{"level":"info","ts":1763576904.867998,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_multiple/test1.json"}
-{"level":"info","ts":1763576904.86801,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_multiple/test1.json"}
-{"level":"info","ts":1763576904.868025,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test2.json","path_type":"tree"}
-{"level":"info","ts":1763576904.868052,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_multiple/test2.json"}
-{"level":"info","ts":1763576904.868062,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_multiple/test2.json"}
+{"level":"info","ts":1763747026.1229482,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test1.json","path_type":"tree"}
+{"level":"info","ts":1763747026.122964,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_multiple/test1.json"}
+{"level":"info","ts":1763747026.122973,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_multiple/test1.json"}
+{"level":"info","ts":1763747026.122987,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_multiple/test2.json","path_type":"tree"}
+{"level":"info","ts":1763747026.123001,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_multiple/test2.json"}
+{"level":"info","ts":1763747026.123009,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_multiple/test2.json"}
 --- PASS: TestExtractFromMultipleFiles (0.00s)
 === RUN   TestExtractFromDirectory
-{"level":"info","ts":1763576904.8688772,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test1.json","path_type":"tree"}
-{"level":"info","ts":1763576904.868903,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_directory/test1.json"}
-{"level":"info","ts":1763576904.868916,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_directory/test1.json"}
-{"level":"info","ts":1763576904.8689458,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test2.yaml","path_type":"tree"}
-{"level":"info","ts":1763576904.8689668,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"yaml","file":"test_directory/test2.yaml"}
-{"level":"error","ts":1763576904.8690681,"caller":"logs/logger.go:41","msg":"Load failed","filename":"test_directory/test2.yaml","error":"node data missing 'name' field","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
+{"level":"info","ts":1763747026.123471,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test1.json","path_type":"tree"}
+{"level":"info","ts":1763747026.123486,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"test_directory/test1.json"}
+{"level":"info","ts":1763747026.123494,"caller":"logs/logger.go:33","msg":"Load successful","filename":"test_directory/test1.json"}
+{"level":"info","ts":1763747026.1235049,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/test_directory/test2.yaml","path_type":"tree"}
+{"level":"info","ts":1763747026.12352,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"yaml","file":"test_directory/test2.yaml"}
+{"level":"error","ts":1763747026.1235461,"caller":"logs/logger.go:41","msg":"Load failed","filename":"test_directory/test2.yaml","error":"node data missing 'name' field","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
 --- PASS: TestExtractFromDirectory (0.00s)
 === RUN   TestUnsupportedFileFormat
 --- PASS: TestUnsupportedFileFormat (0.00s)
@@ -867,9 +1088,10 @@ DEBUG: getJSONProperty returning: true
 DEBUG: getProp returning: true
 === RUN   TestJSONDataTypes/Null_Values
 DEBUG: getProp called with path='value'
-DEBUG: getProp sees data=<nil> (type <nil>)
-DEBUG: getJSONProperty called with path='value', data=<nil>
-DEBUG: Processing part[0]='value', current=<nil> (type <nil>)
+DEBUG: getProp sees data=map[value:<nil>] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='value', data=map[value:<nil>]
+DEBUG: Processing part[0]='value', current=map[value:<nil>] (type map[string]interface {})
+DEBUG: getJSONProperty returning: DBNull
 DEBUG: getProp returning: DBNull
 === RUN   TestJSONDataTypes/Number_Types
 DEBUG: getProp called with path='float'
@@ -908,9 +1130,10 @@ DEBUG: Processing part[0]='nonexistent', current=map[existing:value] (type map[s
 DEBUG: getProp returning: DBNull
 === RUN   TestJSONErrorHandling/Access_Property_on_Null
 DEBUG: getProp called with path='value.subprop'
-DEBUG: getProp sees data=<nil> (type <nil>)
-DEBUG: getJSONProperty called with path='value.subprop', data=<nil>
-DEBUG: Processing part[0]='value', current=<nil> (type <nil>)
+DEBUG: getProp sees data=map[value:<nil>] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='value.subprop', data=map[value:<nil>]
+DEBUG: Processing part[0]='value', current=map[value:<nil>] (type map[string]interface {})
+DEBUG: Processing part[1]='subprop', current=<nil> (type <nil>)
 DEBUG: getProp returning: DBNull
 === RUN   TestJSONErrorHandling/Deep_Path_on_Primitive
 DEBUG: getProp called with path='number.invalid'
@@ -1024,6 +1247,24 @@ DEBUG: getProp returning: 42
     --- PASS: TestJSONFileOperations/Save_and_Load_JSON_File (0.00s)
     --- PASS: TestJSONFileOperations/JSON_to_YAML_Conversion (0.00s)
     --- PASS: TestJSONFileOperations/File_Existence_Check (0.00s)
+=== RUN   TestJSONRawOperations
+=== RUN   TestJSONRawOperations/Load_JSON_Raw_String
+=== RUN   TestJSONRawOperations/Save_JSON_Raw_String
+=== RUN   TestJSONRawOperations/Modify_Raw_JSON_String
+=== RUN   TestJSONRawOperations/Load_Raw_JSON_and_Parse
+DEBUG: getProp called with path='app'
+DEBUG: getProp sees data=map[app:MyApp version:2] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app', data=map[app:MyApp version:2]
+DEBUG: Processing part[0]='app', current=map[app:MyApp version:2] (type map[string]interface {})
+DEBUG: getJSONProperty returning: MyApp
+DEBUG: getProp returning: MyApp
+=== RUN   TestJSONRawOperations/Save_Pretty-Printed_JSON_Raw
+--- PASS: TestJSONRawOperations (0.00s)
+    --- PASS: TestJSONRawOperations/Load_JSON_Raw_String (0.00s)
+    --- PASS: TestJSONRawOperations/Save_JSON_Raw_String (0.00s)
+    --- PASS: TestJSONRawOperations/Modify_Raw_JSON_String (0.00s)
+    --- PASS: TestJSONRawOperations/Load_Raw_JSON_and_Parse (0.00s)
+    --- PASS: TestJSONRawOperations/Save_Pretty-Printed_JSON_Raw (0.00s)
 === RUN   TestKnapsackConfig
 === RUN   TestKnapsackConfig/Basic_config_generation_returns_string
 === RUN   TestKnapsackConfig/Config_with_mismatched_arrays
@@ -1050,13 +1291,13 @@ DEBUG: getProp returning: 42
 === RUN   TestKnapsackSolver/Knapsack_with_missing_config_argument
 === RUN   TestKnapsackSolver/Knapsack_with_wrong_config_type
 === RUN   TestKnapsackSolver/Knapsack_with_wrong_options_type
---- PASS: TestKnapsackSolver (0.16s)
+--- PASS: TestKnapsackSolver (0.18s)
     --- PASS: TestKnapsackSolver/Simple_knapsack_with_config_helper (0.00s)
     --- PASS: TestKnapsackSolver/Check_solution_has_select_array (0.00s)
     --- PASS: TestKnapsackSolver/Check_solution_has_objective_value (0.00s)
     --- PASS: TestKnapsackSolver/Check_solution_has_penalty_value (0.00s)
     --- PASS: TestKnapsackSolver/Check_solution_has_total_value (0.00s)
-    --- PASS: TestKnapsackSolver/Knapsack_with_options_JSON (0.16s)
+    --- PASS: TestKnapsackSolver/Knapsack_with_options_JSON (0.18s)
     --- PASS: TestKnapsackSolver/Knapsack_with_missing_config_argument (0.00s)
     --- PASS: TestKnapsackSolver/Knapsack_with_wrong_config_type (0.00s)
     --- PASS: TestKnapsackSolver/Knapsack_with_wrong_options_type (0.00s)
@@ -1183,33 +1424,33 @@ DEBUG: getProp returning: 42
 === RUN   TestMCPClient_ListAndExecute
 === RUN   TestMCPClient_ListAndExecute/Connect,_list_tools_includes_ping
 === RUN   TestMCPClient_ListAndExecute/Execute_code_via_MCP_execute_tool
---- PASS: TestMCPClient_ListAndExecute (1.33s)
-    --- PASS: TestMCPClient_ListAndExecute/Connect,_list_tools_includes_ping (0.74s)
-    --- PASS: TestMCPClient_ListAndExecute/Execute_code_via_MCP_execute_tool (0.59s)
+--- PASS: TestMCPClient_ListAndExecute (5.33s)
+    --- PASS: TestMCPClient_ListAndExecute/Connect,_list_tools_includes_ping (4.77s)
+    --- PASS: TestMCPClient_ListAndExecute/Execute_code_via_MCP_execute_tool (0.56s)
 === RUN   TestMCP_WebSocket_Client_ToExternal
 --- PASS: TestMCP_WebSocket_Client_ToExternal (0.00s)
 === RUN   TestMCP_WebSocket_Server_ListAndExecute
-2025/11/19 10:28:26 http: response.WriteHeader on hijacked connection from github.com/labstack/echo/v4.(*Response).WriteHeader (response.go:65)
-2025/11/19 10:28:26 http: response.Write on hijacked connection from github.com/labstack/echo/v4.(*Response).Write (response.go:77)
-{"time":"2025-11-19T10:28:26.370677-08:00","level":"ERROR","prefix":"echo","file":"echo.go","line":"462","message":"http: connection has been hijacked"}
+2025/11/21 09:43:51 http: response.WriteHeader on hijacked connection from github.com/labstack/echo/v4.(*Response).WriteHeader (response.go:65)
+2025/11/21 09:43:51 http: response.Write on hijacked connection from github.com/labstack/echo/v4.(*Response).Write (response.go:77)
+{"time":"2025-11-21T09:43:51.642491-08:00","level":"ERROR","prefix":"echo","file":"echo.go","line":"462","message":"http: connection has been hijacked"}
 --- PASS: TestMCP_WebSocket_Server_ListAndExecute (0.00s)
 === RUN   TestMySQLOperations
-2025/11/19 10:28:26 http: response.WriteHeader on hijacked connection from github.com/labstack/echo/v4.(*Response).WriteHeader (response.go:65)
-2025/11/19 10:28:26 http: response.Write on hijacked connection from github.com/labstack/echo/v4.(*Response).Write (response.go:77)
-{"time":"2025-11-19T10:28:26.371695-08:00","level":"ERROR","prefix":"echo","file":"echo.go","line":"462","message":"http: connection has been hijacked"}
+2025/11/21 09:43:51 http: response.WriteHeader on hijacked connection from github.com/labstack/echo/v4.(*Response).WriteHeader (response.go:65)
+2025/11/21 09:43:51 http: response.Write on hijacked connection from github.com/labstack/echo/v4.(*Response).Write (response.go:77)
+{"time":"2025-11-21T09:43:51.643645-08:00","level":"ERROR","prefix":"echo","file":"echo.go","line":"462","message":"http: connection has been hijacked"}
 === RUN   TestMySQLOperations/Connect_to_MySQL
-{"level":"info","ts":1763576906.371804,"caller":"logs/logger.go:33","msg":"sqlConnect called","arg_count":5}
-{"level":"info","ts":1763576906.37183,"caller":"logs/logger.go:33","msg":"sqlConnect args","node_name":"mysql-test","arg1":"localhost","arg2":"chariot"}
-{"level":"info","ts":1763576906.4461708,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
+{"level":"info","ts":1763747031.643734,"caller":"logs/logger.go:33","msg":"sqlConnect called","arg_count":5}
+{"level":"info","ts":1763747031.6437602,"caller":"logs/logger.go:33","msg":"sqlConnect args","node_name":"mysql-test","arg1":"localhost","arg2":"chariot"}
+{"level":"info","ts":1763747031.83469,"caller":"logs/logger.go:33","msg":"Parsed vault secret","org_key":"BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA","sql_host":"mysql","sql_port":3306,"sql_driver":"mysql"}
 === RUN   TestMySQLOperations/Create_Table
 === RUN   TestMySQLOperations/Insert_Row
 === RUN   TestMySQLOperations/Query_Row
 === RUN   TestMySQLOperations/Delete_Row
 === RUN   TestMySQLOperations/Drop_Table
 === RUN   TestMySQLOperations/Close_Connection
---- PASS: TestMySQLOperations (0.13s)
-    --- PASS: TestMySQLOperations/Connect_to_MySQL (0.08s)
-    --- PASS: TestMySQLOperations/Create_Table (0.03s)
+--- PASS: TestMySQLOperations (0.26s)
+    --- PASS: TestMySQLOperations/Connect_to_MySQL (0.20s)
+    --- PASS: TestMySQLOperations/Create_Table (0.04s)
     --- PASS: TestMySQLOperations/Insert_Row (0.00s)
     --- PASS: TestMySQLOperations/Query_Row (0.00s)
     --- PASS: TestMySQLOperations/Delete_Row (0.00s)
@@ -1224,26 +1465,26 @@ DEBUG: getProp returning: 42
 --- SKIP: TestPlan_GetProp_Direct (0.00s)
 === RUN   TestPlanInTree_Roundtrip
 === RUN   TestPlanInTree_Roundtrip/Plan-in-Tree_roundtrip_preserves_type_P
-{"level":"info","ts":1763576906.4999979,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.500063,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.500581,"caller":"logs/logger.go:33","msg":"Save successful","filename":"plan_tree.json","format":"json"}
-{"level":"info","ts":1763576906.500609,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.50064,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"plan_tree.json"}
-{"level":"info","ts":1763576906.500715,"caller":"logs/logger.go:33","msg":"Load successful","filename":"plan_tree.json"}
+{"level":"info","ts":1763747031.9091148,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9091358,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9093618,"caller":"logs/logger.go:33","msg":"Save successful","filename":"plan_tree.json","format":"json"}
+{"level":"info","ts":1763747031.909379,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.909398,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"plan_tree.json"}
+{"level":"info","ts":1763747031.909446,"caller":"logs/logger.go:33","msg":"Load successful","filename":"plan_tree.json"}
 === RUN   TestPlanInTree_Roundtrip/Plan-in-Tree_roundtrip_preserves_name
-{"level":"info","ts":1763576906.500767,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5007749,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.500932,"caller":"logs/logger.go:33","msg":"Save successful","filename":"plan_tree.json","format":"json"}
-{"level":"info","ts":1763576906.500948,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.500965,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"plan_tree.json"}
-{"level":"info","ts":1763576906.5010052,"caller":"logs/logger.go:33","msg":"Load successful","filename":"plan_tree.json"}
+{"level":"info","ts":1763747031.909487,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.909494,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9095821,"caller":"logs/logger.go:33","msg":"Save successful","filename":"plan_tree.json","format":"json"}
+{"level":"info","ts":1763747031.9095979,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.909612,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"plan_tree.json"}
+{"level":"info","ts":1763747031.9096441,"caller":"logs/logger.go:33","msg":"Load successful","filename":"plan_tree.json"}
 === RUN   TestPlanInTree_Roundtrip/Plan-in-Tree_roundtrip_preserves_params_length
-{"level":"info","ts":1763576906.501056,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5010638,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5011919,"caller":"logs/logger.go:33","msg":"Save successful","filename":"plan_tree.json","format":"json"}
-{"level":"info","ts":1763576906.5012171,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.501235,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"plan_tree.json"}
-{"level":"info","ts":1763576906.501272,"caller":"logs/logger.go:33","msg":"Load successful","filename":"plan_tree.json"}
+{"level":"info","ts":1763747031.909682,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.909687,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.909773,"caller":"logs/logger.go:33","msg":"Save successful","filename":"plan_tree.json","format":"json"}
+{"level":"info","ts":1763747031.909784,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/plan_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.909796,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"plan_tree.json"}
+{"level":"info","ts":1763747031.909826,"caller":"logs/logger.go:33","msg":"Load successful","filename":"plan_tree.json"}
 --- PASS: TestPlanInTree_Roundtrip (0.00s)
     --- PASS: TestPlanInTree_Roundtrip/Plan-in-Tree_roundtrip_preserves_type_P (0.00s)
     --- PASS: TestPlanInTree_Roundtrip/Plan-in-Tree_roundtrip_preserves_name (0.00s)
@@ -1497,50 +1738,50 @@ DEBUG: getProp returning: 42
     --- PASS: TestStringErrorHandling/Replace_-_Non-string_Input (0.00s)
 === RUN   TestTreeOperations
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Simple
-{"level":"info","ts":1763576906.5047739,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.504782,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.504904,"caller":"logs/logger.go:33","msg":"Save successful","filename":"simple_tree.json","format":"json"}
-{"level":"info","ts":1763576906.504917,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.504935,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"simple_tree.json"}
-{"level":"info","ts":1763576906.504947,"caller":"logs/logger.go:33","msg":"Load successful","filename":"simple_tree.json"}
+{"level":"info","ts":1763747031.9128041,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.912812,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9129012,"caller":"logs/logger.go:33","msg":"Save successful","filename":"simple_tree.json","format":"json"}
+{"level":"info","ts":1763747031.9129128,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/simple_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.912926,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"simple_tree.json"}
+{"level":"info","ts":1763747031.912937,"caller":"logs/logger.go:33","msg":"Load successful","filename":"simple_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Complex_Structure
-{"level":"info","ts":1763576906.504988,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.504995,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.50509,"caller":"logs/logger.go:33","msg":"Save successful","filename":"complex_tree.json","format":"json"}
-{"level":"info","ts":1763576906.5051038,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505117,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"complex_tree.json"}
-{"level":"info","ts":1763576906.50513,"caller":"logs/logger.go:33","msg":"Load successful","filename":"complex_tree.json"}
+{"level":"info","ts":1763747031.912971,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.912977,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913056,"caller":"logs/logger.go:33","msg":"Save successful","filename":"complex_tree.json","format":"json"}
+{"level":"info","ts":1763747031.913072,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/complex_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913085,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"complex_tree.json"}
+{"level":"info","ts":1763747031.913097,"caller":"logs/logger.go:33","msg":"Load successful","filename":"complex_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Array_Root
-{"level":"info","ts":1763576906.5051699,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505177,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5052722,"caller":"logs/logger.go:33","msg":"Save successful","filename":"array_tree.json","format":"json"}
-{"level":"info","ts":1763576906.505287,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505301,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"array_tree.json"}
-{"level":"info","ts":1763576906.505315,"caller":"logs/logger.go:33","msg":"Load successful","filename":"array_tree.json"}
+{"level":"info","ts":1763747031.9131289,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913134,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913329,"caller":"logs/logger.go:33","msg":"Save successful","filename":"array_tree.json","format":"json"}
+{"level":"info","ts":1763747031.9133482,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/array_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913368,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"array_tree.json"}
+{"level":"info","ts":1763747031.913381,"caller":"logs/logger.go:33","msg":"Load successful","filename":"array_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_and_Load_-_Nested_Objects
-{"level":"info","ts":1763576906.505356,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505363,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505573,"caller":"logs/logger.go:33","msg":"Save successful","filename":"nested_tree.json","format":"json"}
-{"level":"info","ts":1763576906.5055869,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5056,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"nested_tree.json"}
-{"level":"info","ts":1763576906.505611,"caller":"logs/logger.go:33","msg":"Load successful","filename":"nested_tree.json"}
+{"level":"info","ts":1763747031.9134269,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913434,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9135208,"caller":"logs/logger.go:33","msg":"Save successful","filename":"nested_tree.json","format":"json"}
+{"level":"info","ts":1763747031.913537,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nested_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913551,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"nested_tree.json"}
+{"level":"info","ts":1763747031.913564,"caller":"logs/logger.go:33","msg":"Load successful","filename":"nested_tree.json"}
 === RUN   TestTreeOperations/Tree_Save_-_Overwrite_Existing
-{"level":"info","ts":1763576906.505644,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505651,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505737,"caller":"logs/logger.go:33","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
-{"level":"info","ts":1763576906.505753,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1763576906.505759,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1763576906.50584,"caller":"logs/logger.go:33","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
-{"level":"info","ts":1763576906.505856,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5058718,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"overwrite_test.json"}
-{"level":"info","ts":1763576906.505882,"caller":"logs/logger.go:33","msg":"Load successful","filename":"overwrite_test.json"}
+{"level":"info","ts":1763747031.9136,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913606,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913677,"caller":"logs/logger.go:33","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
+{"level":"info","ts":1763747031.9136949,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9137,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1763747031.9137769,"caller":"logs/logger.go:33","msg":"Save successful","filename":"overwrite_test.json","format":"json"}
+{"level":"info","ts":1763747031.913789,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/overwrite_test.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913801,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"overwrite_test.json"}
+{"level":"info","ts":1763747031.913812,"caller":"logs/logger.go:33","msg":"Load successful","filename":"overwrite_test.json"}
 === RUN   TestTreeOperations/Tree_Save_-_Subdirectory
-{"level":"info","ts":1763576906.5059142,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5059211,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.5060108,"caller":"logs/logger.go:33","msg":"Save successful","filename":"trees/subdir_tree.json","format":"json"}
-{"level":"info","ts":1763576906.50603,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
-{"level":"info","ts":1763576906.506043,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"trees/subdir_tree.json"}
-{"level":"info","ts":1763576906.506054,"caller":"logs/logger.go:33","msg":"Load successful","filename":"trees/subdir_tree.json"}
+{"level":"info","ts":1763747031.9138381,"caller":"logs/logger.go:33","msg":"Using secure file path","path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913845,"caller":"logs/logger.go:33","msg":"Saving tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913921,"caller":"logs/logger.go:33","msg":"Save successful","filename":"trees/subdir_tree.json","format":"json"}
+{"level":"info","ts":1763747031.913931,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/trees/subdir_tree.json","path_type":"tree"}
+{"level":"info","ts":1763747031.913943,"caller":"logs/logger.go:33","msg":"Using format for loading","format":"json","file":"trees/subdir_tree.json"}
+{"level":"info","ts":1763747031.913955,"caller":"logs/logger.go:33","msg":"Load successful","filename":"trees/subdir_tree.json"}
 === RUN   TestTreeOperations/Tree_Find_-_Simple_Search
 === RUN   TestTreeOperations/Tree_Find_-_Not_Found
 === RUN   TestTreeOperations/Tree_Find_-_Nested_Search
@@ -1564,10 +1805,10 @@ DEBUG: getProp returning: 42
     --- PASS: TestTreeOperations/Tree_Walk_-_Collect_Values (0.00s)
 === RUN   TestTreeErrorHandling
 === RUN   TestTreeErrorHandling/Tree_Load_-_Non-existent_File
-{"level":"info","ts":1763576906.506378,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json","path_type":"tree"}
-{"level":"error","ts":1763576906.50639,"caller":"logs/logger.go:41","msg":"Load failed","filename":"nonexistent.json","error":"open /Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json: no such file or directory","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
+{"level":"info","ts":1763747031.914228,"caller":"logs/logger.go:33","msg":"Loading tree","full_path":"/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json","path_type":"tree"}
+{"level":"error","ts":1763747031.914243,"caller":"logs/logger.go:41","msg":"Load failed","filename":"nonexistent.json","error":"open /Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests/data/trees/nonexistent.json: no such file or directory","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:205\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
 === RUN   TestTreeErrorHandling/Tree_Save_-_Invalid_Path
-{"level":"error","ts":1763576906.50643,"caller":"logs/logger.go:41","msg":"save failed","filename":"../../../invalid/path.json","error":"invalid filename: directory traversal not allowed","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:196\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
+{"level":"error","ts":1763747031.914285,"caller":"logs/logger.go:41","msg":"save failed","filename":"../../../invalid/path.json","error":"invalid filename: directory traversal not allowed","stacktrace":"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs.(*ZapLogger).Error\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs/logger.go:41\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).processRequest\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:196\ngithub.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot.(*TreeSerializerService).worker\n\t/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/tree_serializer.go:156"}
 === RUN   TestTreeErrorHandling/Tree_Save_-_Invalid_Data
 === RUN   TestTreeErrorHandling/Tree_Find_-_Wrong_Argument_Count
 === RUN   TestTreeErrorHandling/Tree_Walk_-_Invalid_Function
@@ -1671,5 +1912,240 @@ DEBUG: getProp returning: 42
     --- PASS: TestTypeUtilityErrorHandling/To_Number_-_Invalid_String (0.00s)
     --- PASS: TestTypeUtilityErrorHandling/To_Bool_-_Invalid_String (0.00s)
     --- PASS: TestTypeUtilityErrorHandling/Type_Of_-_No_Arguments (0.00s)
+=== RUN   TestXMLFileOperations
+=== RUN   TestXMLFileOperations/Load_XML_File
+=== RUN   TestXMLFileOperations/Save_XML_File
+=== RUN   TestXMLFileOperations/Load_and_Save_XML_Raw
+--- PASS: TestXMLFileOperations (0.00s)
+    --- PASS: TestXMLFileOperations/Load_XML_File (0.00s)
+    --- PASS: TestXMLFileOperations/Save_XML_File (0.00s)
+    --- PASS: TestXMLFileOperations/Load_and_Save_XML_Raw (0.00s)
+=== RUN   TestParseXMLString
+=== RUN   TestParseXMLString/Parse_Simple_XML_String
+=== RUN   TestParseXMLString/Parse_XML_and_Access_Properties
+DEBUG: getProp called with path='username'
+DEBUG: getProp sees data=map[id:123 username:alice] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='username', data=map[id:123 username:alice]
+DEBUG: Processing part[0]='username', current=map[id:123 username:alice] (type map[string]interface {})
+DEBUG: getJSONProperty returning: alice
+DEBUG: getProp returning: alice
+=== RUN   TestParseXMLString/Parse_Nested_XML
+DEBUG: getProp called with path='server.host'
+DEBUG: getProp sees data=map[server:map[host:localhost]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='server.host', data=map[server:map[host:localhost]]
+DEBUG: Processing part[0]='server', current=map[server:map[host:localhost]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:localhost] (type map[string]interface {})
+DEBUG: getJSONProperty returning: localhost
+DEBUG: getProp returning: localhost
+--- PASS: TestParseXMLString (0.00s)
+    --- PASS: TestParseXMLString/Parse_Simple_XML_String (0.00s)
+    --- PASS: TestParseXMLString/Parse_XML_and_Access_Properties (0.00s)
+    --- PASS: TestParseXMLString/Parse_Nested_XML (0.00s)
+=== RUN   TestXMLTreeOperations
+=== RUN   TestXMLTreeOperations/Load_XML_and_Navigate_Tree
+DEBUG: getProp called with path='item'
+DEBUG: getProp sees data=map[item:[value1 value2]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='item', data=map[item:[value1 value2]]
+DEBUG: Processing part[0]='item', current=map[item:[value1 value2]] (type map[string]interface {})
+DEBUG: getJSONProperty returning: [value1, value2]
+DEBUG: getProp returning: [value1, value2]
+=== RUN   TestXMLTreeOperations/Modify_XML_Tree
+DEBUG: getProp called with path='section.name'
+DEBUG: getProp sees data=map[section:map[name:database] version:1.0] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='section.name', data=map[section:map[name:database] version:1.0]
+DEBUG: Processing part[0]='section', current=map[section:map[name:database] version:1.0] (type map[string]interface {})
+DEBUG: Processing part[1]='name', current=map[name:database] (type map[string]interface {})
+DEBUG: getJSONProperty returning: database
+DEBUG: getProp returning: database
+=== RUN   TestXMLTreeOperations/Build_and_Save_XML
+DEBUG: getProp called with path='body.content'
+DEBUG: getProp sees data=map[body:map[content:Hello World] title:Test Document] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='body.content', data=map[body:map[content:Hello World] title:Test Document]
+DEBUG: Processing part[0]='body', current=map[body:map[content:Hello World] title:Test Document] (type map[string]interface {})
+DEBUG: Processing part[1]='content', current=map[content:Hello World] (type map[string]interface {})
+DEBUG: getJSONProperty returning: Hello World
+DEBUG: getProp returning: Hello World
+--- PASS: TestXMLTreeOperations (0.00s)
+    --- PASS: TestXMLTreeOperations/Load_XML_and_Navigate_Tree (0.00s)
+    --- PASS: TestXMLTreeOperations/Modify_XML_Tree (0.00s)
+    --- PASS: TestXMLTreeOperations/Build_and_Save_XML (0.00s)
+=== RUN   TestXMLWithAttributes
+=== RUN   TestXMLWithAttributes/Parse_XML_with_Attributes
+DEBUG: getProp called with path='id'
+DEBUG: getProp sees data=map[id:123 name:Alice role:admin] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='id', data=map[id:123 name:Alice role:admin]
+DEBUG: Processing part[0]='id', current=map[id:123 name:Alice role:admin] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 123
+DEBUG: getProp returning: 123
+=== RUN   TestXMLWithAttributes/XML_Attributes_and_Elements
+DEBUG: getProp called with path='sku'
+DEBUG: getProp sees data=map[name:Widget price:19.99 sku:ABC123] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='sku', data=map[name:Widget price:19.99 sku:ABC123]
+DEBUG: Processing part[0]='sku', current=map[name:Widget price:19.99 sku:ABC123] (type map[string]interface {})
+DEBUG: getJSONProperty returning: ABC123
+DEBUG: getProp returning: ABC123
+DEBUG: getProp called with path='name'
+DEBUG: getProp sees data=map[name:Widget price:19.99 sku:ABC123] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='name', data=map[name:Widget price:19.99 sku:ABC123]
+DEBUG: Processing part[0]='name', current=map[name:Widget price:19.99 sku:ABC123] (type map[string]interface {})
+DEBUG: getJSONProperty returning: Widget
+DEBUG: getProp returning: Widget
+--- PASS: TestXMLWithAttributes (0.00s)
+    --- PASS: TestXMLWithAttributes/Parse_XML_with_Attributes (0.00s)
+    --- PASS: TestXMLWithAttributes/XML_Attributes_and_Elements (0.00s)
+=== RUN   TestXMLRawOperations
+=== RUN   TestXMLRawOperations/Load_XML_Raw_String
+=== RUN   TestXMLRawOperations/Save_XML_Raw_String
+=== RUN   TestXMLRawOperations/Modify_Raw_XML_String
+--- PASS: TestXMLRawOperations (0.00s)
+    --- PASS: TestXMLRawOperations/Load_XML_Raw_String (0.00s)
+    --- PASS: TestXMLRawOperations/Save_XML_Raw_String (0.00s)
+    --- PASS: TestXMLRawOperations/Modify_Raw_XML_String (0.00s)
+=== RUN   TestXMLIntegration
+=== RUN   TestXMLIntegration/XML_Configuration_Processing
+DEBUG: getProp called with path='database.host'
+DEBUG: getProp sees data=map[database:map[host:db.example.com port:3306]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.host', data=map[database:map[host:db.example.com port:3306]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:db.example.com port:3306]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:db.example.com port:3306] (type map[string]interface {})
+DEBUG: getJSONProperty returning: db.example.com
+DEBUG: getProp returning: db.example.com
+DEBUG: getProp called with path='database.port'
+DEBUG: getProp sees data=map[database:map[host:db.example.com port:3306]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.port', data=map[database:map[host:db.example.com port:3306]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:db.example.com port:3306]] (type map[string]interface {})
+DEBUG: Processing part[1]='port', current=map[host:db.example.com port:3306] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 3306
+DEBUG: getProp returning: 3306
+=== RUN   TestXMLIntegration/Build_XML_from_Data
+DEBUG: getProp called with path='user'
+DEBUG: getProp sees data=map[user:[map[email:alice@test.com name:Alice] map[email:bob@test.com name:Bob]]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='user', data=map[user:[map[email:alice@test.com name:Alice] map[email:bob@test.com name:Bob]]]
+DEBUG: Processing part[0]='user', current=map[user:[map[email:alice@test.com name:Alice] map[email:bob@test.com name:Bob]]] (type map[string]interface {})
+DEBUG: getJSONProperty returning: [{"email":"alice@test.com","name":"Alice"}, {"email":"bob@test.com","name":"Bob"}]
+DEBUG: getProp returning: [{"email":"alice@test.com","name":"Alice"}, {"email":"bob@test.com","name":"Bob"}]
+--- PASS: TestXMLIntegration (0.00s)
+    --- PASS: TestXMLIntegration/XML_Configuration_Processing (0.00s)
+    --- PASS: TestXMLIntegration/Build_XML_from_Data (0.00s)
+=== RUN   TestYAMLFileOperations
+=== RUN   TestYAMLFileOperations/Load_YAML_File
+DEBUG: getProp called with path='database.host'
+DEBUG: getProp sees data=map[database:map[host:localhost port:5432]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.host', data=map[database:map[host:localhost port:5432]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:localhost port:5432]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:localhost port:5432] (type map[string]interface {})
+DEBUG: getJSONProperty returning: localhost
+DEBUG: getProp returning: localhost
+=== RUN   TestYAMLFileOperations/Save_YAML_File
+=== RUN   TestYAMLFileOperations/Load_and_Save_YAML_Raw
+--- PASS: TestYAMLFileOperations (0.00s)
+    --- PASS: TestYAMLFileOperations/Load_YAML_File (0.00s)
+    --- PASS: TestYAMLFileOperations/Save_YAML_File (0.00s)
+    --- PASS: TestYAMLFileOperations/Load_and_Save_YAML_Raw (0.00s)
+=== RUN   TestYAMLLoadAndAccess
+=== RUN   TestYAMLLoadAndAccess/Load_YAML_and_Access_Nested_Properties
+DEBUG: getProp called with path='server.port'
+DEBUG: getProp sees data=map[server:map[host:example.com port:8080 ssl:true]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='server.port', data=map[server:map[host:example.com port:8080 ssl:true]]
+DEBUG: Processing part[0]='server', current=map[server:map[host:example.com port:8080 ssl:true]] (type map[string]interface {})
+DEBUG: Processing part[1]='port', current=map[host:example.com port:8080 ssl:true] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 8080
+DEBUG: getProp returning: 8080
+=== RUN   TestYAMLLoadAndAccess/Load_YAML_with_Arrays
+DEBUG: getProp called with path='users.0'
+DEBUG: getProp sees data=map[users:[Alice Bob Charlie]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='users.0', data=map[users:[Alice Bob Charlie]]
+DEBUG: Processing part[0]='users', current=map[users:[Alice Bob Charlie]] (type map[string]interface {})
+DEBUG: Processing part[1]='0', current=[Alice Bob Charlie] (type []interface {})
+DEBUG: Array access: v[0] = Alice
+DEBUG: getJSONProperty returning: Alice
+DEBUG: getProp returning: Alice
+=== RUN   TestYAMLLoadAndAccess/Load_YAML_with_Mixed_Types
+DEBUG: getProp called with path='enabled'
+DEBUG: getProp sees data=map[count:42 enabled:true name:TestApp version:1.5] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='enabled', data=map[count:42 enabled:true name:TestApp version:1.5]
+DEBUG: Processing part[0]='enabled', current=map[count:42 enabled:true name:TestApp version:1.5] (type map[string]interface {})
+DEBUG: getJSONProperty returning: true
+DEBUG: getProp returning: true
+--- PASS: TestYAMLLoadAndAccess (0.00s)
+    --- PASS: TestYAMLLoadAndAccess/Load_YAML_and_Access_Nested_Properties (0.00s)
+    --- PASS: TestYAMLLoadAndAccess/Load_YAML_with_Arrays (0.00s)
+    --- PASS: TestYAMLLoadAndAccess/Load_YAML_with_Mixed_Types (0.00s)
+=== RUN   TestYAMLSaveOperations
+=== RUN   TestYAMLSaveOperations/Save_TreeNode_as_YAML
+DEBUG: getProp called with path='name'
+DEBUG: getProp sees data=map[name:MyService port:3000] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='name', data=map[name:MyService port:3000]
+DEBUG: Processing part[0]='name', current=map[name:MyService port:3000] (type map[string]interface {})
+DEBUG: getJSONProperty returning: MyService
+DEBUG: getProp returning: MyService
+=== RUN   TestYAMLSaveOperations/Save_Complex_Tree_Structure
+DEBUG: getProp called with path='database.host'
+DEBUG: getProp sees data=map[cache:map[enabled:true] database:map[host:localhost port:5432]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.host', data=map[cache:map[enabled:true] database:map[host:localhost port:5432]]
+DEBUG: Processing part[0]='database', current=map[cache:map[enabled:true] database:map[host:localhost port:5432]] (type map[string]interface {})
+DEBUG: Processing part[1]='host', current=map[host:localhost port:5432] (type map[string]interface {})
+DEBUG: getJSONProperty returning: localhost
+DEBUG: getProp returning: localhost
+--- PASS: TestYAMLSaveOperations (0.00s)
+    --- PASS: TestYAMLSaveOperations/Save_TreeNode_as_YAML (0.00s)
+    --- PASS: TestYAMLSaveOperations/Save_Complex_Tree_Structure (0.00s)
+=== RUN   TestYAMLRawOperations
+=== RUN   TestYAMLRawOperations/Load_YAML_Raw_String
+=== RUN   TestYAMLRawOperations/Save_YAML_Raw_String
+=== RUN   TestYAMLRawOperations/Modify_Raw_YAML_String
+--- PASS: TestYAMLRawOperations (0.00s)
+    --- PASS: TestYAMLRawOperations/Load_YAML_Raw_String (0.00s)
+    --- PASS: TestYAMLRawOperations/Save_YAML_Raw_String (0.00s)
+    --- PASS: TestYAMLRawOperations/Modify_Raw_YAML_String (0.00s)
+=== RUN   TestYAMLMultiDocument
+=== RUN   TestYAMLMultiDocument/Load_Multi-Document_YAML
+=== RUN   TestYAMLMultiDocument/Access_Individual_Documents
+DEBUG: getProp called with path='value'
+DEBUG: getProp sees data=map[id:2 value:second] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='value', data=map[id:2 value:second]
+DEBUG: Processing part[0]='value', current=map[id:2 value:second] (type map[string]interface {})
+DEBUG: getJSONProperty returning: second
+DEBUG: getProp returning: second
+=== RUN   TestYAMLMultiDocument/Save_Multi-Document_YAML
+--- PASS: TestYAMLMultiDocument (0.00s)
+    --- PASS: TestYAMLMultiDocument/Load_Multi-Document_YAML (0.00s)
+    --- PASS: TestYAMLMultiDocument/Access_Individual_Documents (0.00s)
+    --- PASS: TestYAMLMultiDocument/Save_Multi-Document_YAML (0.00s)
+=== RUN   TestYAMLIntegration
+=== RUN   TestYAMLIntegration/YAML_Configuration_Processing
+DEBUG: getProp called with path='app.name'
+DEBUG: getProp sees data=map[app:map[features:[auth api cache] name:MyApp version:2]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app.name', data=map[app:map[features:[auth api cache] name:MyApp version:2]]
+DEBUG: Processing part[0]='app', current=map[app:map[features:[auth api cache] name:MyApp version:2]] (type map[string]interface {})
+DEBUG: Processing part[1]='name', current=map[features:[auth api cache] name:MyApp version:2] (type map[string]interface {})
+DEBUG: getJSONProperty returning: MyApp
+DEBUG: getProp returning: MyApp
+DEBUG: getProp called with path='app.version'
+DEBUG: getProp sees data=map[app:map[features:[auth api cache] name:MyApp version:2]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='app.version', data=map[app:map[features:[auth api cache] name:MyApp version:2]]
+DEBUG: Processing part[0]='app', current=map[app:map[features:[auth api cache] name:MyApp version:2]] (type map[string]interface {})
+DEBUG: Processing part[1]='version', current=map[features:[auth api cache] name:MyApp version:2] (type map[string]interface {})
+DEBUG: getJSONProperty returning: 2
+DEBUG: getProp returning: 2
+=== RUN   TestYAMLIntegration/Build_YAML_from_Variables
+DEBUG: getProp called with path='database.ssl'
+DEBUG: getProp sees data=map[database:map[host:db.example.com port:5432 ssl:true]] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='database.ssl', data=map[database:map[host:db.example.com port:5432 ssl:true]]
+DEBUG: Processing part[0]='database', current=map[database:map[host:db.example.com port:5432 ssl:true]] (type map[string]interface {})
+DEBUG: Processing part[1]='ssl', current=map[host:db.example.com port:5432 ssl:true] (type map[string]interface {})
+DEBUG: getJSONProperty returning: true
+DEBUG: getProp returning: true
+=== RUN   TestYAMLIntegration/YAML_with_String_Manipulation
+DEBUG: getProp called with path='environment'
+DEBUG: getProp sees data=map[environment:production region:us-west-2] (type map[string]interface {})
+DEBUG: getJSONProperty called with path='environment', data=map[environment:production region:us-west-2]
+DEBUG: Processing part[0]='environment', current=map[environment:production region:us-west-2] (type map[string]interface {})
+DEBUG: getJSONProperty returning: production
+DEBUG: getProp returning: production
+--- PASS: TestYAMLIntegration (0.00s)
+    --- PASS: TestYAMLIntegration/YAML_Configuration_Processing (0.00s)
+    --- PASS: TestYAMLIntegration/Build_YAML_from_Variables (0.00s)
+    --- PASS: TestYAMLIntegration/YAML_with_String_Manipulation (0.00s)
 PASS
-ok  	github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests	29.149s
+ok  	github.com/bhouse1273/chariot-ecosystem/services/go-chariot/tests	33.493s
