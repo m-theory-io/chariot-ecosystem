@@ -425,28 +425,28 @@ export const logiconDefinitions: LogiconData[] = [
   // JSON Functions
   {
     id: 'parseJSON',
-    label: 'parseJSON',
+    label: 'Parse JSON',
     icon: '📖',
     description: 'Parse a JSON string into a JSONNode',
     category: 'json'
   },
   {
     id: 'parseJSONSimple',
-    label: 'parseJSONSimple',
+    label: 'Parse JSON Simple',
     icon: '📋',
     description: 'Parse a JSON string into a SimpleJSON node',
     category: 'json'
   },
   {
     id: 'toJSON',
-    label: 'toJSON',
+    label: 'To JSON',
     icon: '📝',
     description: 'Convert a Chariot value or JSONNode to a JSON string',
     category: 'json'
   },
   {
     id: 'toSimpleJSON',
-    label: 'toSimpleJSON',
+    label: 'To Simple JSON',
     icon: '📄',
     description: 'Convert a Chariot value to a SimpleJSON node',
     category: 'json'
@@ -914,14 +914,14 @@ export const logiconDefinitions: LogiconData[] = [
     label: 'Load JSON',
     icon: '📂',
     description: 'Load JSON file',
-    category: 'file'
+    category: 'json'
   },
   {
     id: 'saveJSON',
     label: 'Save JSON',
     icon: '💾',
     description: 'Save JSON file',
-    category: 'file'
+    category: 'json'
   },
   {
     id: 'readFile',
