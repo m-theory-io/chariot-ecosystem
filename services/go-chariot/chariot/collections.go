@@ -288,21 +288,7 @@ func (t *TableValue) AddRow(row map[string]Value) {
 
 // findArray function
 func (rt *Runtime) findArray(arrayName string) (*ArrayValue, error) {
-	// First check if we have a document with this name
-	if val, exists := rt.vars[arrayName]; exists {
-		if arrayVal, ok := val.(*ArrayValue); ok {
-			return arrayVal, nil
-		}
-	}
-
-	// Also check global vars
-	if val, exists := rt.globalVars[arrayName]; exists {
-		if arrayVal, ok := val.(*ArrayValue); ok {
-			return arrayVal, nil
-		}
-	}
-
-	// Finally check the current scope
+	// Check current scope (walks up to globalScope automatically)
 	if val, exists := rt.currentScope.Get(arrayName); exists {
 		if arrayVal, ok := val.(*ArrayValue); ok {
 			return arrayVal, nil

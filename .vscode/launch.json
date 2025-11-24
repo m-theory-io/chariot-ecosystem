@@ -8,6 +8,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}/services/go-chariot/cmd",
             "cwd": "${workspaceFolder}/services/go-chariot",
+            "stopOnEntry": false,
             "env": {
                 "GO_ENV": "development",
                 "SKIP_DB_WAIT": "true",
@@ -26,8 +27,8 @@
                 "CHARIOTEER_URL": "http://localhost:8080",
                 "AZURE_TENANT_ID": "82fbfa53-3046-4f39-a182-f5e0082313d4",
                 "AZURE_KEY_VAULT_URL": "https://chariot-vault.vault.azure.net",
-                "AZURE_CONFIG_DIR": "/home/nvidia/.azure",
-                "CHARIOT_VAULT_KEY_PREFIX": "azure"
+                "AZURE_CONFIG_DIR": "/Users/williamhouse/.azure",
+                "CHARIOT_VAULT_KEY_PREFIX": "local"
             },
             "args": [],
             "showLog": true,

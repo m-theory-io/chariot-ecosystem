@@ -321,39 +321,59 @@ func (i *IfNode) Exec(rt *Runtime) (Value, error) {
 
 	// Determine which branch to execute based on condition
 	if boolify(condValue) {
-		// Create a Block from the true branch statements to handle scope properly
-		trueBlock := &Block{Stmts: i.TrueBranch}
-		result, err := trueBlock.Exec(rt)
+		// Create new scope for the true branch
+		branchScope := NewScope(rt.currentScope)
+		prevScope := rt.currentScope
+		rt.currentScope = branchScope
 
-		// Check for special control flow errors
-		if err != nil {
-			if _, ok := err.(*BreakError); ok {
-				return nil, err // Let enclosing loop handle break
+		// Execute true branch statements
+		var result Value
+		for _, stmt := range i.TrueBranch {
+			result, err = stmt.Exec(rt)
+			if err != nil {
+				// Restore scope before returning error
+				rt.currentScope = prevScope
+				// Check for special control flow errors
+				if _, ok := err.(*BreakError); ok {
+					return nil, err // Let enclosing loop handle break
+				}
+				if _, ok := err.(*ContinueError); ok {
+					return nil, err // Let enclosing loop handle continue
+				}
+				return nil, err // Propagate other errors
 			}
-			if _, ok := err.(*ContinueError); ok {
-				return nil, err // Let enclosing loop handle continue
-			}
-			return nil, err // Propagate other errors
 		}
 
+		// Restore previous scope
+		rt.currentScope = prevScope
 		return result, nil
 
 	} else if len(i.FalseBranch) > 0 {
-		// Create a Block from the false branch statements
-		falseBlock := &Block{Stmts: i.FalseBranch}
-		result, err := falseBlock.Exec(rt)
+		// Create new scope for the false branch
+		branchScope := NewScope(rt.currentScope)
+		prevScope := rt.currentScope
+		rt.currentScope = branchScope
 
-		// Check for special control flow errors
-		if err != nil {
-			if _, ok := err.(*BreakError); ok {
-				return nil, err // Let enclosing loop handle break
+		// Execute false branch statements
+		var result Value
+		for _, stmt := range i.FalseBranch {
+			result, err = stmt.Exec(rt)
+			if err != nil {
+				// Restore scope before returning error
+				rt.currentScope = prevScope
+				// Check for special control flow errors
+				if _, ok := err.(*BreakError); ok {
+					return nil, err // Let enclosing loop handle break
+				}
+				if _, ok := err.(*ContinueError); ok {
+					return nil, err // Let enclosing loop handle continue
+				}
+				return nil, err // Propagate other errors
 			}
-			if _, ok := err.(*ContinueError); ok {
-				return nil, err // Let enclosing loop handle continue
-			}
-			return nil, err // Propagate other errors
 		}
 
+		// Restore previous scope
+		rt.currentScope = prevScope
 		return result, nil
 	}
 
@@ -609,21 +629,36 @@ type VarRef struct {
 
 // Exec resolves the variable value from the runtime.
 func (v *VarRef) Exec(rt *Runtime) (Value, error) {
-	// Use CurrentScope which should chain through parent scopes
+	// 1. Check current scope chain (walks up to globalScope automatically)
 	if rt.currentScope != nil {
 		if val, ok := rt.currentScope.Get(v.Name); ok {
 			return val, nil
 		}
 	}
 
-	// Then try rt.vars for backward compatibility
-	if val, ok := rt.vars[v.Name]; ok {
+	// 2. Check host objects
+	if val, ok := rt.objects[v.Name]; ok {
 		return val, nil
 	}
 
-	// Finally try rt.objects ← ADD THIS
-	if val, ok := rt.objects[v.Name]; ok {
+	// 3. Check named lists
+	if val, ok := rt.lists[v.Name]; ok {
+		// Convert list map to MapValue for access
+		mapVal := NewMap()
+		for k, v := range val {
+			mapVal.Set(k, v)
+		}
+		return mapVal, nil
+	}
+
+	// 4. Check named nodes
+	if val, ok := rt.nodes[v.Name]; ok {
 		return val, nil
+	}
+
+	// 5. Check user-defined functions (treat as first-class values)
+	if fn, ok := rt.functions[v.Name]; ok {
+		return fn, nil
 	}
 
 	return nil, fmt.Errorf("variable '%s' not defined", v.Name)
@@ -681,26 +716,16 @@ type Block struct {
 
 // Exec runs each statement in order, returning the last value.
 func (b *Block) Exec(rt *Runtime) (Value, error) {
-	// Create new scope for the block with current scope as parent
-	blockScope := NewScope(rt.currentScope)
-
-	// Save previous scope and set current to block scope
-	prevScope := rt.currentScope
-	rt.currentScope = blockScope
-
+	// Execute statements in the current scope
+	// Do NOT create a new scope here - let functions/control structures create their own
 	var last Value
 	for _, stmt := range b.Stmts {
 		v, err := stmt.Exec(rt)
 		if err != nil {
-			// Restore scope before returning error
-			rt.currentScope = prevScope
 			return nil, err
 		}
 		last = v
 	}
-
-	// Restore previous scope
-	rt.currentScope = prevScope
 
 	return last, nil
 }

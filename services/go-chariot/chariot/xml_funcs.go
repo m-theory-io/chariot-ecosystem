@@ -252,7 +252,7 @@ func (rt *Runtime) SetXMLValue(path string, value Value, context ...Value) (Valu
 		case Str:
 			// Context is a document ID/name
 			docName := string(ctx)
-			if doc, exists := rt.vars[docName]; exists {
+			if doc, exists := rt.currentScope.Get(docName); exists {
 				if node, ok := doc.(TreeNode); ok {
 					xmlDoc = node
 				} else {
@@ -538,21 +538,7 @@ func evaluateXMLPredicate(node TreeNode, predicate string) bool {
 
 // findXMLNode function
 func (rt *Runtime) findXMLNode(nodeName string) (*XMLNode, error) {
-	// First check if we have a document with this name
-	if val, exists := rt.vars[nodeName]; exists {
-		if xmlNode, ok := val.(*XMLNode); ok {
-			return xmlNode, nil
-		}
-	}
-
-	// Also check global vars
-	if val, exists := rt.globalVars[nodeName]; exists {
-		if xmlNode, ok := val.(*XMLNode); ok {
-			return xmlNode, nil
-		}
-	}
-
-	// Finally check the current scope
+	// Check current scope (walks up to globalScope automatically)
 	if val, exists := rt.currentScope.Get(nodeName); exists {
 		if xmlNode, ok := val.(*XMLNode); ok {
 			return xmlNode, nil

@@ -26,6 +26,7 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	api.GET("/logs/:execId", h.StreamLogs)
 	api.GET("/result/:execId", h.GetResult)
 	api.GET("/functions", h.ListFunctions)
+	api.GET("/global-variables", h.ListGlobalVariables)
 	api.POST("/function/save", h.SaveFunctionHandler)
 	api.POST("/functions/save-library", h.SaveFunctionLibraryHandler)
 

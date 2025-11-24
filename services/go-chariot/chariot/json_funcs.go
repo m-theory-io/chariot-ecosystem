@@ -358,21 +358,7 @@ func registerJSONFileOps(rt *Runtime) {
 
 // findJSONNode function
 func (rt *Runtime) findJSONNode(nodeName string) (*JSONNode, error) {
-	// First check if we have a document with this name
-	if val, exists := rt.vars[nodeName]; exists {
-		if jsonNode, ok := val.(*JSONNode); ok {
-			return jsonNode, nil
-		}
-	}
-
-	// Also check global vars
-	if val, exists := rt.globalVars[nodeName]; exists {
-		if jsonNode, ok := val.(*JSONNode); ok {
-			return jsonNode, nil
-		}
-	}
-
-	// Finally check the current scope
+	// Check current scope (walks up to globalScope automatically)
 	if val, exists := rt.currentScope.Get(nodeName); exists {
 		if jsonNode, ok := val.(*JSONNode); ok {
 			return jsonNode, nil

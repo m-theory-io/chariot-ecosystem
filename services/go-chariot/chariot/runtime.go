@@ -56,8 +56,6 @@ type Position struct {
 // Runtime orchestrates execution of AST nodes and host objects.
 type Runtime struct {
 	funcs           map[string]func(...Value) (Value, error) // Registered functions
-	vars            map[string]Value                         // Local variables in the current scope
-	globalVars      map[string]Value                         // Global variables
 	objects         map[string]interface{}                   // Host objects bound to names
 	lists           map[string]map[string]Value              // Named lists (like arrays)
 	nodes           map[string]TreeNode                      // Named nodes for easy access
@@ -94,8 +92,6 @@ func NewRuntime() *Runtime {
 	rt := &Runtime{
 		// Existing initializations
 		funcs:             make(map[string]func(...Value) (Value, error)),
-		vars:              make(map[string]Value),
-		globalVars:        make(map[string]Value),
 		objects:           make(map[string]interface{}),
 		lists:             make(map[string]map[string]Value),
 		nodes:             make(map[string]TreeNode),
@@ -132,15 +128,6 @@ func NewRuntime() *Runtime {
 	rt.globalScope.Set("false", Bool(false))
 	rt.globalScope.Set("null", DBNull)
 
-	// Add built-in constants to vars too (for compatibility during transition)
-	rt.vars["True"] = Bool(true)
-	rt.vars["False"] = Bool(false)
-	rt.vars["Null"] = DBNull
-	rt.vars["DBNull"] = DBNull
-	rt.vars["true"] = Bool(true)
-	rt.vars["false"] = Bool(false)
-	rt.vars["null"] = DBNull
-
 	// Load configured function library
 	if cfg.ChariotConfig.FunctionLib != "" {
 		if flib, err := LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
@@ -156,13 +143,12 @@ func NewRuntime() *Runtime {
 // ClearCaches
 func (rt *Runtime) ClearCaches() {
 	rt.objects = make(map[string]interface{})
-	rt.globalVars = make(map[string]Value)
-	rt.vars = make(map[string]Value)
 	rt.lists = make(map[string]map[string]Value)
 	rt.tables = make(map[string][]map[string]Value)
 	rt.cursors = make(map[string]int)
 	rt.namespaces = make(map[string]Value)
 	rt.currentTable = ""
+	// Note: We do NOT clear scopes here - they persist across cache clears
 }
 
 // SetLogWriter sets the log writer for capturing logs during script execution
@@ -612,9 +598,9 @@ func (rt *Runtime) ListGlobalVariables() map[string]Value {
 	variables := make(map[string]Value)
 
 	// Add global variables first
-	for name, value := range rt.GlobalScope().vars {
+	for name, entry := range rt.GlobalScope().vars {
 		if !contains(globalNameFilter, name) {
-			variables[name] = value
+			variables[name] = entry.Value // Unwrap ScopeEntry to get raw Value
 		}
 	}
 
@@ -626,8 +612,8 @@ func (rt *Runtime) ListLocalVariables() map[string]Value {
 	variables := make(map[string]Value)
 
 	// Add current scope variables
-	for name, value := range rt.CurrentScope().vars {
-		variables[name] = value
+	for name, entry := range rt.CurrentScope().vars {
+		variables[name] = entry.Value // Unwrap ScopeEntry to get raw Value
 	}
 
 	return variables
@@ -912,8 +898,6 @@ func (rt *Runtime) GlobalScope() *Scope {
 func (rt *Runtime) CloneRuntime() *Runtime {
 	clone := &Runtime{
 		funcs:             make(map[string]func(...Value) (Value, error)),
-		vars:              make(map[string]Value),
-		globalVars:        make(map[string]Value),
 		objects:           make(map[string]interface{}),
 		lists:             make(map[string]map[string]Value),
 		nodes:             make(map[string]TreeNode),
@@ -962,15 +946,6 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 		for name, fn := range rt.functions {
 			clone.functions[name] = cloneFunctionValueWithScope(fn, clone.globalScope)
 		}
-	}
-
-	// Clone vars and globalVars
-	for k, v := range rt.vars {
-		clone.vars[k] = v
-	}
-
-	for k, v := range rt.globalVars {
-		clone.globalVars[k] = v
 	}
 
 	// Clone nodes

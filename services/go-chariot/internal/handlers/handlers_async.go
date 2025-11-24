@@ -59,9 +59,8 @@ func (h *Handlers) ExecuteAsync(c echo.Context) error {
 			}
 		}()
 
-		// Create a runtime for this execution with log streaming enabled
-		rt := chariot.NewRuntime()
-		chariot.RegisterAll(rt)
+		// Use the session's runtime (which has bootstrap globals/objects)
+		rt := session.Runtime
 
 		// Hook the runtime's logger to write to the execution context
 		rt.SetLogWriter(execCtx.LogBuffer)

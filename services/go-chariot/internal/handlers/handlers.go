@@ -64,6 +64,9 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 		cfg.ChariotLogger.Warn("Bootstrap filename not configured; skipping handlers bootstrap")
 	}
 
+	// Pass bootstrap runtime to session manager so new sessions inherit globals
+	sessionManager.SetBootstrapRuntime(bootstrapRuntime)
+
 	// Initialize a listeners manager using the bootstrap runtime
 	lman := listeners.NewManager(bootstrapRuntime)
 	if err := lman.Load(); err != nil {
@@ -375,6 +378,26 @@ func (h *Handlers) ListFunctions(c echo.Context) error {
 	return c.JSON(http.StatusOK, ResultJSON{
 		Result: "OK",
 		Data:   functionList,
+	})
+}
+
+// ListGlobalVariables lists all global variables from the session's runtime
+func (h *Handlers) ListGlobalVariables(c echo.Context) error {
+	// Get the authenticated session
+	session := c.Get("session").(*chariot.Session)
+
+	// List global variables from the session's runtime
+	globalVars := session.Runtime.ListGlobalVariables()
+
+	// Convert to JSON-serializable format
+	varMap := make(map[string]interface{})
+	for name, value := range globalVars {
+		varMap[name] = convertValueToJSON(value)
+	}
+
+	return c.JSON(http.StatusOK, ResultJSON{
+		Result: "OK",
+		Data:   varMap,
 	})
 }
 
