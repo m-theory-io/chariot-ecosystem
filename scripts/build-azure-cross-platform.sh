@@ -124,6 +124,7 @@ build_go_chariot() {
             # Build using vendored CPU library
             docker buildx build \
                 --platform linux/amd64 \
+                --no-cache \
                 -f infrastructure/docker/go-chariot/Dockerfile.cpu \
                 -t go-chariot:${TAG}-cpu \
                 -t go-chariot:latest-cpu \
@@ -139,6 +140,7 @@ build_go_chariot() {
             # Build using vendored CUDA library
             docker buildx build \
                 --platform linux/arm64 \
+                --no-cache \
                 -f infrastructure/docker/go-chariot/Dockerfile.cuda \
                 -t go-chariot:${TAG}-cuda \
                 -t go-chariot:latest-cuda \
@@ -175,6 +177,7 @@ build_charioteer() {
     print_building "Building charioteer Docker image..."
     docker buildx build \
         --platform $TARGET_PLATFORM \
+        --no-cache \
         -f infrastructure/docker/charioteer/Dockerfile \
         -t charioteer:$TAG \
         --load \
@@ -198,6 +201,7 @@ build_nginx() {
     print_building "Building nginx Docker image..."
     docker buildx build \
         --platform $TARGET_PLATFORM \
+        --no-cache \
         -f infrastructure/docker/nginx/Dockerfile.azure \
         -t nginx:$TAG \
         --load \

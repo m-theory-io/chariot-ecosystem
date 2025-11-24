@@ -13,11 +13,12 @@ import (
 
 // SessionManager handles creation, retrieval, and cleanup of user sessions
 type SessionManager struct {
-	sessions        map[string]*Session
-	mu              sync.RWMutex
-	defaultTimeout  time.Duration
-	cleanupInterval time.Duration
-	stopCleanup     chan struct{}
+	sessions         map[string]*Session
+	mu               sync.RWMutex
+	defaultTimeout   time.Duration
+	cleanupInterval  time.Duration
+	stopCleanup      chan struct{}
+	bootstrapRuntime *Runtime // Shared bootstrap runtime for copying globals into new sessions
 }
 
 // Session represents a user's interaction context
@@ -78,6 +79,13 @@ func (sm *SessionManager) Stop() {
 	close(sm.stopCleanup)
 }
 
+// SetBootstrapRuntime sets the bootstrap runtime to copy globals from into new sessions
+func (sm *SessionManager) SetBootstrapRuntime(rt *Runtime) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.bootstrapRuntime = rt
+}
+
 // NewSession creates a new session for a user
 func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token string, customTimeout ...time.Duration) *Session {
 	timeout := sm.defaultTimeout
@@ -102,6 +110,39 @@ func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token st
 
 	// Register standard builtins
 	RegisterAll(session.Runtime)
+
+	// Copy bootstrap resources from shared bootstrap runtime if available
+	if sm.bootstrapRuntime != nil {
+		// Copy global variables
+		bootstrapGlobals := sm.bootstrapRuntime.ListGlobalVariables()
+		for name, value := range bootstrapGlobals {
+			session.Runtime.GlobalScope().Set(name, value)
+		}
+
+		// Copy host objects (SQL connections, Couchbase nodes, etc.)
+		bootstrapObjects := sm.bootstrapRuntime.ListObjects()
+		for name, obj := range bootstrapObjects {
+			session.Runtime.objects[name] = obj
+		}
+
+		// Copy named lists
+		bootstrapLists := sm.bootstrapRuntime.ListLists()
+		for name, list := range bootstrapLists {
+			session.Runtime.lists[name] = list
+		}
+
+		// Copy named tree nodes
+		bootstrapNodes := sm.bootstrapRuntime.ListNodes()
+		for name, node := range bootstrapNodes {
+			session.Runtime.nodes[name] = node
+		}
+
+		session.Logger.Info("Copied bootstrap resources into session",
+			zap.Int("globals", len(bootstrapGlobals)),
+			zap.Int("objects", len(bootstrapObjects)),
+			zap.Int("lists", len(bootstrapLists)),
+			zap.Int("nodes", len(bootstrapNodes)))
+	}
 
 	// Load bootstrap script if specified
 	if cfg.ChariotConfig.Bootstrap != "" {
@@ -165,6 +206,46 @@ func (sm *SessionManager) GetSession(token string) (*Session, error) {
 	session.LastAccessed = now
 	session.ExpiresAt = now.Add(sm.defaultTimeout)
 	session.mu.Unlock()
+
+	// CRITICAL: Ensure session has bootstrap resources (for sessions created before v0.053)
+	// Check if session runtime has objects - if empty and bootstrap has objects, copy them
+	if sm.bootstrapRuntime != nil {
+		sessionObjects := session.Runtime.ListObjects()
+		bootstrapObjects := sm.bootstrapRuntime.ListObjects()
+
+		// If session has no objects but bootstrap does, this is an old session - refresh it
+		if len(sessionObjects) == 0 && len(bootstrapObjects) > 0 {
+			// Copy bootstrap globals
+			bootstrapGlobals := sm.bootstrapRuntime.ListGlobalVariables()
+			for name, value := range bootstrapGlobals {
+				session.Runtime.GlobalScope().Set(name, value)
+			}
+
+			// Copy host objects
+			for name, obj := range bootstrapObjects {
+				session.Runtime.objects[name] = obj
+			}
+
+			// Copy named lists
+			bootstrapLists := sm.bootstrapRuntime.ListLists()
+			for name, list := range bootstrapLists {
+				session.Runtime.lists[name] = list
+			}
+
+			// Copy named tree nodes
+			bootstrapNodes := sm.bootstrapRuntime.ListNodes()
+			for name, node := range bootstrapNodes {
+				session.Runtime.nodes[name] = node
+			}
+
+			session.Logger.Info("Refreshed old session with bootstrap resources",
+				zap.String("token", token),
+				zap.Int("globals", len(bootstrapGlobals)),
+				zap.Int("objects", len(bootstrapObjects)),
+				zap.Int("lists", len(bootstrapLists)),
+				zap.Int("nodes", len(bootstrapNodes)))
+		}
+	}
 
 	return session, nil
 }
