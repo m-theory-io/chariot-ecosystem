@@ -68,4 +68,15 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 
 	// Agents WS stream (canonical path under /ws)
 	e.GET("/ws/agents", h.HandleAgentsWS)
+
+	// Debug API routes
+	debug := api.Group("/debug")
+	debug.POST("/breakpoint", h.DebugBreakpoint)
+	debug.POST("/step", h.DebugStep)
+	debug.POST("/continue", h.DebugContinue)
+	debug.POST("/pause", h.DebugPause)
+	debug.GET("/state", h.DebugState)
+	debug.GET("/variables", h.DebugVariables)
+	// WebSocket for debug events
+	e.GET("/api/debug/events", h.DebugEvents)
 }
