@@ -758,6 +758,206 @@ const editorTemplate = `<!DOCTYPE html>
             letter-spacing: 0.5px;
         }
 
+        /* Debugger panel styles */
+        .debug-panel {
+            padding: 10px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .debug-section {
+            margin-bottom: 15px;
+            background: #2d2d30;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .debug-section-header {
+            background: #3c3c3c;
+            padding: 8px 10px;
+            font-weight: bold;
+            font-size: 13px;
+            color: #f0f0f0;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .debug-section-header:hover {
+            background: #454545;
+        }
+
+        .debug-section-header::before {
+            content: '▼';
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+
+        .debug-section-header.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .debug-section-content {
+            padding: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .debug-section-content.collapsed {
+            display: none;
+        }
+
+        .debug-controls {
+            display: flex;
+            gap: 6px;
+            padding: 10px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .debug-button {
+            background: #4a4a4a;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .debug-button:hover:not(:disabled) {
+            background: #5a5a5a;
+        }
+
+        .debug-button:disabled {
+            background: #3a3a3a;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .debug-button.play { background: #28a745; }
+        .debug-button.play:hover:not(:disabled) { background: #218838; }
+        .debug-button.pause { background: #ffc107; color: #000; }
+        .debug-button.pause:hover:not(:disabled) { background: #e0a800; }
+
+        .breakpoint-item, .callstack-item, .variable-item {
+            padding: 6px 8px;
+            font-size: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            border-bottom: 1px solid #3c3c3c;
+            cursor: pointer;
+        }
+
+        .breakpoint-item:hover, .callstack-item:hover {
+            background: #3c3c3c;
+        }
+
+        .breakpoint-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breakpoint-location {
+            color: #9cdcfe;
+        }
+
+        .breakpoint-line {
+            color: #ce9178;
+            font-size: 11px;
+        }
+
+        .breakpoint-remove {
+            color: #f48771;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 4px;
+        }
+
+        .breakpoint-remove:hover {
+            color: #ff6b6b;
+        }
+
+        .callstack-function {
+            color: #dcdcaa;
+            font-weight: bold;
+        }
+
+        .callstack-location {
+            color: #9cdcfe;
+            font-size: 11px;
+        }
+
+        .variable-item {
+            display: flex;
+            justify-content: space-between;
+            cursor: default;
+        }
+
+        .variable-name {
+            color: #9cdcfe;
+            font-weight: bold;
+        }
+
+        .variable-value {
+            color: #ce9178;
+        }
+
+        .debug-status {
+            padding: 8px 10px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3c3c3c;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .debug-status-icon {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #888;
+        }
+
+        .debug-status-icon.running { background: #28a745; }
+        .debug-status-icon.paused { background: #ffc107; }
+        .debug-status-icon.stepping { background: #17a2b8; }
+        .debug-status-icon.stopped { background: #dc3545; }
+
+        /* Monaco editor breakpoint decorations */
+        .breakpoint-line {
+            background: rgba(255, 0, 0, 0.15) !important;
+        }
+
+        .breakpoint-glyph {
+            background: #e51400 !important;
+            border-radius: 50%;
+            width: 10px !important;
+            height: 10px !important;
+            margin-left: 3px;
+        }
+
+        .debug-current-line {
+            background: rgba(255, 255, 0, 0.2) !important;
+        }
+
+        .debug-current-glyph {
+            width: 0 !important;
+            height: 0 !important;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 10px solid #ffff00;
+            margin-left: 2px;
+        }
+
         .main-container {
             display: flex;
             flex-direction: row;
@@ -1003,7 +1203,74 @@ const editorTemplate = `<!DOCTYPE html>
 <body>
     <div class="main-container">
         <div class="left-panel" id="leftPanel">
-            <!-- Runtime inspection UI will go here -->
+            <!-- Runtime Inspection Panel (default) -->
+            <div id="runtimePanel" style="display: block;">
+                <h3 style="margin: 10px; font-size: 14px; color: #ccc;">Runtime Inspector</h3>
+                <div style="padding: 10px; color: #888; font-size: 12px;">
+                    Runtime inspection features will appear here when code is running.
+                </div>
+            </div>
+            
+            <!-- Debugger Panel (hidden by default) -->
+            <div id="debuggerPanel" style="display: none;">
+                <div class="debug-status">
+                    <div class="debug-status-icon" id="debugStatusIcon"></div>
+                    <span id="debugStatusText">Not Debugging</span>
+                </div>
+                
+                <div class="debug-controls">
+                    <button class="debug-button play" id="debugContinue" disabled title="Continue (F5)">
+                        ▶
+                    </button>
+                    <button class="debug-button pause" id="debugPause" disabled title="Pause">
+                        ⏸
+                    </button>
+                    <button class="debug-button" id="debugStepOver" disabled title="Step Over (F10)">
+                        ⤵
+                    </button>
+                    <button class="debug-button" id="debugStepInto" disabled title="Step Into (F11)">
+                        ↓
+                    </button>
+                    <button class="debug-button" id="debugStepOut" disabled title="Step Out (Shift+F11)">
+                        ↑
+                    </button>
+                </div>
+
+                <div class="debug-panel">
+                    <div class="debug-section">
+                        <div class="debug-section-header" onclick="toggleDebugSection(this)">
+                            Breakpoints
+                        </div>
+                        <div class="debug-section-content" id="breakpointsContent">
+                            <div style="padding: 8px; color: #888; font-size: 11px;">
+                                No breakpoints set. Click on a line number to add one.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="debug-section">
+                        <div class="debug-section-header" onclick="toggleDebugSection(this)">
+                            Call Stack
+                        </div>
+                        <div class="debug-section-content" id="callStackContent">
+                            <div style="padding: 8px; color: #888; font-size: 11px;">
+                                Not paused
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="debug-section">
+                        <div class="debug-section-header" onclick="toggleDebugSection(this)">
+                            Variables
+                        </div>
+                        <div class="debug-section-content" id="variablesContent">
+                            <div style="padding: 8px; color: #888; font-size: 11px;">
+                                Not paused
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="left-splitter" id="leftSplitter"></div>
         <div class="center-panel" id="centerPanel">    
@@ -1206,6 +1473,7 @@ const editorTemplate = `<!DOCTYPE html>
     const selectedListeners = new Set();
     let isResizing = false;
         let authToken = null;
+        let sessionId = null; // Session ID for debug API calls
         let currentUser = null;
         let isFileModified = false;
         let originalContent = '';
@@ -1220,6 +1488,475 @@ const editorTemplate = `<!DOCTYPE html>
         let warningTimer = null;
         let logoutTimer = null;
         let sessionWarningShown = false;        
+
+        // Toggle between runtime inspection and debugger panels
+        function showDebuggerPanel() {
+            const runtimePanel = document.getElementById('runtimePanel');
+            const debuggerPanel = document.getElementById('debuggerPanel');
+            if (runtimePanel && debuggerPanel) {
+                runtimePanel.style.display = 'none';
+                debuggerPanel.style.display = 'block';
+            } else {
+                console.error('Panels not found:', { runtimePanel: !!runtimePanel, debuggerPanel: !!debuggerPanel });
+            }
+        }
+        
+        function showRuntimePanel() {
+            const runtimePanel = document.getElementById('runtimePanel');
+            const debuggerPanel = document.getElementById('debuggerPanel');
+            if (runtimePanel && debuggerPanel) {
+                runtimePanel.style.display = 'block';
+                debuggerPanel.style.display = 'none';
+            } else {
+                console.error('Panels not found:', { runtimePanel: !!runtimePanel, debuggerPanel: !!debuggerPanel });
+            }
+        }
+
+        // Debugger state
+        let debugSocket = null;
+        let debugState = 'stopped'; // stopped, running, paused, stepping
+        let breakpoints = new Map(); // line number -> { line, enabled }
+        let currentDebugLine = null;
+        let debugDecorations = [];
+        let isExecuting = false; // Flag to prevent runtime inspection during execution
+
+        // Toggle debug section collapse
+        function toggleDebugSection(header) {
+            const content = header.nextElementSibling;
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        // Update debug status UI
+        function updateDebugStatus(state, text) {
+            debugState = state;
+            const icon = document.getElementById('debugStatusIcon');
+            const statusText = document.getElementById('debugStatusText');
+            
+            icon.className = 'debug-status-icon ' + state;
+            statusText.textContent = text || state.charAt(0).toUpperCase() + state.slice(1);
+            
+            // Update button states
+            const continueBtn = document.getElementById('debugContinue');
+            const pauseBtn = document.getElementById('debugPause');
+            const stepOverBtn = document.getElementById('debugStepOver');
+            const stepIntoBtn = document.getElementById('debugStepInto');
+            const stepOutBtn = document.getElementById('debugStepOut');
+            
+            if (state === 'paused' || state === 'stepping') {
+                continueBtn.disabled = false;
+                pauseBtn.disabled = true;
+                stepOverBtn.disabled = false;
+                stepIntoBtn.disabled = false;
+                stepOutBtn.disabled = false;
+            } else if (state === 'running') {
+                continueBtn.disabled = true;
+                pauseBtn.disabled = false;
+                stepOverBtn.disabled = true;
+                stepIntoBtn.disabled = true;
+                stepOutBtn.disabled = true;
+            } else {
+                continueBtn.disabled = true;
+                pauseBtn.disabled = true;
+                stepOverBtn.disabled = true;
+                stepIntoBtn.disabled = true;
+                stepOutBtn.disabled = true;
+            }
+        }
+
+        // Render breakpoints list
+        function renderBreakpoints() {
+            const container = document.getElementById('breakpointsContent');
+            if (!container) return; // Element doesn't exist yet
+            
+            if (breakpoints.size === 0) {
+                container.innerHTML = '<div style="padding: 8px; color: #888; font-size: 11px;">No breakpoints set. Click on a line number to add one.</div>';
+                return;
+            }
+            
+            let html = '';
+            breakpoints.forEach((bp, lineNum) => {
+                html += ` + "`" + `
+                    <div class="breakpoint-item" data-line="${lineNum}">
+                        <div>
+                            <div class="breakpoint-location">main.ch</div>
+                            <div class="breakpoint-line">Line ${lineNum}</div>
+                        </div>
+                        <span class="breakpoint-remove" onclick="removeBreakpoint(${lineNum})">✖</span>
+                    </div>
+                ` + "`" + `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Render call stack
+        function renderCallStack(stack) {
+            const container = document.getElementById('callStackContent');
+            if (!container) return; // Element doesn't exist yet
+            
+            if (!stack || stack.length === 0) {
+                container.innerHTML = '<div style="padding: 8px; color: #888; font-size: 11px;">Not paused</div>';
+                return;
+            }
+            
+            let html = '';
+            stack.forEach((frame, index) => {
+                html += ` + "`" + `
+                    <div class="callstack-item">
+                        <div class="callstack-function">${frame.functionName || 'anonymous'}</div>
+                        <div class="callstack-location">${frame.file}:${frame.line}</div>
+                    </div>
+                ` + "`" + `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Render variables
+        function renderVariables(vars) {
+            const container = document.getElementById('variablesContent');
+            if (!container) return; // Element doesn't exist yet
+            
+            if (!vars || Object.keys(vars).length === 0) {
+                container.innerHTML = '<div style="padding: 8px; color: #888; font-size: 11px;">No variables</div>';
+                return;
+            }
+            
+            let html = '';
+            Object.entries(vars).forEach(([name, value]) => {
+                const displayValue = typeof value === 'string' ? ` + "`" + `"${value}"` + "`" + ` : JSON.stringify(value);
+                html += ` + "`" + `
+                    <div class="variable-item">
+                        <span class="variable-name">${name}</span>
+                        <span class="variable-value">${displayValue}</span>
+                    </div>
+                ` + "`" + `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Toggle breakpoint at line
+        function toggleBreakpoint(line) {
+            if (breakpoints.has(line)) {
+                removeBreakpoint(line);
+            } else {
+                addBreakpoint(line);
+            }
+        }
+
+        // Add breakpoint
+        async function addBreakpoint(line) {
+            console.log('Adding breakpoint at line:', line);
+            breakpoints.set(line, { line: line, enabled: true });
+            
+            // Sync with backend - always use "main.ch" as filename
+            if (sessionId && authToken) {
+                console.log('Syncing breakpoint to backend: main.ch:', line);
+                try {
+                    const response = await fetch(` + "`" + `/api/debug/breakpoint?session=${sessionId}` + "`" + `, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authToken
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            file: "main.ch",
+                            line: line,
+                            action: 'add'
+                        })
+                    });
+                    console.log('Breakpoint sync response:', response.status, response.ok);
+                } catch (err) {
+                    console.error('Failed to add breakpoint:', err);
+                }
+            } else {
+                console.log('No sessionId or authToken, breakpoint not synced to backend');
+            }
+            
+            renderBreakpoints();
+            updateEditorBreakpoints();
+        }
+
+        // Remove breakpoint
+        async function removeBreakpoint(line) {
+            breakpoints.delete(line);
+            
+            // Sync with backend - always use "main.ch" as filename
+            if (sessionId && authToken) {
+                try {
+                    await fetch(` + "`" + `/api/debug/breakpoint?session=${sessionId}` + "`" + `, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authToken
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            file: "main.ch",
+                            line: line,
+                            action: 'remove'
+                        })
+                    });
+                } catch (err) {
+                    console.error('Failed to remove breakpoint:', err);
+                }
+            }
+            
+            renderBreakpoints();
+            updateEditorBreakpoints();
+        }
+
+        // Update editor breakpoint decorations
+        function updateEditorBreakpoints() {
+            if (!editor) return;
+            
+            const decorations = [];
+            breakpoints.forEach((bp, lineNum) => {
+                decorations.push({
+                    range: new monaco.Range(lineNum, 1, lineNum, 1),
+                    options: {
+                        isWholeLine: true,
+                        className: 'breakpoint-line',
+                        glyphMarginClassName: 'breakpoint-glyph',
+                        glyphMarginHoverMessage: { value: 'Breakpoint' }
+                    }
+                });
+            });
+            
+            // Add current debug line if paused
+            if (currentDebugLine && (debugState === 'paused' || debugState === 'stepping')) {
+                decorations.push({
+                    range: new monaco.Range(currentDebugLine, 1, currentDebugLine, 1),
+                    options: {
+                        isWholeLine: true,
+                        className: 'debug-current-line',
+                        glyphMarginClassName: 'debug-current-glyph'
+                    }
+                });
+            }
+            
+            debugDecorations = editor.deltaDecorations(debugDecorations, decorations);
+        }
+
+        // Debug control actions
+        async function debugContinue() {
+            if (!sessionId || !authToken) return;
+            
+            try {
+                await fetch(` + "`" + `/api/debug/continue?session=${sessionId}` + "`" + `, {
+                    method: 'POST',
+                    headers: { 'Authorization': authToken },
+                    credentials: 'include'
+                });
+                updateDebugStatus('running', 'Running');
+            } catch (err) {
+                console.error('Continue failed:', err);
+            }
+        }
+
+        async function debugPause() {
+            if (!sessionId || !authToken) return;
+            
+            try {
+                await fetch(` + "`" + `/api/debug/pause?session=${sessionId}` + "`" + `, {
+                    method: 'POST',
+                    headers: { 'Authorization': authToken },
+                    credentials: 'include'
+                });
+                updateDebugStatus('paused', 'Paused');
+            } catch (err) {
+                console.error('Pause failed:', err);
+            }
+        }
+
+        async function debugStepOver() {
+            if (!sessionId || !authToken) return;
+            
+            try {
+                await fetch(` + "`" + `/api/debug/step?session=${sessionId}` + "`" + `, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ mode: 'over' })
+                });
+                updateDebugStatus('stepping', 'Stepping');
+            } catch (err) {
+                console.error('Step over failed:', err);
+            }
+        }
+
+        async function debugStepInto() {
+            if (!sessionId || !authToken) return;
+            
+            try {
+                await fetch(` + "`" + `/api/debug/step?session=${sessionId}` + "`" + `, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ mode: 'into' })
+                });
+                updateDebugStatus('stepping', 'Stepping');
+            } catch (err) {
+                console.error('Step into failed:', err);
+            }
+        }
+
+        async function debugStepOut() {
+            if (!sessionId || !authToken) return;
+            
+            try {
+                await fetch(` + "`" + `/api/debug/step?session=${sessionId}` + "`" + `, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ mode: 'out' })
+                });
+                updateDebugStatus('stepping', 'Stepping');
+            } catch (err) {
+                console.error('Step out failed:', err);
+            }
+        }
+
+        // Connect to debug WebSocket (called when execution starts)
+        function connectDebugSocket() {
+            if (!sessionId || !authToken) {
+                console.log('Cannot connect debug socket: no session or auth token');
+                return;
+            }
+            
+            // Only connect if we have breakpoints
+            if (breakpoints.size === 0) {
+                console.log('No breakpoints set, skipping debug WebSocket connection');
+                return;
+            }
+            
+            if (debugSocket) {
+                debugSocket.close();
+            }
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = ` + "`" + `${protocol}//${window.location.host}/api/debug/events?session=${sessionId}` + "`" + `;
+            
+            console.log('Connecting debug WebSocket:', wsUrl);
+            debugSocket = new WebSocket(wsUrl);
+            
+            debugSocket.onopen = () => {
+                console.log('Debug WebSocket connected');
+            };
+            
+            debugSocket.onmessage = (event) => {
+                try {
+                    const debugEvent = JSON.parse(event.data);
+                    handleDebugEvent(debugEvent);
+                } catch (err) {
+                    console.error('Failed to parse debug event:', err);
+                }
+            };
+            
+            debugSocket.onerror = (err) => {
+                console.error('Debug WebSocket error:', err);
+            };
+            
+            debugSocket.onclose = () => {
+                console.log('Debug WebSocket closed');
+                debugSocket = null;
+            };
+        }
+
+        // Handle debug events from WebSocket
+        function handleDebugEvent(event) {
+            console.log('Debug event:', event);
+            
+            switch (event.type) {
+                case 'breakpoint':
+                    showDebuggerPanel(); // Switch to debugger view
+                    updateDebugStatus('paused', ` + "`" + `Paused at ${event.file}:${event.line}` + "`" + `);
+                    currentDebugLine = event.line;
+                    updateEditorBreakpoints();
+                    fetchDebugState();
+                    break;
+                    
+                case 'step':
+                    showDebuggerPanel(); // Switch to debugger view
+                    currentDebugLine = event.line;
+                    updateEditorBreakpoints();
+                    fetchDebugState();
+                    break;
+                    
+                case 'error':
+                    updateDebugStatus('stopped', 'Error: ' + event.message);
+                    currentDebugLine = null;
+                    updateEditorBreakpoints();
+                    break;
+                    
+                case 'stopped':
+                    updateDebugStatus('stopped', 'Stopped');
+                    currentDebugLine = null;
+                    updateEditorBreakpoints();
+                    renderCallStack([]);
+                    renderVariables({});
+                    showRuntimePanel(); // Return to runtime view
+                    break;
+            }
+        }
+
+        // Fetch current debug state
+        async function fetchDebugState() {
+            if (!sessionId || !authToken) return;
+            
+            try {
+                const res = await fetch(` + "`" + `/api/debug/state?session=${sessionId}` + "`" + `, {
+                    headers: { 'Authorization': authToken },
+                    credentials: 'include'
+                });
+                
+                if (res.ok) {
+                    const state = await res.json();
+                    renderCallStack(state.callStack || []);
+                    renderVariables(state.variables || {});
+                }
+            } catch (err) {
+                console.error('Failed to fetch debug state:', err);
+            }
+        }
+
+        // Bind debug control buttons
+        function bindDebugHandlers() {
+            document.getElementById('debugContinue').addEventListener('click', debugContinue);
+            document.getElementById('debugPause').addEventListener('click', debugPause);
+            document.getElementById('debugStepOver').addEventListener('click', debugStepOver);
+            document.getElementById('debugStepInto').addEventListener('click', debugStepInto);
+            document.getElementById('debugStepOut').addEventListener('click', debugStepOut);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F5') {
+                    e.preventDefault();
+                    if (debugState === 'paused' || debugState === 'stepping') {
+                        debugContinue();
+                    }
+                } else if (e.key === 'F10') {
+                    e.preventDefault();
+                    debugStepOver();
+                } else if (e.key === 'F11') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        debugStepOut();
+                    } else {
+                        debugStepInto();
+                    }
+                }
+            });
+        }
         
         // Initialize the editor
         function initializeEditor() {
@@ -1365,6 +2102,7 @@ const editorTemplate = `<!DOCTYPE html>
                 minimap: { enabled: true },
                 scrollBeyondLastLine: false,
                 wordWrap: 'on',
+                glyphMargin: true, // Enable glyph margin for breakpoints
                 // Add bracket matching configuration
                 matchBrackets: 'always',
                 renderLineHighlight: 'gutter',
@@ -1379,6 +2117,14 @@ const editorTemplate = `<!DOCTYPE html>
                 // Disable any conflicting keybindings
                 cursorBlinking: 'smooth',
                 cursorSmoothCaretAnimation: false
+            });
+            
+            // Add glyph margin click handler for breakpoints
+            editor.onMouseDown((e) => {
+                if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+                    const lineNumber = e.target.position.lineNumber;
+                    toggleBreakpoint(lineNumber);
+                }
             });
             
             // Add event listener for content changes            
@@ -1408,6 +2154,7 @@ const editorTemplate = `<!DOCTYPE html>
             
             if (savedToken && savedUser) {
                 authToken = savedToken;
+                sessionId = savedToken; // Use token as session ID
                 currentUser = savedUser;
 
                 // Start session management for existing session
@@ -1516,6 +2263,8 @@ const editorTemplate = `<!DOCTYPE html>
                     currentUserSpan.textContent = currentUser;
                 }
                 showOutput('Ready', 'success');
+                
+                // Note: Debug WebSocket will connect when execution starts, not on login
             } else {
                 currentFileName = '';
                 originalContent = '';
@@ -1885,6 +2634,7 @@ const editorTemplate = `<!DOCTYPE html>
                 const result = await response.json();
                 if (response.ok && result.result === "OK" && result.data && result.data.token) {
                     authToken = result.data.token;
+                    sessionId = authToken; // Use token as session ID for debug API
                     currentUser = username;
 
                     // Save to localStorage
@@ -1919,6 +2669,21 @@ const editorTemplate = `<!DOCTYPE html>
         function logout() {
             console.log('DEBUG: Logout function called');
             
+            // Close debug WebSocket
+            if (debugSocket) {
+                debugSocket.close();
+                debugSocket = null;
+            }
+            
+            // Reset debug state
+            updateDebugStatus('stopped', 'Stopped');
+            breakpoints.clear();
+            currentDebugLine = null;
+            renderBreakpoints();
+            renderCallStack([]);
+            renderVariables({});
+            updateEditorBreakpoints();
+            
             // Clear session timers
             clearSessionTimers();
             
@@ -1926,6 +2691,7 @@ const editorTemplate = `<!DOCTYPE html>
             closeSessionWarning();
             
             authToken = null;
+            sessionId = null;
             currentUser = null;
             
             // Clear localStorage
@@ -2104,6 +2870,9 @@ const editorTemplate = `<!DOCTYPE html>
             uiHandlersInitialized = true;
             console.log('DEBUG: Initializing event handlers');
 
+            // Bind debugger handlers
+            bindDebugHandlers();
+
             // Activity tracking for session extension
             const activityEvents = ['click', 'keydown', 'mousemove', 'scroll'];
             let lastActivityTime = Date.now();
@@ -2199,7 +2968,11 @@ const editorTemplate = `<!DOCTYPE html>
             if (runButton) {
                 runButton.addEventListener('click', function() {
                     const streamingToggle = document.getElementById('streamingToggle');
-                    if (streamingToggle && streamingToggle.checked) {
+                    // Force synchronous execution when breakpoints are set (needed for debugging)
+                    if (breakpoints.size > 0) {
+                        console.log('Breakpoints detected - using synchronous execution for debugging');
+                        runCode();
+                    } else if (streamingToggle && streamingToggle.checked) {
                         runCodeAsync();
                     } else {
                         runCode();
@@ -2847,24 +3620,37 @@ const editorTemplate = `<!DOCTYPE html>
 
         // Recursively render a JS object as a tree
         async function updateLeftPanel() {
-            const panel = document.getElementById('leftPanel');
-            if (!panel) return;
+            // Skip runtime inspection during code execution or debug sessions
+            if (isExecuting || debugState === 'paused' || debugState === 'stepping') {
+                console.log('Skipping runtime inspection - execution in progress or debugger active');
+                return;
+            }
+            
+            const panel = document.getElementById('runtimePanel');
+            if (!panel) {
+                console.error('runtimePanel not found');
+                return;
+            }
             try {
                 const response = await fetch('/charioteer/api/runtime/inspect', { headers: getAuthHeaders() });
                 if (response.ok) {
                     const result = await response.json();
                     if (result.result === "OK" && result.data) {
                         let runtimeData = result.data;
-                        panel.innerHTML = '<div class="tree-view">' + renderTree(runtimeData, null, []) + '</div>';
+                        panel.innerHTML = '<h3 style="margin: 10px; font-size: 14px; color: #ccc;">Runtime Inspector</h3>' +
+                                         '<div class="tree-view">' + renderTree(runtimeData, null, []) + '</div>';
                         addTreeToggleHandlers(panel);
                     } else {
-                        panel.innerHTML = '<div style="color:#f44747; padding:10px;">No runtime data available.</div>';
+                        panel.innerHTML = '<h3 style="margin: 10px; font-size: 14px; color: #ccc;">Runtime Inspector</h3>' +
+                                         '<div style="color:#f44747; padding:10px;">No runtime data available.</div>';
                     }
                 } else {
-                    panel.innerHTML = '<div style="color:#f44747; padding:10px;">Failed to load runtime info.</div>';
+                    panel.innerHTML = '<h3 style="margin: 10px; font-size: 14px; color: #ccc;">Runtime Inspector</h3>' +
+                                     '<div style="color:#f44747; padding:10px;">Failed to load runtime info.</div>';
                 }
             } catch (e) {
-                panel.innerHTML = '<div style="color:#f44747; padding:10px;">Error loading runtime info.</div>';
+                panel.innerHTML = '<h3 style="margin: 10px; font-size: 14px; color: #ccc;">Runtime Inspector</h3>' +
+                                 '<div style="color:#f44747; padding:10px;">Error loading runtime info.</div>';
             }
         }
 
@@ -2892,9 +3678,23 @@ const editorTemplate = `<!DOCTYPE html>
                 return;
             }
             
+            console.log('DEBUG: Code from editor (' + code.length + ' chars):');
+            console.log(code);
+            console.log('DEBUG: --- END CODE ---');
+            
+            // Connect debug WebSocket if breakpoints are set
+            if (breakpoints.size > 0) {
+                console.log('Breakpoints detected (' + breakpoints.size + '), connecting debug WebSocket');
+                connectDebugSocket();
+            } else {
+                console.log('No breakpoints set, running without debugger');
+            }
+            
             const runButton = document.getElementById('runButton');
             runButton.disabled = true;
             runButton.textContent = '⏳ Running...';
+            
+            isExecuting = true; // Block runtime inspection during execution
             
             try {
                 showOutput('Executing code...', 'loading');
@@ -2902,11 +3702,16 @@ const editorTemplate = `<!DOCTYPE html>
 
                 headers = getAuthHeadersWithJSON();  // Use the version with Content-Type
                 console.log('DEBUG: runCode headers', headers);
+                console.log('DEBUG: Executing with filename:', currentFileName || "main.ch");
+                console.log('DEBUG: Active breakpoints:', Array.from(breakpoints.keys()));
                 
                 const response = await fetch(getAPIPath('/api/execute'), {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({ program: code })
+                    body: JSON.stringify({ 
+                        program: code,
+                        filename: "main.ch"
+                    })
                 });
                 
                 if (response.status === 401) {
@@ -2919,7 +3724,6 @@ const editorTemplate = `<!DOCTYPE html>
                 
                 if (response.ok && result.result === "OK") {
                     showOutput('Result: ' + JSON.stringify(result.data, null, 2), 'success');
-                    updateLeftPanel();
                 } else {
                     const errorMsg = result.result === "ERROR" ? result.data : 'Execution failed';
                     showOutput('Error: ' + errorMsg, 'error');
@@ -2928,8 +3732,15 @@ const editorTemplate = `<!DOCTYPE html>
             } catch (error) {
                 showOutput('Network Error: ' + error.message, 'error');
             } finally {
+                isExecuting = false; // Re-enable runtime inspection
                 runButton.disabled = false;
                 runButton.textContent = '▶ Run';
+                
+                // Update left panel now that execution is complete
+                // But only if not in a debug session
+                if (debugState !== 'paused' && debugState !== 'stepping') {
+                    updateLeftPanel();
+                }
             }
         }
 

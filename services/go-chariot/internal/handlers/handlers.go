@@ -252,9 +252,10 @@ func (h *Handlers) StopListener(c echo.Context) error {
 }
 
 func (h *Handlers) Execute(c echo.Context) error {
-	// Incoming JSON: {"program": "your chariot code here"}
+	// Incoming JSON: {"program": "your chariot code here", "filename": "optional.ch"}
 	type Request struct {
-		Program string `json:"program"`
+		Program  string `json:"program"`
+		Filename string `json:"filename,omitempty"`
 	}
 	var req Request
 	if err := c.Bind(&req); err != nil {
@@ -344,8 +345,75 @@ func (h *Handlers) Execute(c echo.Context) error {
 	// Get session from context
 	session := c.Get("session").(*chariot.Session)
 
-	// 2. Execute
-	val, err := session.Runtime.ExecProgram(req.Program)
+	// Initialize debugger if not already present
+	if session.Runtime.Debugger == nil {
+		session.Runtime.Debugger = chariot.NewDebugger()
+	}
+
+	// Use provided filename or default to "main.ch"
+	filename := req.Filename
+	if filename == "" {
+		filename = "main.ch"
+	}
+
+	// Log debugging info
+	fmt.Printf("\n========== EXECUTION START ==========\n")
+	fmt.Printf("DEBUG: Executing program with filename: %s\n", filename)
+	fmt.Printf("DEBUG: Program length: %d characters\n", len(req.Program))
+	fmt.Printf("DEBUG: Program content:\n%s\n", req.Program)
+	fmt.Printf("DEBUG: --- END PROGRAM ---\n")
+	if session.Runtime.Debugger != nil {
+		breakpoints := session.Runtime.Debugger.GetBreakpoints()
+		fmt.Printf("DEBUG: Active breakpoints: %d\n", len(breakpoints))
+		for _, bp := range breakpoints {
+			fmt.Printf("DEBUG:   - %s:%d\n", bp.File, bp.Line)
+		}
+	}
+	fmt.Printf("=====================================\n\n")
+
+	// Check if debugging is active (has breakpoints)
+	hasBreakpoints := false
+	if session.Runtime.Debugger != nil {
+		breakpoints := session.Runtime.Debugger.GetBreakpoints()
+		hasBreakpoints = len(breakpoints) > 0
+	}
+
+	// Don't use debug mode for system calls like inspectRuntime()
+	isSystemCall := req.Program == "inspectRuntime()" || req.Program == "listFunctions()"
+
+	// If debugging is active and this is user code, run in background and return immediately
+	if hasBreakpoints && !isSystemCall {
+		fmt.Printf("DEBUG: Running in background due to active breakpoints\n")
+		go func() {
+			val, err := session.Runtime.ExecProgramWithFilename(req.Program, filename)
+			if err != nil {
+				fmt.Printf("DEBUG: Execution error: %v\n", err)
+				// Send error event
+				if session.Runtime.Debugger != nil {
+					session.Runtime.Debugger.SendEvent(chariot.DebugEvent{
+						Type:    "error",
+						Message: err.Error(),
+					})
+				}
+				return
+			}
+			fmt.Printf("DEBUG: Execution completed successfully: %v\n", val)
+			// Send completion event
+			if session.Runtime.Debugger != nil {
+				session.Runtime.Debugger.SendEvent(chariot.DebugEvent{
+					Type: "stopped",
+				})
+			}
+		}()
+
+		return c.JSON(http.StatusOK, ResultJSON{
+			Result: "OK",
+			Data:   "Execution started in debug mode",
+		})
+	}
+
+	// Normal synchronous execution when not debugging
+	val, err := session.Runtime.ExecProgramWithFilename(req.Program, filename)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{
 			Result: "ERROR",

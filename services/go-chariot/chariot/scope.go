@@ -49,6 +49,11 @@ func NewScope(parent *Scope) *Scope {
 	}
 }
 
+// GetParent returns the parent scope, or nil if this is the global scope
+func (s *Scope) GetParent() *Scope {
+	return s.parent
+}
+
 // Delete removes a variable from the current scope
 func (s *Scope) Delete(name string) bool {
 	if _, ok := s.vars[name]; ok {
@@ -261,4 +266,32 @@ func isValidTypeCode(typeCode string) bool {
 	default:
 		return false
 	}
+}
+
+// AllVars returns all variables in the current scope (not including parent scopes)
+func (s *Scope) AllVars() map[string]Value {
+	result := make(map[string]Value)
+	for name, entry := range s.vars {
+		result[name] = entry.Value
+	}
+	return result
+}
+
+// AllVarsWithParents returns all variables including parent scopes
+func (s *Scope) AllVarsWithParents() map[string]Value {
+	result := make(map[string]Value)
+
+	// Walk up parent chain to get all variables (parents first so children override)
+	if s.parent != nil {
+		for name, val := range s.parent.AllVarsWithParents() {
+			result[name] = val
+		}
+	}
+
+	// Add current scope variables (overriding parent values)
+	for name, entry := range s.vars {
+		result[name] = entry.Value
+	}
+
+	return result
 }

@@ -35,13 +35,20 @@ type Token struct {
 
 // Lexer splits source into a stream of Tokens.
 type Lexer struct {
-	src string
-	pos int
+	src  string
+	pos  int
+	line int // Track current line number
+	col  int // Track current column
 }
 
 // NewLexer creates a new Lexer for the given source.
 func NewLexer(src string) *Lexer {
-	return &Lexer{src: src}
+	return &Lexer{src: src, line: 1, col: 1}
+}
+
+// getLineCol returns the current line and column
+func (lx *Lexer) getLineCol() (int, int) {
+	return lx.line, lx.col
 }
 
 // Next returns the next Token from the input.
@@ -49,6 +56,12 @@ func (lx *Lexer) Next() Token {
 	s := lx.src
 	// skip whitespace
 	for lx.pos < len(s) && unicode.IsSpace(rune(s[lx.pos])) {
+		if s[lx.pos] == '\n' {
+			lx.line++
+			lx.col = 1
+		} else {
+			lx.col++
+		}
 		lx.pos++
 	}
 	if lx.pos >= len(s) {
@@ -161,13 +174,27 @@ type Parser struct {
 	lx              *Lexer
 	cur             Token
 	currentPosition int
+	filename        string // Track source filename for debugging
 }
 
 // NewParser constructs a Parser from source text.
 func NewParser(src string) *Parser {
-	p := &Parser{lx: NewLexer(src)}
+	p := &Parser{lx: NewLexer(src), filename: "main.ch"} // Default filename
 	p.next()
 	return p
+}
+
+// NewParserWithFilename creates a parser with a specific filename for debugging
+func NewParserWithFilename(src string, filename string) *Parser {
+	p := &Parser{lx: NewLexer(src), filename: filename}
+	p.next()
+	return p
+}
+
+// getCurrentPos returns the current source position
+func (p *Parser) getCurrentPos() SourcePos {
+	line, col := p.lx.getLineCol()
+	return SourcePos{File: p.filename, Line: line, Column: col}
 }
 
 // next reads the next token into cur.
@@ -285,12 +312,26 @@ func convertNodeToTreeNode(node Node) TreeNode {
 func (p *Parser) parseProgram() (*Block, error) {
 	blk := &Block{}
 	for p.cur.Type != TOK_EOF {
+		// Capture position before parsing expression
+		pos := p.getCurrentPos()
+		fmt.Printf("DEBUG PARSER: About to parse expr at %s:%d:%d, current token: %v\n", pos.File, pos.Line, pos.Column, p.cur.Type)
+
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
+
+		// Set position on the parsed node if it supports it
+		if posNode, ok := expr.(interface{ SetPos(SourcePos) }); ok {
+			posNode.SetPos(pos)
+			fmt.Printf("DEBUG PARSER: Set position on %T to %s:%d:%d\n", expr, pos.File, pos.Line, pos.Column)
+		} else {
+			fmt.Printf("DEBUG PARSER: Node %T does not support SetPos\n", expr)
+		}
+
 		blk.Stmts = append(blk.Stmts, expr)
 	}
+	fmt.Printf("DEBUG PARSER: Finished parsing, total statements: %d\n", len(blk.Stmts))
 	return blk, nil
 }
 

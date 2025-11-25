@@ -35,7 +35,11 @@ func (e *ExitRequest) Error() string { return fmt.Sprintf("exit with code %d", e
 // ArrayLiteralNode represents an array literal [elem1, elem2, ...]
 type ArrayLiteralNode struct {
 	Elements []Node
+	Pos      SourcePos
 }
+
+func (a *ArrayLiteralNode) GetPos() SourcePos    { return a.Pos }
+func (a *ArrayLiteralNode) SetPos(pos SourcePos) { a.Pos = pos }
 
 // Exec evaluates each element and creates an ArrayValue
 func (a *ArrayLiteralNode) Exec(rt *Runtime) (Value, error) {
@@ -87,8 +91,12 @@ type FunctionDefNode struct {
 	Parameters []string
 	Body       Node
 	Source     string
-	Position   int // Source position for error reporting
+	Position   int // Source position for error reporting (deprecated, use Pos)
+	Pos        SourcePos
 }
+
+func (f *FunctionDefNode) GetPos() SourcePos    { return f.Pos }
+func (f *FunctionDefNode) SetPos(pos SourcePos) { f.Pos = pos }
 
 // Exec creates a FunctionValue
 func (f *FunctionDefNode) Exec(rt *Runtime) (Value, error) {
@@ -138,7 +146,11 @@ func (f *FunctionDefNode) ToString() string {
 type FunctionCallNode struct {
 	FuncExpr Node   // Expression that should evaluate to a FunctionValue
 	Args     []Node // Argument expressions
+	Pos      SourcePos
 }
+
+func (c *FunctionCallNode) GetPos() SourcePos    { return c.Pos }
+func (c *FunctionCallNode) SetPos(pos SourcePos) { c.Pos = pos }
 
 // Exec evaluates the function with arguments
 func (c *FunctionCallNode) Exec(rt *Runtime) (Value, error) {
@@ -207,8 +219,12 @@ func (c *FunctionCallNode) ToString() string {
 type WhileNode struct {
 	Condition Node
 	Body      []Node
-	Position  int
+	Position  int // deprecated, use Pos
+	Pos       SourcePos
 }
+
+func (w *WhileNode) GetPos() SourcePos    { return w.Pos }
+func (w *WhileNode) SetPos(pos SourcePos) { w.Pos = pos }
 
 // Exec executes a while loop
 func (w *WhileNode) Exec(rt *Runtime) (Value, error) {
@@ -285,8 +301,12 @@ func (w *WhileNode) ToString() string {
 
 // BreakNode represents a break statement
 type BreakNode struct {
-	Position int
+	Position int // deprecated, use Pos
+	Pos      SourcePos
 }
+
+func (b *BreakNode) GetPos() SourcePos    { return b.Pos }
+func (b *BreakNode) SetPos(pos SourcePos) { b.Pos = pos }
 
 // Exec implements breaking out of a loop
 func (b *BreakNode) Exec(rt *Runtime) (Value, error) {
@@ -295,8 +315,12 @@ func (b *BreakNode) Exec(rt *Runtime) (Value, error) {
 
 // ContinueNode represents a continue statement
 type ContinueNode struct {
-	Position int
+	Position int // deprecated, use Pos
+	Pos      SourcePos
 }
+
+func (c *ContinueNode) GetPos() SourcePos    { return c.Pos }
+func (c *ContinueNode) SetPos(pos SourcePos) { c.Pos = pos }
 
 // Exec implements continuing to the next loop iteration
 func (c *ContinueNode) Exec(rt *Runtime) (Value, error) {
@@ -308,8 +332,12 @@ type IfNode struct {
 	Condition   Node   // The condition to evaluate
 	TrueBranch  []Node // Statements to execute when condition is true
 	FalseBranch []Node // Statements to execute when condition is false (optional)
-	Position    int    // Source position for error reporting
+	Position    int    // Source position for error reporting (deprecated, use Pos)
+	Pos         SourcePos
 }
+
+func (i *IfNode) GetPos() SourcePos    { return i.Pos }
+func (i *IfNode) SetPos(pos SourcePos) { i.Pos = pos }
 
 // Exec executes an if/else statement
 func (i *IfNode) Exec(rt *Runtime) (Value, error) {
@@ -429,8 +457,12 @@ type SwitchNode struct {
 	TestExpr    Node         // nil for switch() form, expression for switch(expr) form
 	Cases       []*CaseNode  // List of case statements
 	DefaultCase *DefaultNode // Optional default case
-	Position    int          // Source position for error reporting
+	Position    int          // Source position for error reporting (deprecated, use Pos)
+	Pos         SourcePos
 }
+
+func (s *SwitchNode) GetPos() SourcePos    { return s.Pos }
+func (s *SwitchNode) SetPos(pos SourcePos) { s.Pos = pos }
 
 // Exec executes a switch statement
 func (s *SwitchNode) Exec(rt *Runtime) (Value, error) {
@@ -551,7 +583,11 @@ func (s *SwitchNode) ToString() string {
 type CaseNode struct {
 	Condition Node // The condition to match against
 	Body      Node // The block to execute if matched
+	Pos       SourcePos
 }
+
+func (c *CaseNode) GetPos() SourcePos    { return c.Pos }
+func (c *CaseNode) SetPos(pos SourcePos) { c.Pos = pos }
 
 func (c *CaseNode) ToMap() map[string]interface{} {
 	return map[string]interface{}{
@@ -588,7 +624,11 @@ func (c *CaseNode) ToString() string {
 // DefaultNode represents the default case in a switch
 type DefaultNode struct {
 	Body Node // The block to execute by default
+	Pos  SourcePos
 }
+
+func (d *DefaultNode) GetPos() SourcePos    { return d.Pos }
+func (d *DefaultNode) SetPos(pos SourcePos) { d.Pos = pos }
 
 func (d *DefaultNode) ToMap() map[string]interface{} {
 	return map[string]interface{}{
@@ -616,16 +656,28 @@ func (d *DefaultNode) ToString() string {
 }
 
 // Node is an AST node that can be executed.
+// SourcePos captures source file position for debugging
+type SourcePos struct {
+	File   string
+	Line   int
+	Column int
+}
+
 type Node interface {
 	Exec(rt *Runtime) (Value, error)
 	ToMap() map[string]interface{} // For serialization to JSON/YAML
 	ToString() string              // For obtaining source code representation
+	GetPos() SourcePos             // For debugger breakpoint mapping
 }
 
 // VarRef represents a reference to a runtime variable.
 type VarRef struct {
 	Name string
+	Pos  SourcePos
 }
+
+func (v *VarRef) GetPos() SourcePos    { return v.Pos }
+func (v *VarRef) SetPos(pos SourcePos) { v.Pos = pos }
 
 // Exec resolves the variable value from the runtime.
 func (v *VarRef) Exec(rt *Runtime) (Value, error) {
@@ -680,7 +732,11 @@ func (v *VarRef) ToString() string {
 // Literal represents a numeric, string, or boolean literal.
 type Literal struct {
 	Val Value
+	Pos SourcePos
 }
+
+func (l *Literal) GetPos() SourcePos    { return l.Pos }
+func (l *Literal) SetPos(pos SourcePos) { l.Pos = pos }
 
 // Exec returns the literal value.
 func (l *Literal) Exec(_ *Runtime) (Value, error) {
@@ -712,14 +768,58 @@ func (l *Literal) ToString() string {
 // Block represents a sequence of statements to execute.
 type Block struct {
 	Stmts []Node
+	Pos   SourcePos
 }
+
+func (b *Block) GetPos() SourcePos    { return b.Pos }
+func (b *Block) SetPos(pos SourcePos) { b.Pos = pos }
 
 // Exec runs each statement in order, returning the last value.
 func (b *Block) Exec(rt *Runtime) (Value, error) {
 	// Execute statements in the current scope
 	// Do NOT create a new scope here - let functions/control structures create their own
 	var last Value
+	fmt.Printf("DEBUG BLOCK.EXEC: Executing block with %d statements, debugger=%v\n", len(b.Stmts), rt.Debugger != nil)
 	for _, stmt := range b.Stmts {
+		// Debugger support: check breakpoint and update position
+		if rt.Debugger != nil {
+			pos := stmt.GetPos()
+			// DEBUG: Log position information
+			fmt.Printf("DEBUG: Statement %T has position %s:%d:%d\n", stmt, pos.File, pos.Line, pos.Column)
+			if pos.File != "" && pos.Line > 0 {
+				fmt.Printf("DEBUG: Executing statement at %s:%d\n", pos.File, pos.Line)
+			}
+			rt.Debugger.UpdatePosition(pos.File, pos.Line)
+
+			// Wait while paused at breakpoint
+			if rt.Debugger.ShouldBreak(pos.File, pos.Line, rt) {
+				// Send debug event with current position BEFORE pausing
+				rt.Debugger.SendEvent(DebugEvent{
+					Type: "breakpoint",
+					File: pos.File,
+					Line: pos.Line,
+				})
+				// Now pause and wait for resume signal
+				rt.Debugger.Pause()
+			}
+
+			// Handle stepping - only pause if we've moved to a new line
+			state := rt.Debugger.GetState()
+			if state == DebugStateStepping {
+				// Check if we're at a different line than where we paused
+				if rt.Debugger.HasMovedToNewLine(pos.File, pos.Line) {
+					// Send step event BEFORE pausing
+					rt.Debugger.SendEvent(DebugEvent{
+						Type: "step",
+						File: pos.File,
+						Line: pos.Line,
+					})
+					// Now pause and wait for resume signal
+					rt.Debugger.Pause()
+				}
+			}
+		}
+
 		v, err := stmt.Exec(rt)
 		if err != nil {
 			return nil, err
@@ -759,7 +859,11 @@ func (b *Block) ToString() string {
 type FuncCall struct {
 	Name string
 	Args []Node
+	Pos  SourcePos
 }
+
+func (f *FuncCall) GetPos() SourcePos    { return f.Pos }
+func (f *FuncCall) SetPos(pos SourcePos) { f.Pos = pos }
 
 // Exec handles built-ins, control-flow functions, and host binding calls.
 func (f *FuncCall) Exec(rt *Runtime) (Value, error) {

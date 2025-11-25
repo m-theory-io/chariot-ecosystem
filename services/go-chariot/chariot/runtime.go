@@ -85,6 +85,9 @@ type Runtime struct {
 	currentScope      *Scope  // Current scope for variable resolution
 	globalScope       *Scope
 	DefaultTemplateID string
+
+	// Debugger
+	Debugger *Debugger // Optional debugger for breakpoints and stepping
 }
 
 // NewRuntime creates an empty runtime environment.
@@ -188,6 +191,16 @@ func (rt *Runtime) GetRegisteredFunctions() map[string]func(...Value) (Value, er
 		funclist[name] = fn
 	}
 	return funclist
+}
+
+// GetCurrentScope returns the current scope for variable resolution
+func (rt *Runtime) GetCurrentScope() *Scope {
+	return rt.currentScope
+}
+
+// GetGlobalScope returns the global scope
+func (rt *Runtime) GetGlobalScope() *Scope {
+	return rt.globalScope
 }
 
 // ExecuteCodeWithScope parses and executes Chariot code with the given scope
@@ -383,8 +396,12 @@ func (rt *Runtime) SetCurrentPosition(line, column int, file string) {
 
 // ExecProgram parses and executes source, returning the last value.
 func (rt *Runtime) ExecProgram(src string) (Value, error) {
+	return rt.ExecProgramWithFilename(src, "main.ch")
+}
 
-	ast, err := NewParser(src).parseProgram()
+// ExecProgramWithFilename parses and executes source code with a specific filename for debugging
+func (rt *Runtime) ExecProgramWithFilename(src string, filename string) (Value, error) {
+	ast, err := NewParserWithFilename(src, filename).parseProgram()
 	if err != nil {
 		return nil, err
 	}
