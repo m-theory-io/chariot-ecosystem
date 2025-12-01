@@ -170,6 +170,25 @@ func RegisterValues(rt *Runtime) {
 		return rtState, nil
 	})
 
+	// listPlans - returns array of plan names from global scope
+	rt.Register("listPlans", func(args ...Value) (Value, error) {
+		if len(args) != 0 {
+			return nil, errors.New("listPlans does not take any arguments")
+		}
+
+		planNames := NewArray()
+		globals := rt.GlobalScope().AllVars()
+
+		for name, value := range globals {
+			// Check if the value is a Plan
+			if _, isPlan := value.(*Plan); isPlan {
+				planNames.Append(Str(name))
+			}
+		}
+
+		return planNames, nil
+	})
+
 	// getVariable - get a variable value from the current scope
 	rt.Register("getVariable", func(args ...Value) (Value, error) {
 		if len(args) != 1 {
@@ -764,7 +783,7 @@ func RegisterValues(rt *Runtime) {
 			return Str("L"), nil
 		case *ArrayValue:
 			return Str("A"), nil
-		case *MapValue:
+		case *MapValue, MapValue, map[string]Value:
 			return Str("M"), nil
 		case *TableValue:
 			return Str("R"), nil

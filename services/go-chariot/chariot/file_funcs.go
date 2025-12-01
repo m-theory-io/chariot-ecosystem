@@ -64,8 +64,14 @@ func getSecureFilePath(filename string, pathType string) (string, error) {
 		return "", fmt.Errorf("invalid filename: directory traversal not allowed")
 	}
 
-	// Build full path
-	fullPath := filepath.Join(basePath, cleanFilename)
+	// If caller gave an absolute path, honor it directly after validation.
+	// This lets configs point to explicit files under DataPath without being duplicated.
+	var fullPath string
+	if filepath.IsAbs(cleanFilename) {
+		fullPath = cleanFilename
+	} else {
+		fullPath = filepath.Join(basePath, cleanFilename)
+	}
 
 	// Ensure the resolved path is still within the base path
 	absBasePath, err := filepath.Abs(basePath)

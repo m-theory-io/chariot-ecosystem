@@ -156,7 +156,7 @@ func GetValueTypeSpec(val Value) string {
 		return "L" // Logical
 	case ArrayValue, *ArrayValue:
 		return "A"
-	case MapValue, *MapValue:
+	case MapValue, *MapValue, map[string]Value:
 		return "M"
 	case TableValue, *TableValue:
 		return "R" // Relation
@@ -548,6 +548,12 @@ func convertFromNativeValue(val interface{}) Value {
 		return Bool(v)
 	case nil:
 		return nil
+	case map[string]Value:
+		mv := NewMap()
+		for k, item := range v {
+			mv.Set(k, item)
+		}
+		return mv
 	case map[string]interface{}:
 		// Check if this is a serialized OfferVariable
 		if valueType, ok := v["_value_type"]; ok && valueType == "offer_variable" {
@@ -623,11 +629,11 @@ func convertFromNativeValue(val interface{}) Value {
 		}
 
 		// Regular map handling
-		result := make(map[string]Value)
+		mv := NewMap()
 		for k, item := range v {
-			result[k] = convertFromNativeValue(item)
+			mv.Set(k, convertFromNativeValue(item))
 		}
-		return result
+		return mv
 
 	case []interface{}:
 		array := NewArray()
@@ -890,4 +896,93 @@ func deserializeNodes(data []interface{}) []Node {
 		}
 	}
 	return nodes
+}
+
+// ValueToJSON converts a Chariot Value to a JSON-serializable Go value
+func ValueToJSON(v Value) interface{} {
+	if v == nil {
+		return nil
+	}
+
+	switch val := v.(type) {
+	case Number:
+		return float64(val)
+	case Str:
+		return string(val)
+	case Bool:
+		return bool(val)
+	case *ArrayValue:
+		arr := make([]interface{}, val.Length())
+		for i := 0; i < val.Length(); i++ {
+			arr[i] = ValueToJSON(val.Get(i))
+		}
+		return arr
+	case *MapValue:
+		m := make(map[string]interface{})
+		for k, v := range val.Values {
+			m[k] = ValueToJSON(v)
+		}
+		return m
+	case *Plan:
+		return map[string]interface{}{
+			"type": "plan",
+			"name": val.Name,
+		}
+	case *FunctionValue:
+		funcName := "<anonymous>"
+		if val.SourceCode != "" {
+			funcName = val.SourceCode
+		}
+		return map[string]interface{}{
+			"type": "function",
+			"name": funcName,
+		}
+	case TreeNode:
+		return map[string]interface{}{
+			"type": "treenode",
+			"name": val.Name(),
+		}
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// JSONToValue converts a JSON-serializable Go value to a Chariot Value
+func JSONToValue(data interface{}) (Value, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	switch val := data.(type) {
+	case float64:
+		return Number(val), nil
+	case int:
+		return Number(float64(val)), nil
+	case string:
+		return Str(val), nil
+	case bool:
+		return Bool(val), nil
+	case []interface{}:
+		arr := NewArray()
+		for _, item := range val {
+			v, err := JSONToValue(item)
+			if err != nil {
+				return nil, err
+			}
+			arr.Append(v)
+		}
+		return arr, nil
+	case map[string]interface{}:
+		m := NewMap()
+		for k, item := range val {
+			v, err := JSONToValue(item)
+			if err != nil {
+				return nil, err
+			}
+			m.Set(k, v)
+		}
+		return m, nil
+	default:
+		return nil, fmt.Errorf("unsupported JSON type: %T", data)
+	}
 }

@@ -587,3 +587,213 @@ func TestPolymorphicIntegration(t *testing.T) {
 
 	RunTestCases(t, tests)
 }
+
+// TestGetPropPolymorphic tests getProp() function on all supported object types
+func TestGetPropPolymorphic(t *testing.T) {
+	tests := []TestCase{
+		// map[string]Value
+		{
+			Name: "getProp - map[string]Value with existing property",
+			Script: []string{
+				`declare(myMap, 'M')`,
+				`setq(myMap, map())`,
+				`setProp(myMap, "name", "test")`,
+				`setProp(myMap, "count", 42)`,
+				`getProp(myMap, "name")`,
+			},
+			ExpectedValue: chariot.Str("test"),
+		},
+		{
+			Name: "getProp - map[string]Value with missing property returns DBNull",
+			Script: []string{
+				`declare(myMap, 'M')`,
+				`setq(myMap, map())`,
+				`setProp(myMap, "name", "test")`,
+				`setq(result, getProp(myMap, "missing"))`,
+				`equal(result, DBNull)`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+
+		// map[string]interface{} (from inspectRuntime)
+		{
+			Name: "getProp - map[string]interface{} with existing property",
+			Script: []string{
+				`setq(runtime, inspectRuntime())`,
+				`setq(globals, getProp(runtime, "globals"))`,
+				`typeOf(globals)`,
+			},
+			ExpectedValue: chariot.Str("M"),
+		},
+		{
+			Name: "getProp - map[string]interface{} with missing property returns DBNull",
+			Script: []string{
+				`setq(testMap, map())`,
+				`setProp(testMap, "exists", "value")`,
+				`setq(result, getProp(testMap, "missing"))`,
+				`equal(result, DBNull)`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+
+		// SimpleJSON
+		{
+			Name: "getProp - SimpleJSON with existing property",
+			Script: []string{
+				`setq(json, parseJSON('{"name":"test","value":123}'))`,
+				`getProp(json, "name")`,
+			},
+			ExpectedValue: chariot.Str("test"),
+		},
+		{
+			Name: "getProp - SimpleJSON with missing property returns DBNull",
+			Script: []string{
+				`setq(json, parseJSON('{"name":"test"}'))`,
+				`setq(result, getProp(json, "missing"))`,
+				`equal(result, DBNull)`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+
+		// MapNode
+		{
+			Name: "getProp - MapNode with existing property",
+			Script: []string{
+				`setq(mapNode, mapNode("test"))`,
+				`setProp(mapNode, "key1", "value1")`,
+				`getProp(mapNode, "key1")`,
+			},
+			ExpectedValue: chariot.Str("value1"),
+		},
+		{
+			Name: "getProp - MapNode with missing property",
+			Script: []string{
+				`setq(mapNode, mapNode("test"))`,
+				`setProp(mapNode, "key1", "value1")`,
+				`getProp(mapNode, "missing")`,
+			},
+			ExpectedError:  true,
+			ErrorSubstring: "property 'missing' not found",
+		},
+
+		// MapValue
+		{
+			Name: "getProp - MapValue with existing property",
+			Script: []string{
+				`setq(mapVal, map())`,
+				`setProp(mapVal, "prop1", "val1")`,
+				`getProp(mapVal, "prop1")`,
+			},
+			ExpectedValue: chariot.Str("val1"),
+		},
+		{
+			Name: "getProp - MapValue with missing property returns DBNull",
+			Script: []string{
+				`setq(mapVal, map())`,
+				`setProp(mapVal, "prop1", "val1")`,
+				`setq(result, getProp(mapVal, "missing"))`,
+				`equal(result, DBNull)`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+
+		// JSONNode
+		{
+			Name: "getProp - JSONNode with existing property",
+			Script: []string{
+				`setq(node, jsonNode("test"))`,
+				`setAttribute(node, "attr1", "value1")`,
+				`getProp(node, "attr1")`,
+			},
+			ExpectedValue: chariot.Str("value1"),
+		},
+
+		// XMLNode
+		{
+			Name: "getProp - XMLNode with existing attribute",
+			Script: []string{
+				`setq(xml, xmlNode("root"))`,
+				`setAttribute(xml, "id", "123")`,
+				`getProp(xml, "id")`,
+			},
+			ExpectedValue: chariot.Str("123"),
+		},
+
+		// TreeNodeImpl
+		{
+			Name: "getProp - TreeNodeImpl with existing attribute",
+			Script: []string{
+				`setq(tree, treeNode("root"))`,
+				`setAttribute(tree, "label", "myLabel")`,
+				`getProp(tree, "label")`,
+			},
+			ExpectedValue: chariot.Str("myLabel"),
+		},
+
+		// Plan
+		{
+			Name: "getProp - Plan with name property",
+			Script: []string{
+				`declare(triggerFn,'F', func(){ True })`,
+				`declare(guardFn,'F', func(){ True })`,
+				`declare(stepFn,'F', func(){ setq(x, 1); True })`,
+				`declare(steps,'A', array(stepFn))`,
+				`declare(dropFn,'F', func(){ False })`,
+				`declare(MyTestPlan,'P', plan("MyTestPlan", array(), triggerFn, guardFn, steps, dropFn))`,
+				`getProp(MyTestPlan, "name")`,
+			},
+			ExpectedValue: chariot.Str("MyTestPlan"),
+		},
+		{
+			Name: "getProp - Plan with _type property",
+			Script: []string{
+				`declare(triggerFn,'F', func(){ True })`,
+				`declare(guardFn,'F', func(){ True })`,
+				`declare(stepFn,'F', func(){ setq(x, 1); True })`,
+				`declare(steps,'A', array(stepFn))`,
+				`declare(dropFn,'F', func(){ False })`,
+				`declare(TypeTestPlan,'P', plan("TypeTestPlan", array(), triggerFn, guardFn, steps, dropFn))`,
+				`getProp(TypeTestPlan, "_type")`,
+			},
+			ExpectedValue: chariot.Str("plan"),
+		},
+
+		// Nested map[string]interface{} from inspectRuntime
+		{
+			Name: "getProp - Nested map[string]interface{} from globals",
+			Script: []string{
+				`declare(triggerFn,'F', func(){ True })`,
+				`declare(guardFn,'F', func(){ True })`,
+				`declare(stepFn,'F', func(){ setq(x, 1); True })`,
+				`declare(steps,'A', array(stepFn))`,
+				`declare(dropFn,'F', func(){ False })`,
+				`declareGlobal(TestPlanForInspect,'P', plan("TestPlanForInspect", array(), triggerFn, guardFn, steps, dropFn))`,
+				`setq(runtime, inspectRuntime())`,
+				`setq(globals, getProp(runtime, "globals"))`,
+				`setq(planRef, getProp(globals, "TestPlanForInspect"))`,
+				`setq(planType, getProp(planRef, "_type"))`,
+				`planType`,
+			},
+			ExpectedValue: chariot.Str("plan"),
+		},
+		{
+			Name: "getProp - map[string]interface{} missing property should return DBNull not error",
+			Script: []string{
+				`declare(triggerFn,'F', func(){ True })`,
+				`declare(guardFn,'F', func(){ True })`,
+				`declare(stepFn,'F', func(){ setq(x, 1); True })`,
+				`declare(steps,'A', array(stepFn))`,
+				`declare(dropFn,'F', func(){ False })`,
+				`declareGlobal(PlanForMissingProp,'P', plan("PlanForMissingProp", array(), triggerFn, guardFn, steps, dropFn))`,
+				`setq(runtime, inspectRuntime())`,
+				`setq(globals, getProp(runtime, "globals"))`,
+				`setq(planRef, getProp(globals, "PlanForMissingProp"))`,
+				`setq(result, getProp(planRef, "nonexistent"))`,
+				`equal(result, DBNull)`,
+			},
+			ExpectedValue: chariot.Bool(true),
+		},
+	}
+
+	RunTestCases(t, tests)
+}

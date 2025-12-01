@@ -779,15 +779,19 @@ func (b *Block) Exec(rt *Runtime) (Value, error) {
 	// Execute statements in the current scope
 	// Do NOT create a new scope here - let functions/control structures create their own
 	var last Value
-	fmt.Printf("DEBUG BLOCK.EXEC: Executing block with %d statements, debugger=%v\n", len(b.Stmts), rt.Debugger != nil)
+	if parserDebug {
+		fmt.Printf("DEBUG BLOCK.EXEC: Executing block with %d statements, debugger=%v\n", len(b.Stmts), rt.Debugger != nil)
+	}
 	for _, stmt := range b.Stmts {
 		// Debugger support: check breakpoint and update position
 		if rt.Debugger != nil {
 			pos := stmt.GetPos()
 			// DEBUG: Log position information
-			fmt.Printf("DEBUG: Statement %T has position %s:%d:%d\n", stmt, pos.File, pos.Line, pos.Column)
-			if pos.File != "" && pos.Line > 0 {
-				fmt.Printf("DEBUG: Executing statement at %s:%d\n", pos.File, pos.Line)
+			if parserDebug {
+				fmt.Printf("DEBUG: Statement %T has position %s:%d:%d\n", stmt, pos.File, pos.Line, pos.Column)
+				if pos.File != "" && pos.Line > 0 {
+					fmt.Printf("DEBUG: Executing statement at %s:%d\n", pos.File, pos.Line)
+				}
 			}
 			rt.Debugger.UpdatePosition(pos.File, pos.Line)
 

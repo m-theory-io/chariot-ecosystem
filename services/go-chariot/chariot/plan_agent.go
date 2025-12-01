@@ -128,6 +128,14 @@ func newAgent(rt *Runtime, maxConcurrent int, pollEvery time.Duration) *Agent {
 func (a *Agent) register(p *Plan) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	// Check if plan already registered by name (idempotent)
+	for _, existing := range a.plans {
+		if existing.Name == p.Name {
+			return // Already registered, skip duplicate
+		}
+	}
+
 	a.plans = append(a.plans, p)
 }
 
@@ -151,6 +159,40 @@ func (a *Agent) GetBelief(key string) Value {
 	a.beliefsMu.RLock()
 	defer a.beliefsMu.RUnlock()
 	return a.beliefs[key]
+}
+
+// GetBeliefs returns a copy of all beliefs
+func (a *Agent) GetBeliefs() map[string]Value {
+	a.beliefsMu.RLock()
+	defer a.beliefsMu.RUnlock()
+	copy := make(map[string]Value, len(a.beliefs))
+	for k, v := range a.beliefs {
+		copy[k] = v
+	}
+	return copy
+}
+
+// GetInfo returns agent metadata including name, plans, and status
+func (a *Agent) GetInfo() map[string]interface{} {
+	a.mu.RLock()
+	planNames := make([]string, len(a.plans))
+	for i, p := range a.plans {
+		planNames[i] = p.Name
+	}
+	running := a.running
+	pollSeconds := a.pollEvery.Seconds()
+	a.mu.RUnlock()
+
+	beliefs := a.GetBeliefs()
+	beliefCount := len(beliefs)
+
+	return map[string]interface{}{
+		"name":        a.name,
+		"plans":       planNames,
+		"running":     running,
+		"pollSeconds": pollSeconds,
+		"beliefCount": beliefCount,
+	}
 }
 
 func (a *Agent) start(ctx context.Context) {
@@ -790,4 +832,20 @@ func DefaultAgentBelief(name, key string, v Value) bool {
 		return true
 	}
 	return false
+}
+
+// DefaultAgentGetBeliefs returns all beliefs for a named agent
+func DefaultAgentGetBeliefs(name string) map[string]Value {
+	if ag := defaultAgents.Get(name); ag != nil {
+		return ag.GetBeliefs()
+	}
+	return nil
+}
+
+// DefaultAgentGetInfo returns detailed info about an agent
+func DefaultAgentGetInfo(name string) map[string]interface{} {
+	if ag := defaultAgents.Get(name); ag != nil {
+		return ag.GetInfo()
+	}
+	return nil
 }
