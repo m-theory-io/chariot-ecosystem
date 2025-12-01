@@ -269,6 +269,9 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		case *MapNode:
 			return mapNodeGetAttribute(args...)
 
+		case *MapValue:
+			return mapValueGetAttribute(args...)
+
 		case map[string]Value:
 			return mapGetAttribute(args...)
 
@@ -1034,7 +1037,7 @@ func getPropMapValue(args ...Value) (Value, error) {
 
 	value, ok := obj.Get(string(propName))
 	if !ok {
-		return nil, fmt.Errorf("property '%s' not found in MapValue", propName)
+		return DBNull, nil
 	}
 
 	return value, nil
@@ -1058,7 +1061,7 @@ func getPropMap(args ...Value) (Value, error) {
 
 	value, ok := obj[string(propName)]
 	if !ok {
-		return nil, fmt.Errorf("property '%s' not found in map[string]Value", propName)
+		return DBNull, nil
 	}
 
 	return value, nil
@@ -1082,7 +1085,7 @@ func getPropMapInterface(args ...Value) (Value, error) {
 
 	value, ok := obj[string(propName)]
 	if !ok {
-		return nil, fmt.Errorf("property '%s' not found in map[string]interface{}", propName)
+		return DBNull, nil
 	}
 
 	return convertFromNativeValue(value), nil
@@ -1633,6 +1636,8 @@ func getPropPlan(args ...Value) (Value, error) {
 	switch strings.ToLower(string(propName)) {
 	case "name":
 		return Str(p.Name), nil
+	case "_type":
+		return Str("plan"), nil
 	case "params":
 		arr := NewArray()
 		for _, s := range p.Params {
@@ -1802,6 +1807,29 @@ func mapNodeGetAttribute(args ...Value) (Value, error) {
 	return nil, fmt.Errorf("attribute '%s' not found", attrName)
 }
 
+// Helper for MapValue
+func mapValueGetAttribute(args ...Value) (Value, error) {
+	mapValue, ok := args[0].(*MapValue)
+	if !ok {
+		return nil, fmt.Errorf("expected MapValue, got %T", args[0])
+	}
+
+	attrName, ok := args[1].(Str)
+	if !ok {
+		return nil, fmt.Errorf("attribute name must be a string, got %T", args[1])
+	}
+
+	if mapValue.Values == nil {
+		return nil, fmt.Errorf("map has no attributes")
+	}
+
+	if val, exists := mapValue.Values[string(attrName)]; exists {
+		return val, nil
+	}
+
+	return nil, fmt.Errorf("attribute '%s' not found", attrName)
+}
+
 // Helper for JSONNode
 func jsonNodeGetAttribute(args ...Value) (Value, error) {
 	jsonNode, ok := args[0].(*JSONNode)
@@ -1820,35 +1848,57 @@ func jsonNodeGetAttribute(args ...Value) (Value, error) {
 
 	if val, exists := jsonNode.Attributes[string(attrName)]; exists {
 		return val, nil
-	} else {
-		// Check for special JSONNode case
-		testAttr := "_" + jsonNode.NameStr
-		if val2, exists := jsonNode.Attributes[testAttr]; exists {
-			trec := val2.(*ArrayValue).Get(0).(map[string]Value)
-			if val3, exists := trec[string(attrName)]; exists {
-				return val3, nil
+	}
+
+	lookupNested := func(candidate Value) (Value, bool) {
+		switch t := candidate.(type) {
+		case map[string]Value:
+			if val, exists := t[string(attrName)]; exists {
+				return val, true
 			}
-		} else {
-			// recursively walk jsonNode.Attributes
-			for _, v := range jsonNode.Attributes {
-				switch v := v.(type) {
-				case *ArrayValue:
-					for i := 0; i < v.Length(); i++ {
-						trec := v.Elements[i]
-						switch trec := trec.(type) {
-						case map[string]Value:
-							if tval, exists := trec[string(attrName)]; exists {
-								return tval, nil
-							}
-						}
-					}
-				case *MapNode, *JSONNode, TreeNode:
-					trec, err := jsonNodeGetAttribute(v, attrName)
-					return trec, err
+		case *MapValue:
+			if val, exists := t.GetAttribute(string(attrName)); exists {
+				return val, true
+			}
+		case *JSONNode, *MapNode, TreeNode:
+			val, err := jsonNodeGetAttribute(t, attrName)
+			return val, err == nil
+		}
+		return nil, false
+	}
+
+	// Check for special JSONNode case (array storage)
+	testAttr := "_" + jsonNode.NameStr
+	if val2, exists := jsonNode.Attributes[testAttr]; exists {
+		if array, ok := val2.(*ArrayValue); ok {
+			for i := 0; i < array.Length(); i++ {
+				if found, ok := lookupNested(array.Get(i)); ok {
+					return found, nil
 				}
 			}
 		}
 	}
+
+	// Recursively walk jsonNode.Attributes
+	for _, v := range jsonNode.Attributes {
+		switch val := v.(type) {
+		case *ArrayValue:
+			for i := 0; i < val.Length(); i++ {
+				if found, ok := lookupNested(val.Get(i)); ok {
+					return found, nil
+				}
+			}
+		case *MapNode, *JSONNode, TreeNode:
+			if found, err := jsonNodeGetAttribute(val, attrName); err == nil {
+				return found, nil
+			}
+		case *MapValue:
+			if found, ok := lookupNested(val); ok {
+				return found, nil
+			}
+		}
+	}
+
 	return nil, fmt.Errorf("attribute '%s' not found", attrName)
 }
 

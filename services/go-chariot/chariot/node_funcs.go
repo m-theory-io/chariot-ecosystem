@@ -122,12 +122,21 @@ func RegisterNode(rt *Runtime) {
 			return nil, fmt.Errorf("expected XML string, got %T", args[0])
 		}
 
+		trimmed := strings.TrimSpace(string(xmlStr))
+		if trimmed == "" {
+			return nil, errors.New("xmlNode requires a non-empty string")
+		}
+		// Support the legacy helper where passing a bare tag name creates an empty node
+		if !strings.HasPrefix(trimmed, "<") {
+			return NewXMLNode(trimmed), nil
+		}
+
 		// Create a new XMLNode
 		rootNode := NewXMLNode("root") // Temporary root node
 		_ = rootNode
 
 		// Use Go's xml decoder to parse the XML string
-		decoder := xml.NewDecoder(strings.NewReader(string(xmlStr)))
+		decoder := xml.NewDecoder(strings.NewReader(trimmed))
 		token, err := decoder.Token()
 		if err != nil {
 			return nil, fmt.Errorf("invalid XML: %v", err)

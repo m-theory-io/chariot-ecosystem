@@ -5,6 +5,7 @@ package chariot
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"unicode"
@@ -308,13 +309,24 @@ func convertNodeToTreeNode(node Node) TreeNode {
 }
 */
 
+var parserDebug = func() bool {
+	switch strings.ToLower(os.Getenv("CH_PARSER_DEBUG")) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}()
+
 // parseProgram parses a sequence of expressions until EOF.
 func (p *Parser) parseProgram() (*Block, error) {
 	blk := &Block{}
 	for p.cur.Type != TOK_EOF {
 		// Capture position before parsing expression
 		pos := p.getCurrentPos()
-		fmt.Printf("DEBUG PARSER: About to parse expr at %s:%d:%d, current token: %v\n", pos.File, pos.Line, pos.Column, p.cur.Type)
+		if parserDebug {
+			fmt.Printf("DEBUG PARSER: About to parse expr at %s:%d:%d, current token: %v\n", pos.File, pos.Line, pos.Column, p.cur.Type)
+		}
 
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -324,14 +336,18 @@ func (p *Parser) parseProgram() (*Block, error) {
 		// Set position on the parsed node if it supports it
 		if posNode, ok := expr.(interface{ SetPos(SourcePos) }); ok {
 			posNode.SetPos(pos)
-			fmt.Printf("DEBUG PARSER: Set position on %T to %s:%d:%d\n", expr, pos.File, pos.Line, pos.Column)
-		} else {
+			if parserDebug {
+				fmt.Printf("DEBUG PARSER: Set position on %T to %s:%d:%d\n", expr, pos.File, pos.Line, pos.Column)
+			}
+		} else if parserDebug {
 			fmt.Printf("DEBUG PARSER: Node %T does not support SetPos\n", expr)
 		}
 
 		blk.Stmts = append(blk.Stmts, expr)
 	}
-	fmt.Printf("DEBUG PARSER: Finished parsing, total statements: %d\n", len(blk.Stmts))
+	if parserDebug {
+		fmt.Printf("DEBUG PARSER: Finished parsing, total statements: %d\n", len(blk.Stmts))
+	}
 	return blk, nil
 }
 

@@ -8,3 +8,9 @@ sqlConnect('mysql1', '', '', '', '')
 declareGlobal(usersAgent, 'T', treeLoad('usersAgent.json'))
 // 4. load ETL
 declareGlobal(Fan47KtoSQL, 'T', treeLoad('Fan47KtoSQL.json'))
+// 5. load BDI
+declareGlobal(BDI, 'T', treeLoad('bdi_tree.json'))
+// 6. agent start
+agentStartNamed('thermostat', getAttribute(BDI, 'thermostat'))
+
+

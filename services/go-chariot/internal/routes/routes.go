@@ -48,6 +48,14 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	// Agents APIs
 	agents := api.Group("/agents")
 	agents.GET("", h.ListAgents)
+	agents.POST("/create", h.CreateAgent)      // POST /api/agents/create
+	agents.POST("/stop", h.StopAgent)          // POST /api/agents/stop
+	agents.POST("/publish", h.PublishAgent)    // POST /api/agents/publish
+	agents.POST("/belief", h.SetBelief)        // POST /api/agents/belief
+	agents.GET("/:name/beliefs", h.GetBeliefs) // GET /api/agents/:name/beliefs
+	agents.GET("/:name/info", h.GetAgentInfo)  // GET /api/agents/:name/info
+	agents.POST("/run-once", h.RunPlanOnce)    // POST /api/agents/run-once
+	// Legacy routes for compatibility
 	agents.POST("/start", h.StartAgent)
 	agents.POST("/:name/stop", h.StopAgent)
 	agents.POST("/:name/publish", h.PublishAgent)

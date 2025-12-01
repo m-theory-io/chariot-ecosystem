@@ -214,6 +214,11 @@ func (fe *FunctionExtractor) ExtractFromValue(value Value) {
 		for i := 0; i < v.Length(); i++ {
 			fe.ExtractFromValue(v.Get(i))
 		}
+	case *MapValue:
+		for key, val := range v.Values {
+			fe.ExtractFromText(key)
+			fe.ExtractFromValue(val)
+		}
 	case TreeNode:
 		_ = fe.ExtractFromTreeNode(v)
 	case *FunctionValue:

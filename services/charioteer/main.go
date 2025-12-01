@@ -4780,6 +4780,8 @@ const editorTemplate = `<!DOCTYPE html>
         // Agents UI state and helpers
     let agentsContent = '';
     let agentsLoaded = false;
+    let runOnceAgentNames = [];
+    let runOnceAgentUserTouched = false;
     let agentsWS = null;
     let agentsWSBackoffMs = 1000;
     let agentsWSForcedPolling = false;
@@ -4813,23 +4815,100 @@ const editorTemplate = `<!DOCTYPE html>
                         '<p>Loading agents…</p>' +
                     '</div>' +
                     '<div id="agentsContent" style="display:none;">' +
-                        '<div style="display:flex; gap:24px; align-items:flex-start;">' +
-                            '<div style="flex:0 0 320px; background:#252526; border:1px solid #333; border-radius:6px; padding:12px;">' +
-                                '<h3 style="margin-top:0; color:#569cd6;">Agents</h3>' +
-                                '<div id="agentsList" style="max-height:50vh; overflow:auto; font-family: monospace;"></div>' +
+                        '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">' +
+                            '<h2 style="margin:0; color:#569cd6;">BDI Agents</h2>' +
+                            '<button id="createAgentBtn" class="toolbar-button" style="padding:8px 16px;">➕ Create Agent</button>' +
+                        '</div>' +
+                        '<div style="background:#252526; border:1px solid #333; border-radius:6px; padding:16px; margin-bottom:24px;">' +
+                            '<table style="width:100%; border-collapse:collapse; color:#d4d4d4; font-size:13px;">' +
+                                '<thead>' +
+                                    '<tr style="border-bottom:2px solid #444;">' +
+                                        '<th style="text-align:left; padding:10px; color:#569cd6;">Name</th>' +
+                                        '<th style="text-align:left; padding:10px; color:#569cd6;">Plans</th>' +
+                                        '<th style="text-align:left; padding:10px; color:#569cd6;">Status</th>' +
+                                        '<th style="text-align:left; padding:10px; color:#569cd6;">Beliefs</th>' +
+                                        '<th style="text-align:right; padding:10px; color:#569cd6;">Actions</th>' +
+                                    '</tr>' +
+                                '</thead>' +
+                                '<tbody id="agentsTableBody" style="font-family:monospace;">' +
+                                    '<tr><td colspan="5" style="text-align:center; padding:20px; color:#888;">No agents running</td></tr>' +
+                                '</tbody>' +
+                            '</table>' +
+                        '</div>' +
+                        '<div style="display:flex; gap:24px;">' +
+                            '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:16px;">' +
+                                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">' +
+                                    '<h3 style="margin:0; color:#569cd6;">One-Shot Plan Execution</h3>' +
+                                '</div>' +
+                                '<div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">' +
+                                    '<select id="planSelectRunOnce" style="flex:1; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;">' +
+                                        '<option value="">Select plan...</option>' +
+                                    '</select>' +
+                                    '<button id="runOnceBtn" class="toolbar-button" style="padding:8px 16px;">▶️ Run Once</button>' +
+                                '</div>' +
+                                '<label for="agentSelectRunOnce" style="display:block; font-size:12px; color:#bbb; margin-bottom:6px;">Agent context (optional):</label>' +
+                                '<select id="agentSelectRunOnce" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; margin-bottom:12px;">' +
+                                    '<option value="">Run without touching agent beliefs</option>' +
+                                '</select>' +
+                                '<label for="runOnceVarsInput" style="display:block; font-size:12px; color:#bbb; margin-bottom:6px;">Optional varsMap JSON passed to the plan:</label>' +
+                                '<textarea id="runOnceVarsInput" style="width:100%; min-height:90px; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; resize:vertical; font-family:monospace;" placeholder="Example: {&quot;temperature&quot;:72, &quot;unit&quot;:&quot;F&quot;}"></textarea>' +
+                                '<div style="font-size:11px; color:#888; margin-top:6px;">Use JSON object syntax. If you selected an agent, these keys are applied to its beliefs before the plan runs and are also available as per-run vars.</div>' +
                             '</div>' +
-                            '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:12px;">' +
-                                                                '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">' +
-                                                                    '<h3 style="margin-top:0; color:#569cd6;">Agent events</h3>' +
-                                                                    '<div style="display:flex; align-items:center; gap:10px;">' +
-                                                                        '<label style="font-size:12px; color:#bbb; display:flex; align-items:center; gap:6px;">' +
-                                                                             '<input type="checkbox" id="toggleHeartbeats" /> Show heartbeats' +
-                                                                        '</label>' +
-                                                                        '<button id="clearAgentsStreamButton" class="toolbar-button">🧹 Clear</button>' +
-                                                                    '</div>' +
-                                                                '</div>' +
-                                '<pre id="agentsStream" style="height:50vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; border:1px solid #333; white-space:pre-wrap; word-break:break-word;"></pre>' +
+                            '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:16px;">' +
+                                '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">' +
+                                    '<h3 style="margin:0; color:#569cd6;">Agent Events</h3>' +
+                                    '<div style="display:flex; align-items:center; gap:10px;">' +
+                                        '<label style="font-size:12px; color:#bbb; display:flex; align-items:center; gap:6px;">' +
+                                             '<input type="checkbox" id="toggleHeartbeats" /> Show heartbeats' +
+                                        '</label>' +
+                                        '<button id="clearAgentsStreamButton" class="toolbar-button">🧹 Clear</button>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<pre id="agentsStream" style="height:30vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; border:1px solid #333; white-space:pre-wrap; word-break:break-word; font-size:11px;"></pre>' +
                             '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                // Create Agent Modal
+                '<div id="createAgentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000;">' +
+                    '<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#252526; border:1px solid #444; border-radius:8px; padding:24px; min-width:400px;">' +
+                        '<h3 style="margin-top:0; color:#569cd6;">Create New Agent</h3>' +
+                        '<div style="margin-bottom:16px;">' +
+                            '<label style="display:block; margin-bottom:4px; color:#bbb;">Agent Name:</label>' +
+                            '<input id="createAgentName" type="text" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;" placeholder="my_agent" />' +
+                        '</div>' +
+                        '<div style="margin-bottom:16px;">' +
+                            '<label style="display:block; margin-bottom:4px; color:#bbb;">Plan:</label>' +
+                            '<select id="createAgentPlan" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;">' +
+                                '<option value="">Select plan...</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div style="margin-bottom:16px;">' +
+                            '<label style="display:block; margin-bottom:4px; color:#bbb;">Max Concurrent:</label>' +
+                            '<input id="createAgentMaxConcurrent" type="number" value="1" min="1" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;" />' +
+                        '</div>' +
+                        '<div style="margin-bottom:24px;">' +
+                            '<label style="display:block; margin-bottom:4px; color:#bbb;">Poll Seconds:</label>' +
+                            '<input id="createAgentPollSeconds" type="number" value="3" min="0.1" step="0.1" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid#444; border-radius:4px;" />' +
+                        '</div>' +
+                        '<div style="display:flex; gap:12px; justify-content:flex-end;">' +
+                            '<button id="cancelCreateAgent" class="toolbar-button">Cancel</button>' +
+                            '<button id="confirmCreateAgent" class="toolbar-button" style="background:#0e639c;">Create</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                // Beliefs Modal
+                '<div id="beliefsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000;">' +
+                    '<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#252526; border:1px solid #444; border-radius:8px; padding:24px; min-width:500px; max-height:80vh; overflow:auto;">' +
+                        '<h3 style="margin-top:0; color:#569cd6;">Agent Beliefs: <span id="beliefsAgentName"></span></h3>' +
+                        '<div id="beliefsContent" style="margin-bottom:16px;"></div>' +
+                        '<div style="display:flex; gap:12px; margin-bottom:16px;">' +
+                            '<input id="newBeliefKey" type="text" placeholder="Key" style="flex:1; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;" />' +
+                            '<input id="newBeliefValue" type="text" placeholder="Value" style="flex:1; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;" />' +
+                            '<button id="addBeliefBtn" class="toolbar-button">Add</button>' +
+                        '</div>' +
+                        '<div style="display:flex; gap:12px; justify-content:flex-end;">' +
+                            '<button id="closeBeliefsModal" class="toolbar-button" onclick="hideBeliefsModal()">Close</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -4839,7 +4918,7 @@ const editorTemplate = `<!DOCTYPE html>
                 agentsContent = agentsHTML;
                 agentsLoaded = true;
 
-                // Bind clear button and toggle
+                // Bind UI event handlers
                 const clearBtn = document.getElementById('clearAgentsStreamButton');
                 if (clearBtn) {
                     clearBtn.addEventListener('click', function() {
@@ -4854,6 +4933,69 @@ const editorTemplate = `<!DOCTYPE html>
                         agentsShowHeartbeats = hbToggle.checked;
                     });
                 }
+
+                // Create Agent button
+                const createAgentBtn = document.getElementById('createAgentBtn');
+                if (createAgentBtn) {
+                    createAgentBtn.addEventListener('click', showCreateAgentModal);
+                }
+
+                // Create Agent modal handlers
+                const cancelCreateBtn = document.getElementById('cancelCreateAgent');
+                if (cancelCreateBtn) {
+                    cancelCreateBtn.addEventListener('click', () => {
+                        document.getElementById('createAgentModal').style.display = 'none';
+                    });
+                }
+                const confirmCreateBtn = document.getElementById('confirmCreateAgent');
+                if (confirmCreateBtn) {
+                    confirmCreateBtn.addEventListener('click', createAgent);
+                }
+
+                // Run Once button
+                const runOnceBtn = document.getElementById('runOnceBtn');
+                if (runOnceBtn) {
+                    runOnceBtn.addEventListener('click', runPlanOnce);
+                }
+                const runOnceAgentSelect = document.getElementById('agentSelectRunOnce');
+                if (runOnceAgentSelect) {
+                    runOnceAgentSelect.addEventListener('change', () => {
+                        runOnceAgentUserTouched = true;
+                    });
+                }
+
+                // Beliefs modal handlers
+                const beliefsModal = document.getElementById('beliefsModal');
+                const closeBeliefsBtn = document.getElementById('closeBeliefsModal');
+                if (closeBeliefsBtn) {
+                    closeBeliefsBtn.addEventListener('click', hideBeliefsModal);
+                }
+                if (beliefsModal && !beliefsModal.dataset.dismissHandlerAttached) {
+                    beliefsModal.dataset.dismissHandlerAttached = 'true';
+                    beliefsModal.addEventListener('click', (event) => {
+                        if (event.target === beliefsModal) {
+                            hideBeliefsModal();
+                        }
+                    });
+                }
+                if (!window.__beliefsEscHandlerAttached) {
+                    window.__beliefsEscHandlerAttached = true;
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape') {
+                            const modal = document.getElementById('beliefsModal');
+                            if (modal && modal.style.display !== 'none') {
+                                hideBeliefsModal();
+                            }
+                        }
+                    });
+                }
+                const addBeliefBtn = document.getElementById('addBeliefBtn');
+                if (addBeliefBtn) {
+                    addBeliefBtn.addEventListener('click', addBelief);
+                }
+
+                // Load available plans for dropdowns
+                await loadPlansForAgents();
 
                 // Initial list load
                 await fetchAndRenderAgents();
@@ -4973,14 +5115,46 @@ const editorTemplate = `<!DOCTYPE html>
                         }
                     }
                 }
-                const listDiv = document.getElementById('agentsList');
-                if (listDiv) {
+
+                const agentNamesForDropdown = [];
+                // Render agents table
+                const tbody = document.getElementById('agentsTableBody');
+                if (tbody) {
                     if (!agents || agents.length === 0) {
-                        listDiv.innerHTML = '<div style="color:#888;">No agents</div>';
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#888;">No agents running</td></tr>';
                     } else {
-                        listDiv.innerHTML = agents.map(a => '<div style="padding:4px 0;">' + (a && a.name ? a.name : a) + '</div>').join('');
+                        tbody.innerHTML = '';
+                        for (const agentName of agents) {
+                            // Fetch detailed info for each agent
+                            const name = typeof agentName === 'string' ? agentName : agentName.name || agentName;
+                            if (name && !agentNamesForDropdown.includes(name)) {
+                                agentNamesForDropdown.push(name);
+                            }
+                            const infoResp = await fetch('/charioteer/api/agents/' + encodeURIComponent(name) + '/info', { headers: getAuthHeaders() });
+                            let info = { name: name, plans: [], running: true, beliefCount: 0 };
+                            if (infoResp.ok) {
+                                const infoResult = await infoResp.json();
+                                if (infoResult.result === 'success' && infoResult.data) {
+                                    info = infoResult.data;
+                                }
+                            }
+
+                            const row = document.createElement('tr');
+                            row.style.borderBottom = '1px solid #444';
+                            row.innerHTML =
+                                '<td style="padding:12px;">' + escapeHtml(info.name) + '</td>' +
+                                '<td style="padding:12px;">' + (info.plans && info.plans.length > 0 ? info.plans.join(', ') : '-') + '</td>' +
+                                '<td style="padding:12px;"><span style="color:' + (info.running ? '#4ec9b0' : '#f44747') + ';">' + (info.running ? 'Running' : 'Stopped') + '</span></td>' +
+                                '<td style="padding:12px;">' + (info.beliefCount || 0) + ' belief(s) <button class="toolbar-button" onclick="viewBeliefs(\'' + escapeHtml(info.name) + '\')" style="padding:4px 8px; font-size:11px; margin-left:8px;">View/Edit</button></td>' +
+                                '<td style="padding:12px; text-align:right;">' +
+                                    '<button class="toolbar-button" onclick="publishAgentAction(\'' + escapeHtml(info.name) + '\')" style="padding:4px 8px; font-size:11px; margin-right:4px;">📢 Nudge</button>' +
+                                    '<button class="toolbar-button" onclick="stopAgentAction(\'' + escapeHtml(info.name) + '\')" style="padding:4px 8px; font-size:11px; background:#dc3545;">🛑 Stop</button>' +
+                                '</td>';
+                            tbody.appendChild(row);
+                        }
                     }
                 }
+                updateRunOnceAgentDropdown(agentNamesForDropdown);
                 if (loading) loading.style.display = 'none';
                 if (content) content.style.display = 'block';
             } catch (e) {
@@ -4988,6 +5162,343 @@ const editorTemplate = `<!DOCTYPE html>
                 if (err) { err.textContent = e.message; err.style.display = 'block'; }
                 if (loading) loading.style.display = 'none';
                 if (content) content.style.display = 'none';
+            }
+        }
+
+        // Load available plans into dropdowns
+        async function loadPlansForAgents() {
+            console.log('[loadPlansForAgents] Starting...');
+            try {
+                // Use the listPlans() function to get all plan names directly
+                const chariotCode = 'listPlans()\n';
+                
+                console.log('[loadPlansForAgents] Executing listPlans()...');
+                const resp = await fetch('/charioteer/api/execute', {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ program: chariotCode })
+                });
+                
+                if (!resp.ok) {
+                    const errorResult = await resp.json();
+                    console.error('[loadPlansForAgents] Execute failed:', resp.status, errorResult);
+                    return;
+                }
+                
+                const result = await resp.json();
+                console.log('[loadPlansForAgents] Execute result:', result);
+                
+                // Extract plan names from result
+                let planNames = [];
+                if (result.data && Array.isArray(result.data)) {
+                    planNames = result.data;
+                } else if (result.result && Array.isArray(result.result)) {
+                    planNames = result.result;
+                }
+                
+                console.log('[loadPlansForAgents] Plan names found:', planNames);
+                
+                // Populate dropdowns
+                const createSelect = document.getElementById('createAgentPlan');
+                const runOnceSelect = document.getElementById('planSelectRunOnce');
+                
+                [createSelect, runOnceSelect].forEach(select => {
+                    if (select) {
+                        const previousValue = select.value;
+                        let previousStillExists = false;
+                        select.innerHTML = '<option value="">Select plan...</option>';
+                        if (planNames.length === 0) {
+                            const opt = document.createElement('option');
+                            opt.value = '';
+                            opt.textContent = '(No plans found)';
+                            opt.disabled = true;
+                            select.appendChild(opt);
+                        } else {
+                            planNames.forEach(planName => {
+                                const opt = document.createElement('option');
+                                opt.value = planName;
+                                opt.textContent = planName;
+                                if (planName === previousValue) {
+                                    previousStillExists = true;
+                                }
+                                select.appendChild(opt);
+                            });
+                            if (previousValue && previousStillExists) {
+                                select.value = previousValue;
+                            }
+                        }
+                    }
+                });
+                console.log('[loadPlansForAgents] Completed successfully');
+            } catch (e) {
+                console.error('[loadPlansForAgents] Error:', e);
+            }
+        }
+
+        // Show create agent modal
+        function showCreateAgentModal() {
+            const modal = document.getElementById('createAgentModal');
+            if (modal) {
+                document.getElementById('createAgentName').value = '';
+                document.getElementById('createAgentPlan').value = '';
+                document.getElementById('createAgentMaxConcurrent').value = '1';
+                document.getElementById('createAgentPollSeconds').value = '3';
+                modal.style.display = 'flex';
+            }
+        }
+
+        // Create agent
+        async function createAgent() {
+            const name = document.getElementById('createAgentName').value.trim();
+            const plan = document.getElementById('createAgentPlan').value;
+            const maxConcurrent = parseInt(document.getElementById('createAgentMaxConcurrent').value) || 1;
+            const pollSeconds = parseFloat(document.getElementById('createAgentPollSeconds').value) || 3;
+
+            if (!name || !plan) {
+                alert('Please provide agent name and select a plan');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/charioteer/api/agents/create', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify({ name, plan, maxConcurrent, pollSeconds })
+                });
+
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || result.message || 'Failed to create agent');
+                }
+
+                document.getElementById('createAgentModal').style.display = 'none';
+                showOutput('Agent "' + name + '" created successfully', 'success');
+                await fetchAndRenderAgents();
+            } catch (e) {
+                alert('Failed to create agent: ' + e.message);
+            }
+        }
+
+        // Stop agent
+        async function stopAgentAction(name) {
+            if (!confirm('Stop agent "' + name + '"?')) return;
+
+            try {
+                const resp = await fetch('/charioteer/api/agents/stop', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify({ name })
+                });
+
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || 'Failed to stop agent');
+                }
+
+                showOutput('Agent "' + name + '" stopped', 'success');
+                await fetchAndRenderAgents();
+            } catch (e) {
+                alert('Failed to stop agent: ' + e.message);
+            }
+        }
+
+        // Publish/Nudge agent
+        async function publishAgentAction(name) {
+            try {
+                const resp = await fetch('/charioteer/api/agents/publish', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify({ name })
+                });
+
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || 'Failed to publish agent');
+                }
+
+                showOutput('Agent "' + name + '" nudged', 'success');
+            } catch (e) {
+                alert('Failed to nudge agent: ' + e.message);
+            }
+        }
+
+        function hideBeliefsModal() {
+            const modal = document.getElementById('beliefsModal');
+            if (!modal) {
+                return;
+            }
+            modal.style.display = 'none';
+            modal.removeAttribute('data-agent-name');
+            const keyInput = document.getElementById('newBeliefKey');
+            const valueInput = document.getElementById('newBeliefValue');
+            if (keyInput) keyInput.value = '';
+            if (valueInput) valueInput.value = '';
+        }
+
+        // View/Edit beliefs
+        async function viewBeliefs(name) {
+            try {
+                const resp = await fetch('/charioteer/api/agents/' + encodeURIComponent(name) + '/beliefs', {
+                    headers: getAuthHeaders()
+                });
+
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || 'Failed to fetch beliefs');
+                }
+
+                const result = await resp.json();
+                const beliefs = result.data || {};
+
+                const modal = document.getElementById('beliefsModal');
+                const nameSpan = document.getElementById('beliefsAgentName');
+                const content = document.getElementById('beliefsContent');
+
+                if (nameSpan) nameSpan.textContent = name;
+                if (content) {
+                    if (Object.keys(beliefs).length === 0) {
+                        content.innerHTML = '<div style="color:#888; padding:12px;">No beliefs set</div>';
+                    } else {
+                        let html = '<table style="width:100%; border-collapse:collapse;">';
+                        for (const [key, value] of Object.entries(beliefs)) {
+                            html += '<tr style="border-bottom:1px solid #444;">' +
+                                '<td style="padding:8px; color:#569cd6;">' + escapeHtml(key) + '</td>' +
+                                '<td style="padding:8px; font-family:monospace;">' + escapeHtml(JSON.stringify(value)) + '</td>' +
+                                '</tr>';
+                        }
+                        html += '</table>';
+                        content.innerHTML = html;
+                    }
+                }
+
+                modal.setAttribute('data-agent-name', name);
+                modal.style.display = 'flex';
+            } catch (e) {
+                alert('Failed to load beliefs: ' + e.message);
+            }
+        }
+
+        // Helper to keep Run Once agent dropdown in sync with registry
+        function updateRunOnceAgentDropdown(agentNames) {
+            const select = document.getElementById('agentSelectRunOnce');
+            if (!select) {
+                return;
+            }
+            const previous = select.value || '';
+            const names = Array.isArray(agentNames) ? agentNames.filter(Boolean) : [];
+            runOnceAgentNames = names;
+            select.innerHTML = '<option value="">Run without touching agent beliefs</option>';
+            names.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+            if (previous && names.includes(previous)) {
+                select.value = previous;
+            } else if (!runOnceAgentUserTouched && names.length > 0) {
+                select.value = names[0];
+            } else {
+                select.value = '';
+            }
+        }
+
+        // Add belief
+        async function addBelief() {
+            const modal = document.getElementById('beliefsModal');
+            const name = modal.getAttribute('data-agent-name');
+            const key = document.getElementById('newBeliefKey').value.trim();
+            const valueStr = document.getElementById('newBeliefValue').value.trim();
+
+            if (!key || !valueStr) {
+                alert('Please provide key and value');
+                return;
+            }
+
+            try {
+                // Parse value as JSON or treat as string
+                let value;
+                try {
+                    value = JSON.parse(valueStr);
+                } catch {
+                    value = valueStr; // Treat as string if not valid JSON
+                }
+
+                const resp = await fetch('/charioteer/api/agents/belief', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify({ name, key, value })
+                });
+
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || 'Failed to set belief');
+                }
+
+                document.getElementById('newBeliefKey').value = '';
+                document.getElementById('newBeliefValue').value = '';
+                showOutput('Belief set on agent "' + name + '"', 'success');
+                
+                // Refresh beliefs display
+                await viewBeliefs(name);
+            } catch (e) {
+                alert('Failed to set belief: ' + e.message);
+            }
+        }
+
+        // Run plan once
+        async function runPlanOnce() {
+            const plan = document.getElementById('planSelectRunOnce').value;
+            if (!plan) {
+                alert('Please select a plan');
+                return;
+            }
+
+            const agentSelectEl = document.getElementById('agentSelectRunOnce');
+            const agentName = agentSelectEl ? (agentSelectEl.value || '').trim() : '';
+
+            let varsMap = {};
+            const varsInputEl = document.getElementById('runOnceVarsInput');
+            if (varsInputEl) {
+                const raw = varsInputEl.value.trim();
+                if (raw.length > 0) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                            throw new Error('Vars map must be a JSON object.');
+                        }
+                        varsMap = parsed;
+                    } catch (err) {
+                        alert('Invalid vars map JSON: ' + err.message);
+                        return;
+                    }
+                }
+            }
+
+            try {
+                const payload = { plan, mode: 'bdi', varsMap };
+                if (agentName) {
+                    payload.agentName = agentName;
+                }
+                const resp = await fetch('/charioteer/api/agents/run-once', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || 'Failed to run plan');
+                }
+
+                const result = await resp.json();
+                const agentBlurb = agentName ? (' using agent "' + agentName + '"') : '';
+                showOutput('Plan "' + plan + '" executed' + agentBlurb + ': ' + JSON.stringify(result.data), 'success');
+            } catch (e) {
+                alert('Failed to run plan: ' + e.message);
             }
         }
 
@@ -6981,6 +7492,76 @@ func main() {
 	// Dashboard API proxy route
 	http.HandleFunc("/charioteer/api/dashboard/status", authMiddleware(dashboardAPIHandler))
 	http.HandleFunc("/charioteer/api/agents", authMiddleware(agentsListHandler))
+
+	// Agent management proxy routes -> go-chariot backend
+	http.HandleFunc("/charioteer/api/agents/create", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		proxyToBackendJSON(w, r, http.MethodPost, "/api/agents/create", body)
+	}))
+
+	http.HandleFunc("/charioteer/api/agents/stop", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		proxyToBackendJSON(w, r, http.MethodPost, "/api/agents/stop", body)
+	}))
+
+	http.HandleFunc("/charioteer/api/agents/publish", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		proxyToBackendJSON(w, r, http.MethodPost, "/api/agents/publish", body)
+	}))
+
+	http.HandleFunc("/charioteer/api/agents/belief", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		proxyToBackendJSON(w, r, http.MethodPost, "/api/agents/belief", body)
+	}))
+
+	http.HandleFunc("/charioteer/api/agents/run-once", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		proxyToBackendJSON(w, r, http.MethodPost, "/api/agents/run-once", body)
+	}))
+
+	// Agent info/beliefs routes with path parameters
+	http.HandleFunc("/charioteer/api/agents/", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		// Parse path to extract agent name and sub-path
+		// Format: /charioteer/api/agents/:name/beliefs or /charioteer/api/agents/:name/info
+		path := strings.TrimPrefix(r.URL.Path, "/charioteer/api/agents/")
+		parts := strings.SplitN(path, "/", 2)
+
+		if len(parts) < 2 {
+			sendError(w, http.StatusNotFound, "invalid agent path")
+			return
+		}
+
+		agentName := parts[0]
+		subPath := parts[1]
+
+		if subPath == "beliefs" && r.Method == http.MethodGet {
+			proxyToBackendJSON(w, r, http.MethodGet, "/api/agents/"+url.PathEscape(agentName)+"/beliefs", nil)
+		} else if subPath == "info" && r.Method == http.MethodGet {
+			proxyToBackendJSON(w, r, http.MethodGet, "/api/agents/"+url.PathEscape(agentName)+"/info", nil)
+		} else {
+			sendError(w, http.StatusNotFound, "unknown agent endpoint")
+		}
+	}))
 
 	// Diagrams proxy endpoints -> go-chariot backend
 	http.HandleFunc("/charioteer/api/diagrams", authMiddleware(func(w http.ResponseWriter, r *http.Request) {

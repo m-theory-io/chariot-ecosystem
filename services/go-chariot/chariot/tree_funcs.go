@@ -11,22 +11,21 @@ import (
 
 // RegisterTree registers all tree-related functions
 func RegisterTreeFunctions(rt *Runtime) {
-	// TreeNode creation
-	rt.Register("newTree", func(args ...Value) (Value, error) {
-		// Validate argument
+	// TreeNode creation helpers (newTree is canonical, treeNode kept for backwards compatibility)
+	createTreeFunc := func(args ...Value) (Value, error) {
 		if len(args) != 1 {
-			return nil, fmt.Errorf("newTree requires exactly one argument")
+			return nil, fmt.Errorf("tree creation requires exactly one argument")
 		}
 
-		// Unwrap the first argument if it exists
 		for i, arg := range args {
 			if tvar, ok := arg.(ScopeEntry); ok {
 				args[i] = tvar.Value
 			}
 		}
+
 		name, ok := args[0].(Str)
 		if !ok {
-			return nil, fmt.Errorf("newTree requires a string argument for the tree name")
+			return nil, fmt.Errorf("tree name must be a string, got %T", args[0])
 		}
 
 		if name == "" {
@@ -34,7 +33,10 @@ func RegisterTreeFunctions(rt *Runtime) {
 		}
 
 		return NewTreeNode(string(name)), nil
-	})
+	}
+
+	rt.Register("newTree", createTreeFunc)
+	rt.Register("treeNode", createTreeFunc)
 
 	// treeSave(treeNode, filename) - saves tree to JSON file
 	rt.Register("treeSave", func(args ...Value) (Value, error) {
@@ -522,9 +524,16 @@ func RegisterTreeFunctions(rt *Runtime) {
 			switch tv := v.(type) {
 			case *JSONNode:
 				return reflect.ValueOf(tv).Pointer(), true
+			case *MapValue:
+				return reflect.ValueOf(tv).Pointer(), true
 			case TreeNode:
 				rv := reflect.ValueOf(tv)
 				if rv.Kind() == reflect.Ptr {
+					return rv.Pointer(), true
+				}
+			case map[string]Value:
+				rv := reflect.ValueOf(tv)
+				if rv.Kind() == reflect.Map {
 					return rv.Pointer(), true
 				}
 			}
@@ -534,7 +543,7 @@ func RegisterTreeFunctions(rt *Runtime) {
 		tryAdd := func(candidate Value) {
 			// Only consider top-level tree-like candidates
 			switch candidate.(type) {
-			case *MapNode, *JSONNode, TreeNode, TreeNodeImpl:
+			case *MapNode, *JSONNode, TreeNode, TreeNodeImpl, *MapValue, map[string]Value:
 				if anyMatchInValue(candidate, string(attrName), searchVal, operator) {
 					if key, ok := ptrKey(candidate); ok {
 						if _, exists := seen[key]; exists {
@@ -554,6 +563,11 @@ func RegisterTreeFunctions(rt *Runtime) {
 				for i := 0; i < t.Length(); i++ {
 					walkForest(t.Get(i))
 				}
+			case *MapValue:
+				tryAdd(t)
+				for _, v := range t.GetAttributes() {
+					walkForest(v)
+				}
 			case *MapNode:
 				walkForest(t.Attributes)
 			case []Value:
@@ -561,6 +575,7 @@ func RegisterTreeFunctions(rt *Runtime) {
 					walkForest(e)
 				}
 			case map[string]Value:
+				tryAdd(t)
 				for _, v := range t {
 					walkForest(v)
 				}
@@ -632,6 +647,13 @@ func RegisterTreeFunctions(rt *Runtime) {
 				for i := 0; i < v.Length(); i++ {
 					elem := v.Get(i)
 					if err := walkNode(elem); err != nil {
+						return err
+					}
+				}
+
+			case *MapValue:
+				for _, mapValue := range v.GetAttributes() {
+					if err := walkNode(mapValue); err != nil {
 						return err
 					}
 				}
@@ -740,6 +762,16 @@ func RegisterTreeFunctions(rt *Runtime) {
 
 				// Search recursively in all map values
 				for _, mapVal := range v {
+					searchInValue(mapVal)
+				}
+
+			case *MapValue:
+				if attrValue, exists := v.GetAttribute(string(attrName)); exists {
+					if compareValuesOp(attrValue, searchValue, operator) {
+						results.Append(v)
+					}
+				}
+				for _, mapVal := range v.GetAttributes() {
 					searchInValue(mapVal)
 				}
 
@@ -903,6 +935,17 @@ func anyMatchInValue(val Value, attrName string, searchValue Value, operator str
 			}
 		}
 		for _, mv := range v {
+			if anyMatchInValue(mv, attrName, searchValue, operator) {
+				return true
+			}
+		}
+	case *MapValue:
+		if attrValue, exists := v.GetAttribute(attrName); exists {
+			if compareValuesOp(attrValue, searchValue, operator) {
+				return true
+			}
+		}
+		for _, mv := range v.GetAttributes() {
 			if anyMatchInValue(mv, attrName, searchValue, operator) {
 				return true
 			}
