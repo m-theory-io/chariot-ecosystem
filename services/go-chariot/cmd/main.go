@@ -51,6 +51,8 @@ func init() {
 	// Vault configuration
 	cfg.ChariotConfig.StringVar("vault_name", &cfg.ChariotConfig.VaultName, "chariot-vault")
 	cfg.ChariotConfig.StringVar("vault_key_prefix", &cfg.ChariotConfig.VaultKeyPrefix, "jpkey")
+	cfg.ChariotConfig.StringVar("secret_provider", &cfg.ChariotConfig.SecretProvider, "azure")
+	cfg.ChariotConfig.StringVar("secret_file_path", &cfg.ChariotConfig.SecretFilePath, "./config/secrets.local.json")
 	// File serialization path
 	cfg.ChariotConfig.StringVar("data_path", &cfg.ChariotConfig.DataPath, "./data")
 	// Tree serialization path

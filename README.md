@@ -14,6 +14,10 @@ Notes
 - docker-compose.azure.yml defaults: nginx uses tag `amd64` as the default alias; the push script updates that alias when you push a versioned tag.
 - The older `deploy-azure.sh` script has been removed to avoid confusion.
 
+## Secret providers
+
+Chariot can now run with either Azure Key Vault (`CHARIOT_SECRET_PROVIDER=azure`) or a local JSON-backed provider (`CHARIOT_SECRET_PROVIDER=file`). See `docs/SecretManagement.md` for configuration examples and migration notes.
+
 ## Model Context Protocol (MCP) integration
 
 go-chariot includes an optional MCP server built with the official Go SDK. It supports stdio transport today and has a placeholder route for WebSocket (WS) transport.

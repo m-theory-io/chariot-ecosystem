@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	azv "github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/pbkdf2"
 
@@ -32,12 +31,11 @@ import (
 var globalCryptoManager *CryptoManager
 var cryptoInitOnce sync.Once
 
-// CryptoManager handles all cryptographic operations using Azure Key Vault
+// CryptoManager handles all cryptographic operations using the configured secret provider
 type CryptoManager struct {
-	vaultClient *azv.Client
-	logger      *logs.ZapLogger
-	keyCache    map[string]*cachedKey
-	cacheMutex  sync.RWMutex
+	logger     *logs.ZapLogger
+	keyCache   map[string]*cachedKey
+	cacheMutex sync.RWMutex
 }
 
 // Cached key with expiration
@@ -102,13 +100,9 @@ func getCryptoManager() *CryptoManager {
 
 // Constructor for CryptoManager
 func NewCryptoManager() *CryptoManager {
-	// Initialize with Key Vault client (assuming it's set up elsewhere)
-	vaultClient := vault.VaultClient
-
 	return &CryptoManager{
-		vaultClient: vaultClient,
-		logger:      cfg.ChariotLogger, // Use your existing logger
-		keyCache:    make(map[string]*cachedKey),
+		logger:   cfg.ChariotLogger,
+		keyCache: make(map[string]*cachedKey),
 	}
 }
 
@@ -128,19 +122,15 @@ func (cm *CryptoManager) getKeyFromVault(keyID string) ([]byte, error) {
 	}
 	cm.cacheMutex.RUnlock()
 
-	// Get key from Azure Key Vault
-	keySecret, err := cm.vaultClient.GetSecret(context.Background(), keyID, "", nil)
+	// Retrieve key material through the secret provider
+	secretValue, err := vault.GetSecretValue(context.Background(), keyID)
 	if err != nil {
-		cm.logger.Error("Failed to retrieve key from vault", zap.String("key_id", keyID), zap.Error(err))
+		cm.logger.Error("Failed to retrieve key from secret provider", zap.String("key_id", keyID), zap.Error(err))
 		return nil, fmt.Errorf("failed to retrieve key %s: %v", keyID, err)
 	}
 
-	if keySecret.Value == nil {
-		return nil, fmt.Errorf("key %s has no value", keyID)
-	}
-
 	// Decode base64 key data
-	keyData, err := base64.StdEncoding.DecodeString(*keySecret.Value)
+	keyData, err := base64.StdEncoding.DecodeString(secretValue)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode key %s: %v", keyID, err)
 	}
@@ -159,17 +149,13 @@ func (cm *CryptoManager) getKeyFromVault(keyID string) ([]byte, error) {
 
 func (cm *CryptoManager) getRSAKeyFromVault(keyID string) (*rsa.PrivateKey, error) {
 	// For RSA keys, they might be stored as PEM-encoded strings
-	keySecret, err := cm.vaultClient.GetSecret(context.Background(), keyID, "", nil)
+	secretValue, err := vault.GetSecretValue(context.Background(), keyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve RSA key %s: %v", keyID, err)
 	}
 
-	if keySecret.Value == nil {
-		return nil, fmt.Errorf("RSA key %s has no value", keyID)
-	}
-
 	// Parse PEM-encoded private key
-	block, _ := pem.Decode([]byte(*keySecret.Value))
+	block, _ := pem.Decode([]byte(secretValue))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block for key %s", keyID)
 	}
@@ -200,17 +186,13 @@ func (cm *CryptoManager) getRSAPublicKeyFromVault(keyID string) (*rsa.PublicKey,
 	}
 
 	// If that fails, try to get public key directly
-	keySecret, err := cm.vaultClient.GetSecret(context.Background(), keyID+"-pub", "", nil)
+	secretValue, err := vault.GetSecretValue(context.Background(), keyID+"-pub")
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve RSA public key %s: %v", keyID, err)
 	}
 
-	if keySecret.Value == nil {
-		return nil, fmt.Errorf("RSA public key %s has no value", keyID)
-	}
-
 	// Parse PEM-encoded public key
-	block, _ := pem.Decode([]byte(*keySecret.Value))
+	block, _ := pem.Decode([]byte(secretValue))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block for public key %s", keyID)
 	}

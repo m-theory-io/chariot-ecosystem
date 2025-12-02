@@ -40,6 +40,8 @@ type Config struct {
 	VaultName      string `evar:"vault_name"`       // Azure Key Vault name
 	VaultURI       string `evar:"vault_uri"`        // Azure Key Vault URI
 	VaultKeyPrefix string `evar:"vault_key_prefix"` // Azure Key Vault key prefix (e.g., jpkey, docker)
+	SecretProvider string `evar:"secret_provider"`  // Secret provider identifier (azure, file, etc.)
+	SecretFilePath string `evar:"secret_file_path"` // Path to local secret file when using file provider
 	// Serialization
 	DataPath string `evar:"data_path"` // Path to store serialized data
 	// Tree serialization
