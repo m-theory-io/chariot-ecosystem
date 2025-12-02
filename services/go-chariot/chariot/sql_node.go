@@ -1209,9 +1209,8 @@ func contains(slice []string, item string) bool {
 }
 
 // Helper to build a DSN (Data Source Name) for supported drivers.
-// If credentials are missing, attempts to fetch from Azure Key Vault.
+// If credentials are missing, attempts to fetch from the configured secret provider.
 func (n *SQLNode) BuildDSN(driverName, databaseURL string) (string, error) {
-	var err error
 	var user, password, dbname Value
 
 	// Validate args
@@ -1225,22 +1224,16 @@ func (n *SQLNode) BuildDSN(driverName, databaseURL string) (string, error) {
 	// Get credentials from metadata
 	if tuser, ok := n.GetMeta("user"); ok {
 		user = tuser
-	} else {
-		return "", fmt.Errorf("failed to get user from metadata: %w", err)
 	}
 	if tdbname, ok := n.GetMeta("database"); ok {
 		dbname = tdbname
-	} else {
-		return "", fmt.Errorf("failed to get database name from metadata: %w", err)
 	}
 	if tpassword, ok := n.GetMeta("password"); ok {
 		password = tpassword
-	} else {
-		return "", fmt.Errorf("failed to get password from metadata: %w", err)
 	}
 
-	// If credentials are missing, try to fetch from Azure Key Vault
-	if user == "" || password == "" {
+	// If credentials are missing, try to fetch from the configured secret provider
+	if user == "" || password == "" || dbname == "" {
 		ctx := context.Background()
 		secret, err := vault.GetOrgSecret(ctx, cfg.ChariotKey)
 		if err != nil {

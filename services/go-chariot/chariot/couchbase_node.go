@@ -64,23 +64,20 @@ func (n *CouchbaseNode) Connect(connStr, username, password string) error {
 		connStr = n.ConnectionString
 		username = n.Username
 		password = n.Password
-	} else {
-		// If vault is configured, try to load connection details
-		if vault.VaultClient != nil && cfg.ChariotConfig.VaultName != "" {
-			secret, err := vault.GetOrgSecret(ctx, cfg.ChariotKey)
-			if err != nil {
-				return fmt.Errorf("failed to get secret from vault: %v", err)
-			}
-			if secret != nil {
-				n.ConnectionString = secret.CBURL
-				n.Username = secret.CBUser
-				n.Password = secret.CBPassword
-				n.ScopeName = secret.CBScope
+	} else if vault.HasProvider() {
+		secret, err := vault.GetOrgSecret(ctx, cfg.ChariotKey)
+		if err != nil {
+			return fmt.Errorf("failed to get secret from provider: %v", err)
+		}
+		if secret != nil {
+			n.ConnectionString = secret.CBURL
+			n.Username = secret.CBUser
+			n.Password = secret.CBPassword
+			n.ScopeName = secret.CBScope
 
-				connStr = secret.CBURL
-				username = secret.CBUser
-				password = secret.CBPassword
-			}
+			connStr = secret.CBURL
+			username = secret.CBUser
+			password = secret.CBPassword
 		}
 	}
 	// Test to see if connection values are populated

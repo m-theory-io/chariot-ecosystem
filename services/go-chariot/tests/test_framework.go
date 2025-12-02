@@ -42,16 +42,43 @@ func init() {
 	dataDir := filepath.Join(testsDir, "data")
 	treesDir := filepath.Join(dataDir, "trees")
 	diagramsDir := filepath.Join(dataDir, "diagrams")
+	secretsDir := filepath.Join(dataDir, "secrets")
+	secretFile := filepath.Join(secretsDir, "local.json")
 
 	// Ensure directories exist
 	_ = os.MkdirAll(treesDir, 0o755)
 	_ = os.MkdirAll(diagramsDir, 0o755)
+	_ = os.MkdirAll(secretsDir, 0o755)
+
+	if _, err := os.Stat(secretFile); err != nil {
+		defaultSecret := map[string]interface{}{
+			fmt.Sprintf("local-%s", cfg.ChariotKey): map[string]interface{}{
+				"org_key":      cfg.ChariotKey,
+				"cb_scope":     "_default",
+				"cb_user":      "mtheory",
+				"cb_password":  "Borg12731273",
+				"cb_url":       "couchbase://localhost",
+				"cb_bucket":    "chariot",
+				"sql_host":     "127.0.0.1",
+				"sql_database": "chariot",
+				"sql_user":     "root",
+				"sql_password": "rootpass",
+				"sql_driver":   "mysql",
+				"sql_port":     3306,
+			},
+		}
+		if data, marshalErr := json.MarshalIndent(defaultSecret, "", "  "); marshalErr == nil {
+			_ = os.WriteFile(secretFile, data, 0o600)
+		}
+	}
 
 	// Bind via canonical env vars (one place for all tests)
 	os.Setenv("CHARIOT_DATA_PATH", dataDir)
 	os.Setenv("CHARIOT_TREE_PATH", treesDir)
 	os.Setenv("CHARIOT_DIAGRAM_PATH", diagramsDir)
 	os.Setenv("CHARIOT_VAULT_KEY_PREFIX", "local")
+	os.Setenv("CHARIOT_SECRET_PROVIDER", "file")
+	os.Setenv("CHARIOT_SECRET_FILE_PATH", secretFile)
 	os.Setenv("CHARIOT_MCP_ENABLED", "true")
 	os.Setenv("CHARIOT_MCP_TRANSPORT", "ws")
 	os.Setenv("CHARIOT_MCP_WS_PATH", "/mcp")

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	azv "github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"go.uber.org/zap"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
@@ -28,7 +26,7 @@ type DBContext struct {
 	SQLDriver   string `json:"sql_driver"`
 }
 
-// OrgSecret represents the secret structure stored in Azure Key Vault
+// OrgSecret represents the tenant secret structure stored in the configured provider
 type OrgSecret struct {
 	OrgKey      string `json:"org_key"`
 	CBScope     string `json:"cb_scope"`
@@ -44,53 +42,9 @@ type OrgSecret struct {
 	SQLPort     int    `json:"sql_port"` // Optional, can be 0 if not used
 }
 
-// Global vault client instance
-var (
-	VaultClient *azv.Client
-	VaultURI    string
-)
-
-// InitVaultClient initializes the Azure Key Vault client using DefaultAzureCredential
-func InitVaultClient() error {
-	const logName = "InitVaultClient"
-
-	if cfg.ChariotConfig.VaultName == "" {
-		cfg.ChariotConfig.VaultName = "chariot-vault"
-		// return fmt.Errorf("%s - vault name not configured", logName)
-	}
-
-	// Use DefaultAzureCredential - works for both local dev and Azure VMs
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		cfg.ChariotLogger.Error("Failed to create Azure credential", zap.String("details", err.Error()))
-		return fmt.Errorf("%s - failed to create Azure credential: %w", logName, err)
-	}
-
-	// Build vault URI from config
-	vaultUri := fmt.Sprintf("https://%s.vault.azure.net", cfg.ChariotConfig.VaultName)
-
-	// Create Key Vault client
-	client, err := azv.NewClient(vaultUri, cred, nil)
-	if err != nil {
-		cfg.ChariotLogger.Error("Failed to create Key Vault client", zap.String("vault_uri", vaultUri), zap.String("details", err.Error()))
-		return fmt.Errorf("%s - failed to create Key Vault client: %w", logName, err)
-	}
-
-	// Initialize global variables
-	VaultClient = client
-	VaultURI = vaultUri
-
-	cfg.ChariotLogger.Info("Successfully initialized Key Vault client", zap.String("vault_uri", vaultUri))
-	return nil
-}
-
-// GetOrgSecret retrieves and parses organization secret from Azure Key Vault
+// GetOrgSecret retrieves and parses organization secret from the active provider
 func GetOrgSecret(ctx context.Context, orgKey string) (*OrgSecret, error) {
 	const logName = "GetOrgSecret"
-
-	if VaultClient == nil {
-		return nil, fmt.Errorf("%s - vault client not initialized", logName)
-	}
 
 	if orgKey == "" {
 		return nil, fmt.Errorf("%s - orgKey is required", logName)
@@ -98,20 +52,15 @@ func GetOrgSecret(ctx context.Context, orgKey string) (*OrgSecret, error) {
 
 	// Use the provided context directly (bootstrap context)
 	secretName := makeSecretName(orgKey)
-	resp, err := VaultClient.GetSecret(ctx, secretName, "", nil)
+	secretValue, err := GetSecretValue(ctx, secretName)
 	if err != nil {
-		cfg.ChariotLogger.Error("Failed to get secret from vault", zap.String("org_key", orgKey), zap.String("secret_name", secretName), zap.String("details", err.Error()))
+		cfg.ChariotLogger.Error("Failed to get secret from provider", zap.String("org_key", orgKey), zap.String("secret_name", secretName), zap.String("details", err.Error()))
 		return nil, fmt.Errorf("%s - failed to get secret for org %s: %w", logName, orgKey, err)
-	}
-
-	if resp.Value == nil {
-		cfg.ChariotLogger.Error("Secret value is nil", zap.String("org_key", orgKey), zap.String("secret_name", secretName))
-		return nil, fmt.Errorf("%s - secret value is nil for org: %s", logName, orgKey)
 	}
 
 	// Parse JSON secret value
 	var orgSecret OrgSecret
-	err = json.Unmarshal([]byte(*resp.Value), &orgSecret)
+	err = json.Unmarshal([]byte(secretValue), &orgSecret)
 	if err != nil {
 		cfg.ChariotLogger.Error("Failed to parse secret JSON", zap.String("org_key", orgKey), zap.String("details", err.Error()))
 		return nil, fmt.Errorf("%s - failed to parse secret for org %s: %w", logName, orgKey, err)
@@ -123,42 +72,37 @@ func GetOrgSecret(ctx context.Context, orgKey string) (*OrgSecret, error) {
 		zap.Int("sql_port", orgSecret.SQLPort),
 		zap.String("sql_driver", orgSecret.SQLDriver))
 
-	if cfg.ChariotConfig.Verbose {
-		cfg.ChariotLogger.Info("Successfully retrieved secret", zap.String("org_key", orgKey))
-	}
-
 	return &orgSecret, nil
 }
 
-// GetSecretValue retrieves a simple string secret from Azure Key Vault
+// GetSecretValue retrieves a simple string secret from the configured provider
 func GetSecretValue(ctx context.Context, secretName string) (string, error) {
 	const logName = "GetSecretValue"
-
-	if VaultClient == nil {
-		return "", fmt.Errorf("%s - vault client not initialized", logName)
-	}
 
 	if secretName == "" {
 		return "", fmt.Errorf("%s - secretName is required", logName)
 	}
 
-	// Retrieve secret from Key Vault (latest version)
-	resp, err := VaultClient.GetSecret(ctx, secretName, "", nil)
+	provider, err := getProvider()
 	if err != nil {
-		cfg.ChariotLogger.Error("Failed to get secret from vault", zap.String("secret_name", secretName), zap.String("details", err.Error()))
+		return "", fmt.Errorf("%s - %w", logName, err)
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	value, err := provider.GetSecret(ctx, secretName)
+	if err != nil {
+		cfg.ChariotLogger.Error("Failed to get secret from provider", zap.String("secret_name", secretName), zap.String("details", err.Error()))
 		return "", fmt.Errorf("%s - failed to get secret %s: %w", logName, secretName, err)
 	}
 
-	if resp.Value == nil {
-		cfg.ChariotLogger.Error("Secret value is nil", zap.String("secret_name", secretName))
-		return "", fmt.Errorf("%s - secret value is nil for: %s", logName, secretName)
-	}
-
 	if cfg.ChariotConfig.Verbose {
-		cfg.ChariotLogger.Info("Successfully retrieved secret", zap.String("secret_name", secretName))
+		cfg.ChariotLogger.Info("Successfully retrieved secret", zap.String("secret_name", secretName), zap.String("provider", provider.Name()))
 	}
 
-	return *resp.Value, nil
+	return value, nil
 }
 
 // ConvertOrgSecretToDBContext converts an OrgSecret to DBContext format
@@ -236,7 +180,9 @@ func makeSecretName(orgKey string) string {
 		keyPrefix = "jpkey" // Default fallback
 	}
 	normalizedKey := fmt.Sprintf("%s-%s", keyPrefix, orgKey)
-	cfg.ChariotLogger.Debug("Generated secret name", zap.String("secret_name", normalizedKey))
+	if cfg.ChariotLogger != nil {
+		cfg.ChariotLogger.Debug("Generated secret name", zap.String("secret_name", normalizedKey))
+	}
 	// normalizedKey = "azure-BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA" // HARDCODED for now
 	return normalizedKey
 }
