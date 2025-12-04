@@ -63,6 +63,10 @@ func init() {
 	cfg.ChariotConfig.StringVar("diagram_path", &cfg.ChariotConfig.DiagramPath, "./data/diagrams")
 	// Cert path
 	cfg.ChariotConfig.StringVar("cert_path", &cfg.ChariotConfig.CertPath, "../.certs")
+	// Sandbox configuration
+	cfg.ChariotConfig.BoolVar("sandbox_enabled", &cfg.ChariotConfig.SandboxEnabled, false)
+	cfg.ChariotConfig.StringVar("sandbox_root", &cfg.ChariotConfig.SandboxRoot, "")
+	cfg.ChariotConfig.StringVar("sandbox_default_scope", &cfg.ChariotConfig.SandboxDefaultScope, "sandbox")
 	// Function library
 	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stlib.json")
 	// Bootstrap script
@@ -91,6 +95,7 @@ func main() {
 	slogger := logs.NewZapLogger()
 	defer slogger.Sync() // Ensure logger is flushed before exit
 	cfg.ChariotLogger = slogger
+	slogger.Info("Starting Chariot service...")
 	// Warn if legacy env var is present
 	if legacy := os.Getenv("CHARIOT_BOOTSTRAP_FILE"); legacy != "" {
 		slogger.Warn("Ignoring legacy env var CHARIOT_BOOTSTRAP_FILE; use CHARIOT_BOOTSTRAP instead",

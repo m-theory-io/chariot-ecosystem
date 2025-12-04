@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -624,6 +625,12 @@ func (h *Handlers) HandleLogin(c echo.Context) error {
 	session := h.sessionManager.NewSession(username, cfg.ChariotLogger, token)
 	session.Authenticated = true
 
+	// Ensure user's sandbox directories exist
+	if err := cfg.EnsureSandboxDirectories(username); err != nil {
+		log.Printf("Warning: Failed to create sandbox directories for user %s: %v", username, err)
+		// Don't fail login, just log the warning
+	}
+
 	// Success response
 	return c.JSON(http.StatusOK, ResultJSON{
 		Result: "OK",
@@ -657,6 +664,33 @@ func (h *Handlers) HandleLogout(c echo.Context) error {
 			"message": "Successfully logged out",
 		},
 	})
+}
+
+// SessionProfile returns information about the authenticated session and storage scopes.
+func (h *Handlers) SessionProfile(c echo.Context) error {
+	sess, ok := c.Get("session").(*chariot.Session)
+	if !ok || sess == nil {
+		return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "session not found"})
+	}
+	username := sess.Username
+	if username == "" {
+		username = sess.UserID
+	}
+	// Auto-create sandbox directories if enabled
+	if cfg.ChariotConfig.SandboxEnabled {
+		if err := cfg.EnsureSandboxDirectories(username); err != nil {
+			cfg.ChariotLogger.Warn("Failed to ensure sandbox directories", zap.String("username", username), zap.Error(err))
+		}
+	}
+	profile := map[string]interface{}{
+		"user_id":               sess.UserID,
+		"username":              username,
+		"sandbox_enabled":       cfg.ChariotConfig.SandboxEnabled,
+		"sandbox_scope_default": string(cfg.DefaultStorageScope()),
+		"sandbox_scopes":        []cfg.StorageScope{cfg.StorageScopeSandbox, cfg.StorageScopeGlobal},
+		"sandbox_key":           cfg.SanitizeSandboxKey(username),
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: profile})
 }
 
 // Session authentication middleware
@@ -843,6 +877,191 @@ func convertValueToJSON(val interface{}) interface{} {
 		}
 		return fmt.Sprintf("%v", val)
 	}
+}
+
+// File management handlers with scope support
+
+// ListFiles returns a list of files in the specified scope
+func (h *Handlers) ListFiles(c echo.Context) error {
+	sess, ok := c.Get("session").(*chariot.Session)
+	if !ok || sess == nil {
+		return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "session required"})
+	}
+	username := sess.Username
+	if username == "" {
+		username = sess.UserID
+	}
+
+	// Parse scope from query param, default to user's default scope
+	scopeRaw := c.QueryParam("scope")
+	scope := cfg.ResolveStorageScope(scopeRaw)
+
+	cfg.ChariotLogger.Info("ListFiles request",
+		zap.String("user", username),
+		zap.String("scopeRaw", scopeRaw),
+		zap.String("resolvedScope", string(scope)),
+		zap.Bool("sandboxEnabled", cfg.ChariotConfig.SandboxEnabled),
+	)
+
+	// Get base directory for data/files
+	baseDir, err := cfg.EnsureStorageBase(cfg.StorageKindData, scope, username)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	filesDir := filepath.Join(baseDir, "files")
+	cfg.ChariotLogger.Info("ListFiles directory",
+		zap.String("filesDir", filesDir),
+	)
+
+	if err := os.MkdirAll(filesDir, 0o755); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	entries, err := os.ReadDir(filesDir)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".ch" {
+			files = append(files, entry.Name())
+		}
+	}
+
+	// Set response header indicating actual scope used
+	c.Response().Header().Set("X-Chariot-Scope", string(scope))
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: files})
+}
+
+// GetFile retrieves file content from the specified scope
+func (h *Handlers) GetFile(c echo.Context) error {
+	sess, ok := c.Get("session").(*chariot.Session)
+	if !ok || sess == nil {
+		return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "session required"})
+	}
+	username := sess.Username
+	if username == "" {
+		username = sess.UserID
+	}
+
+	fileName := c.Param("name")
+	if fileName == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "file name required"})
+	}
+
+	scopeRaw := c.QueryParam("scope")
+	scope := cfg.ResolveStorageScope(scopeRaw)
+
+	baseDir, err := cfg.EnsureStorageBase(cfg.StorageKindData, scope, username)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	filePath := filepath.Join(baseDir, "files", fileName)
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "file not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	c.Response().Header().Set("X-Chariot-Scope", string(scope))
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: string(content)})
+}
+
+// SaveFile saves file content to the specified scope
+func (h *Handlers) SaveFile(c echo.Context) error {
+	sess, ok := c.Get("session").(*chariot.Session)
+	if !ok || sess == nil {
+		return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "session required"})
+	}
+	username := sess.Username
+	if username == "" {
+		username = sess.UserID
+	}
+
+	var req struct {
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	if err := c.Bind(&req); err != nil || req.Name == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
+	}
+
+	scopeRaw := c.QueryParam("scope")
+	scope := cfg.ResolveStorageScope(scopeRaw)
+
+	cfg.ChariotLogger.Info("SaveFile request",
+		zap.String("user", username),
+		zap.String("fileName", req.Name),
+		zap.String("scopeRaw", scopeRaw),
+		zap.String("resolvedScope", string(scope)),
+		zap.Bool("sandboxEnabled", cfg.ChariotConfig.SandboxEnabled),
+	)
+
+	baseDir, err := cfg.EnsureStorageBase(cfg.StorageKindData, scope, username)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	filesDir := filepath.Join(baseDir, "files")
+	cfg.ChariotLogger.Info("SaveFile directory",
+		zap.String("filesDir", filesDir),
+	)
+
+	if err := os.MkdirAll(filesDir, 0o755); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	filePath := filepath.Join(filesDir, req.Name)
+	if err := os.WriteFile(filePath, []byte(req.Content), 0o644); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	cfg.ChariotLogger.Info("SaveFile success",
+		zap.String("filePath", filePath),
+	)
+	c.Response().Header().Set("X-Chariot-Scope", string(scope))
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: "file saved"})
+}
+
+// DeleteFile removes a file from the specified scope
+func (h *Handlers) DeleteFile(c echo.Context) error {
+	sess, ok := c.Get("session").(*chariot.Session)
+	if !ok || sess == nil {
+		return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "session required"})
+	}
+	username := sess.Username
+	if username == "" {
+		username = sess.UserID
+	}
+
+	fileName := c.Param("name")
+	if fileName == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "file name required"})
+	}
+
+	scopeRaw := c.QueryParam("scope")
+	scope := cfg.ResolveStorageScope(scopeRaw)
+
+	baseDir, err := cfg.EnsureStorageBase(cfg.StorageKindData, scope, username)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	filePath := filepath.Join(baseDir, "files", fileName)
+	if err := os.Remove(filePath); err != nil {
+		if os.IsNotExist(err) {
+			return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "file not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	c.Response().Header().Set("X-Chariot-Scope", string(scope))
+	return c.JSON(http.StatusNoContent, nil)
 }
 
 // Health returns basic liveness information

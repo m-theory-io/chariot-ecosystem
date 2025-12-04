@@ -396,14 +396,33 @@ export default function VisualDSLPrototype() {
       const baseUrl = (localStorage.getItem('diagram_server_base_url') || defaultServer).replace(/\/$/, '');
       try {
         const token = localStorage.getItem('chariot_auth_token') || '';
-        const res = await fetch(baseUrl, {
+        const storedScope = (localStorage.getItem('diagram_server_scope') || 'global').toLowerCase();
+        const shareFlag = localStorage.getItem('diagram_server_share') === '1';
+        const targetScope = shareFlag ? 'global' : (storedScope || 'global');
+        let targetUrl = baseUrl;
+        try {
+          if (typeof window !== 'undefined') {
+            const scoped = new URL(baseUrl, window.location.origin);
+            if (targetScope) {
+              scoped.searchParams.set('scope', targetScope);
+            }
+            targetUrl = scoped.toString();
+          }
+        } catch (err) {
+          if (targetScope) {
+            const joiner = baseUrl.includes('?') ? '&' : '?';
+            targetUrl = `${baseUrl}${joiner}scope=${encodeURIComponent(targetScope)}`;
+          }
+        }
+        const res = await fetch(targetUrl, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: token } : {}) },
           body: JSON.stringify({ name: currentDiagramName, content: JSON.parse(jsonString) }),
         });
         if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
-        alert(`Diagram "${currentDiagramName}" saved to server.`);
+        const scopeLabelText = targetScope === 'sandbox' ? 'sandbox' : 'global';
+        alert(`Diagram "${currentDiagramName}" saved to server (${scopeLabelText} scope).`);
         return;
       } catch (err) {
         alert('Failed to save to server. Falling back to local download.');

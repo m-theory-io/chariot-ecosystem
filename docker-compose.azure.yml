@@ -55,12 +55,13 @@ services:
       - CHARIOT_SSL=false
       - CHARIOT_HEADLESS=false
       # Azure Key Vault configuration (firewall rule added)
+      - CHARIOT_SECRET_PROVIDER=azure
       - CHARIOT_VAULT_NAME=${AZURE_VAULT_NAME:-chariot-vault}
       - CHARIOT_VAULT_KEY_PREFIX=azure
-      # Data/tree paths and bootstrap script
-      - CHARIOT_DATA_PATH=/app/data
-      - CHARIOT_TREE_PATH=/app/data/trees
-      - CHARIOT_BOOTSTRAP=bootstrap.ch
+      # Sandbox configuration
+      - CHARIOT_SANDBOX_ENABLED=true
+      - CHARIOT_SANDBOX_ROOT="data/sandboxes"
+      - CHARIOT_SANDBOX_DEFAULT_SCOPE="sandbox"
     ports:
       - "8087:8087"
     depends_on:
