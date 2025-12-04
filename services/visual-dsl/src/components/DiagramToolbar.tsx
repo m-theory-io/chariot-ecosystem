@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ChariotCodeGeneratorComponent } from './ChariotCodeGenerator';
@@ -45,37 +45,77 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const [pendingServerBaseUrl, setPendingServerBaseUrl] = useState('');
   const [testConnStatus, setTestConnStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [testConnMessage, setTestConnMessage] = useState<string>('');
+  const [sessionProfile, setSessionProfile] = useState<{ enabled: boolean; scopes: string[]; defaultScope: string }>({
+    enabled: false,
+    scopes: ['global'],
+    defaultScope: 'global'
+  });
+  const [activeScope, setActiveScope] = useState('global');
+  const [shareToGlobal, setShareToGlobal] = useState(false);
+  const resolvedScope = sessionProfile.enabled ? activeScope : 'global';
+  const effectiveSaveScope = shareToGlobal ? 'global' : resolvedScope;
+  const scopeLabel = (scope: string) => (scope === 'sandbox' ? 'Sandbox' : 'Global');
   const getAuthToken = () => localStorage.getItem('chariot_auth_token') || '';
   const setAuthToken = (t: string) => localStorage.setItem('chariot_auth_token', t);
   const directoryInputRef = useRef<HTMLInputElement | null>(null);
 
+  const buildServerUrl = useCallback(
+    (suffix = '', scope?: string) => {
+      const base = (serverBaseUrl || '/api/diagrams').replace(/\/$/, '');
+      const target = `${base}${suffix}`;
+      try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
+        const url = origin ? new URL(target, origin) : new URL(target);
+        if (scope) {
+          url.searchParams.set('scope', scope);
+        }
+        return url.toString();
+      } catch (err) {
+        if (scope) {
+          const joiner = target.includes('?') ? '&' : '?';
+          return `${target}${joiner}scope=${encodeURIComponent(scope)}`;
+        }
+        return target;
+      }
+    },
+    [serverBaseUrl]
+  );
+
   // Load saved diagrams list (local or server based on storage mode)
   const loadSavedDiagrams = async () => {
-    if (storageMode === 'server') {
-      try {
-        const token = localStorage.getItem('chariot_auth_token') || '';
-        const res = await fetch(serverBaseUrl, { credentials: 'include', headers: token ? { Authorization: token } : undefined });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const payload = await res.json();
-        const list = Array.isArray(payload?.Data)
-          ? payload.Data
-          : Array.isArray(payload?.data)
-          ? payload.data
-          : [];
-        const diagrams: SavedDiagram[] = list.map((d: any) => ({
-          key: d.Name || d.name,
-          name: (d.Name || d.name) ?? 'Untitled',
-          modified: (d.Modified || d.modified) ? new Date(d.Modified || d.modified).toISOString() : new Date().toISOString(),
-        }));
-        diagrams.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-        setSavedDiagrams(diagrams);
-      } catch (err) {
-        console.warn('Failed to fetch server diagrams list:', err);
-        setSavedDiagrams([]);
+      // Load saved diagrams list (local or server based on storage mode)
+      if (storageMode === 'server') {
+        try {
+          const token = getAuthToken();
+          const url = buildServerUrl('', resolvedScope);
+          const headers = token ? { Authorization: token } : undefined;
+          const res = await fetch(url, { credentials: 'include', headers });
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const headerScope = (res.headers.get('X-Chariot-Scope') || '').toLowerCase();
+          if (headerScope && headerScope !== resolvedScope) {
+            setActiveScope(prev => (prev === headerScope ? prev : headerScope));
+          }
+          const payload = await res.json();
+          const list = Array.isArray(payload?.Data)
+            ? payload.Data
+            : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+          const diagrams: SavedDiagram[] = list.map((d: any) => ({
+            key: d.Name || d.name,
+            name: (d.Name || d.name) ?? 'Untitled',
+            modified: (d.Modified || d.modified) ? new Date(d.Modified || d.modified).toISOString() : new Date().toISOString(),
+          }));
+          diagrams.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+          setSavedDiagrams(diagrams);
+        } catch (err) {
+          console.warn('Failed to fetch server diagrams list:', err);
+          setSavedDiagrams([]);
+        }
+        return;
       }
-      return;
-    }
-
     // Local storage fallback
     const diagramList = JSON.parse(localStorage.getItem('diagram_list') || '[]');
     const diagrams: SavedDiagram[] = [];
@@ -98,6 +138,59 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     setSavedDiagrams(diagrams);
   };
 
+  const fetchSessionProfile = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('chariot_auth_token') || '';
+      const headers: Record<string, string> = token ? { Authorization: token } : {};
+      const res = await fetch('/api/session/profile', { credentials: 'include', headers });
+      if (!res.ok) {
+        if (res.status === 401) {
+          setSessionProfile({ enabled: false, scopes: ['global'], defaultScope: 'global' });
+          setActiveScope('global');
+          setShareToGlobal(false);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const payload = await res.json();
+      const data = payload?.data || payload?.Data || payload;
+      if (!data) {
+        return;
+      }
+      const enabled = !!data.sandbox_enabled;
+      const scopesRaw = Array.isArray(data.sandbox_scopes) ? data.sandbox_scopes : [];
+      const normalized = scopesRaw.map((s: string) => String(s || '').toLowerCase()).filter(Boolean);
+      if (enabled && !normalized.includes('global')) {
+        normalized.push('global');
+      }
+      const scopeList = enabled
+        ? (normalized.length ? Array.from(new Set(normalized)) : ['sandbox', 'global'])
+        : ['global'];
+      const defaultCandidate = String(data.sandbox_scope_default || (enabled ? 'sandbox' : 'global')).toLowerCase();
+      const defaultScope = enabled
+        ? (scopeList.includes(defaultCandidate) ? defaultCandidate : scopeList[0])
+        : 'global';
+      setSessionProfile({ enabled, scopes: scopeList, defaultScope });
+      setActiveScope(prev => {
+        if (!enabled) {
+          return 'global';
+        }
+        if (scopeList.includes(prev)) {
+          return prev;
+        }
+        return defaultScope;
+      });
+      if (!enabled) {
+        setShareToGlobal(false);
+      }
+    } catch (err) {
+      console.warn('Failed to load sandbox profile for diagrams toolbar', err);
+      setSessionProfile({ enabled: false, scopes: ['global'], defaultScope: 'global' });
+      setActiveScope('global');
+      setShareToGlobal(false);
+    }
+  }, []);
+
   useEffect(() => {
     // initial
     loadSavedDiagrams();
@@ -110,10 +203,49 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     setServerBaseUrl(storedServer);
   }, []);
 
-  // Refresh list when mode/base URL changes
+  useEffect(() => {
+    const storedScope = localStorage.getItem('diagram_server_scope');
+    if (storedScope) {
+      setActiveScope(storedScope.toLowerCase());
+    }
+    setShareToGlobal(localStorage.getItem('diagram_server_share') === '1');
+  }, []);
+
+  // Refresh list when mode/base URL/scope changes
   useEffect(() => {
     loadSavedDiagrams();
-  }, [storageMode, serverBaseUrl]);
+  }, [storageMode, serverBaseUrl, resolvedScope]);
+
+  useEffect(() => {
+    localStorage.setItem('diagram_server_scope', activeScope);
+  }, [activeScope]);
+
+  useEffect(() => {
+    localStorage.setItem('diagram_server_share', shareToGlobal ? '1' : '0');
+  }, [shareToGlobal]);
+
+  useEffect(() => {
+    if (!sessionProfile.enabled) {
+      if (activeScope !== 'global') {
+        setActiveScope('global');
+      }
+      if (shareToGlobal) {
+        setShareToGlobal(false);
+      }
+    }
+  }, [sessionProfile.enabled, activeScope, shareToGlobal]);
+
+  useEffect(() => {
+    if (activeScope === 'global' && shareToGlobal) {
+      setShareToGlobal(false);
+    }
+  }, [activeScope, shareToGlobal]);
+
+  useEffect(() => {
+    if (storageMode === 'server') {
+      fetchSessionProfile();
+    }
+  }, [storageMode, fetchSessionProfile]);
 
   useEffect(() => {
     if (directoryInputRef.current) {
@@ -152,8 +284,8 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const loadDiagramFromStorage = async (key: string) => {
     if (storageMode === 'server') {
       try {
-        const url = `${serverBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(key)}`;
-        const token = localStorage.getItem('chariot_auth_token') || '';
+        const url = buildServerUrl(`/${encodeURIComponent(key)}`, resolvedScope);
+        const token = getAuthToken();
         const res = await fetch(url, { credentials: 'include', headers: token ? { Authorization: token } : undefined });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
@@ -188,8 +320,8 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     if (confirmed) {
       if (storageMode === 'server') {
         try {
-          const url = `${serverBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(key)}`;
-          const token = localStorage.getItem('chariot_auth_token') || '';
+          const url = buildServerUrl(`/${encodeURIComponent(key)}`, resolvedScope);
+          const token = getAuthToken();
           const res = await fetch(url, { method: 'DELETE', credentials: 'include', headers: token ? { Authorization: token } : undefined });
           if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
         } catch (err) {
@@ -211,13 +343,13 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
     if (storageMode === 'server') {
       try {
         // fetch original
-        const url = `${serverBaseUrl.replace(/\/$/, '')}/${encodeURIComponent(key)}`;
-        const token = localStorage.getItem('chariot_auth_token') || '';
+        const url = buildServerUrl(`/${encodeURIComponent(key)}`, resolvedScope);
+        const token = getAuthToken();
         const res = await fetch(url, { credentials: 'include', headers: token ? { Authorization: token } : undefined });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const original = await res.json();
         const newName = `${name} Copy`;
-        const saveRes = await fetch(serverBaseUrl, {
+        const saveRes = await fetch(buildServerUrl('', effectiveSaveScope), {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: token } : {}) },
@@ -361,6 +493,9 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
       }
       setTestConnStatus('ok');
       setTestConnMessage('Connected');
+      if (pendingStorageMode === 'server') {
+        await fetchSessionProfile();
+      }
     } catch (err: any) {
       setTestConnStatus('error');
       setTestConnMessage(err?.message || 'Network error');
@@ -485,6 +620,37 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
               className="w-48 h-8 text-sm"
             />
           </div>
+
+          {storageMode === 'server' && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Scope:
+              </label>
+              <select
+                value={sessionProfile.enabled ? activeScope : 'global'}
+                onChange={(e) => setActiveScope(e.target.value.toLowerCase())}
+                disabled={!sessionProfile.enabled}
+                className="h-8 text-xs px-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+              >
+                {(sessionProfile.enabled ? sessionProfile.scopes : ['global']).map((scope) => (
+                  <option key={scope} value={scope}>
+                    {scopeLabel(scope)}
+                  </option>
+                ))}
+              </select>
+              {sessionProfile.enabled && (
+                <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={shareToGlobal}
+                    disabled={activeScope === 'global'}
+                    onChange={(e) => setShareToGlobal(e.target.checked)}
+                  />
+                  <span>Share to global</span>
+                </label>
+              )}
+            </div>
+          )}
 
           {/* File Operations */}
           <div className="flex items-center gap-2 flex-wrap flex-1">
@@ -614,7 +780,7 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
               <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                 {storageMode === 'local'
                   ? (saveDirectory ? `Save Path: ${saveDirectory}` : 'Storage: Local')
-                  : `Storage: Server (${serverBaseUrl})`}
+                  : `Storage: Server (${serverBaseUrl || '/api/diagrams'}) • Scope: ${scopeLabel(resolvedScope)}${shareToGlobal ? ' → Global' : ''}`}
               </span>
               <Button
                 onClick={openSettings}

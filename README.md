@@ -18,6 +18,30 @@ Notes
 
 Chariot can now run with either Azure Key Vault (`CHARIOT_SECRET_PROVIDER=azure`) or a local JSON-backed provider (`CHARIOT_SECRET_PROVIDER=file`). See `docs/SecretManagement.md` for configuration examples and migration notes.
 
+## Per-user sandboxes
+
+The REST service can isolate on-disk artifacts (files, trees, Visual DSL diagrams) per authenticated user. Enable the feature with the following environment variables (defaults shown):
+
+| Variable | Description |
+| --- | --- |
+| `CHARIOT_SANDBOX_ENABLED=false` | Turn on sandbox-aware storage. When disabled, all scopes collapse to `global`. |
+| `CHARIOT_SANDBOX_ROOT=$CHARIOT_DATA_PATH/sandboxes` | Root directory where per-user folders are created. Each user gets `/<sanitized-user>/<data|trees|diagrams>`. |
+| `CHARIOT_SANDBOX_DEFAULT_SCOPE=sandbox` | Preferred scope (`sandbox` or `global`) used when a client does not pass an explicit scope. |
+
+Runtime details:
+
+- The go-chariot API now exposes `GET /api/session/profile`, which returns the authenticated username, the available scopes, and the sanitized sandbox key. Clients (charioteer and visual-dsl) use this to render scope pickers.
+- Diagram and file CRUD endpoints accept `?scope=sandbox|global` and always emit `X-Chariot-Scope` so callers know which scope actually handled the request.
+  - Files: `GET /api/files`, `GET /api/files/:name`, `POST /api/files`, `DELETE /api/files/:name`
+  - Diagrams: `GET /api/diagrams`, `GET /api/diagrams/:name`, `POST /api/diagrams`, `DELETE /api/diagrams/:name`
+- Charioteer's Files tab shows a "Scope" dropdown (when sandboxes enabled) allowing users to switch between sandbox and global file storage. The dropdown appears to the left of the file selector.
+- When sandboxes are enabled, both front-ends show scope controls. Charioteer's Diagrams tab and Visual DSL include a "Share to global" checkbox for one-off global saves.
+- The Functions tab always uses global/server storage and does not display scope controls (function library is shared across all users).
+- On first login with sandboxes enabled, user directories are auto-created at `<CHARIOT_SANDBOX_ROOT>/<sanitized-username>/{data,trees,diagrams}`.
+- When sandboxes are disabled, the UI hides the additional controls and requests continue to use the legacy global paths.
+
+These changes do not introduce new breaking storage locations for legacy deployments—the feature is opt-in via `CHARIOT_SANDBOX_ENABLED=true`.
+
 ## Model Context Protocol (MCP) integration
 
 go-chariot includes an optional MCP server built with the official Go SDK. It supports stdio transport today and has a placeholder route for WebSocket (WS) transport.

@@ -188,6 +188,67 @@ func listenersStopHandler(w http.ResponseWriter, r *http.Request) {
 	proxyToBackendJSON(w, r, http.MethodPost, "/api/listeners/"+url.PathEscape(name)+"/stop", nil)
 }
 
+// sessionProfileHandler proxies to backend /api/session/profile
+func sessionProfileHandler(w http.ResponseWriter, r *http.Request) {
+	proxyToBackendJSON(w, r, http.MethodGet, "/api/session/profile", nil)
+}
+
+// filesListProxyHandler proxies file list and save requests to backend /api/files
+func filesListProxyHandler(w http.ResponseWriter, r *http.Request) {
+	scope := r.URL.Query().Get("scope")
+	path := "/api/files"
+	if scope != "" {
+		path += "?scope=" + url.QueryEscape(scope)
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		// List files
+		proxyToBackendJSON(w, r, http.MethodGet, path, nil)
+	case http.MethodPost:
+		// Save file
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			sendError(w, http.StatusBadRequest, "failed to read request body")
+			return
+		}
+		proxyToBackendJSON(w, r, http.MethodPost, path, body)
+	default:
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// fileGetProxyHandler proxies file get/delete requests to backend /api/files/:name
+func fileGetProxyHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract filename from path: /api/files/:name or /charioteer/api/files/:name
+	var name string
+	if strings.HasPrefix(r.URL.Path, "/charioteer/api/files/") {
+		name = strings.TrimPrefix(r.URL.Path, "/charioteer/api/files/")
+	} else if strings.HasPrefix(r.URL.Path, "/api/files/") {
+		name = strings.TrimPrefix(r.URL.Path, "/api/files/")
+	}
+
+	if name == "" {
+		sendError(w, http.StatusBadRequest, "filename required in path")
+		return
+	}
+
+	scope := r.URL.Query().Get("scope")
+	path := "/api/files/" + url.PathEscape(name)
+	if scope != "" {
+		path += "?scope=" + url.QueryEscape(scope)
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		proxyToBackendJSON(w, r, http.MethodGet, path, nil)
+	case http.MethodDelete:
+		proxyToBackendJSON(w, r, http.MethodDelete, path, nil)
+	default:
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
 // ---- WebSocket proxy support ----
 // We use gorilla/websocket for client/server WS in charioteer as well to proxy to backend
 // without relying on the http reverse proxy. This keeps the Authorization header on upgrade.
@@ -428,7 +489,7 @@ const editorTemplate = `<!DOCTYPE html>
         .toolbar-tabs {
             display: flex;
             gap: 4px;
-            margin-right: 16px;
+            margin-right: 8px;
         }
 
         .toolbar-tab {
@@ -463,7 +524,7 @@ const editorTemplate = `<!DOCTYPE html>
             padding: 10px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 8px;
             height: 50px;
             box-sizing: border-box;
             flex-shrink: 0;
@@ -485,6 +546,32 @@ const editorTemplate = `<!DOCTYPE html>
             white-space: nowrap;
             min-width: 40px;    /* Optional: keep label width consistent */
             margin-right: 0;    /* Remove any right margin */
+        }
+
+        .file-scope-controls,
+        .diagram-scope-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 0;
+            margin-right: 8px;
+        }
+
+        .file-scope-controls label,
+        .diagram-scope-controls label {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .file-scope-controls select,
+        .diagram-scope-controls select {
+            background-color: #3c3c3c;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 5px 10px;
+            font-size: 14px;
+            min-width: 120px;
         }
 
         .file-selector select {
@@ -1283,6 +1370,12 @@ const editorTemplate = `<!DOCTYPE html>
                     <button id="agentsTab" class="toolbar-tab">Agents</button>
                 </div>
                 <div id="fileToolbar" class="toolbar-section active">
+                    <div class="file-scope-controls" id="fileScopeControls" style="display:none;">
+                        <label for="fileScopeSelect">Scope:</label>
+                        <select id="fileScopeSelect" disabled>
+                            <option value="global">Global</option>
+                        </select>
+                    </div>
                     <div class="file-selector">
                         <label for="fileSelect">File:</label>
                         <select id="fileSelect" disabled>
@@ -1316,11 +1409,21 @@ const editorTemplate = `<!DOCTYPE html>
                     <button id="refreshAgentsButton" class="toolbar-button">🔄 Refresh</button>
                 </div>
                 <div id="diagramsToolbar" class="toolbar-section">
+                    <div class="diagram-scope-controls" id="diagramScopeControls" style="display:none;">
+                        <label for="diagramScopeSelect">Scope:</label>
+                        <select id="diagramScopeSelect" disabled>
+                            <option value="global">Global</option>
+                        </select>
+                    </div>
                     <div class="file-selector">
                         <label for="diagramSelect">Diagram:</label>
                         <select id="diagramSelect" disabled>
                             <option value="">Select a diagram...</option>
                         </select>
+                        <label id="diagramGlobalShareLabel" class="diagram-share-label" style="display:none; align-items:center; gap:4px;">
+                            <input type="checkbox" id="diagramGlobalShareCheckbox" disabled>
+                            <span>Share to global</span>
+                        </label>
                     </div>
                     <div class="save-buttons">
                         <button id="refreshDiagramsButton" class="toolbar-button">🔄 Refresh</button>
@@ -1483,6 +1586,13 @@ const editorTemplate = `<!DOCTYPE html>
     // Diagrams state
     let currentDiagramName = '';
     let currentDiagramJSON = null; // last loaded JSON for selected diagram
+    let currentFileScope = 'global'; // Current scope for file operations
+    let sandboxProfile = {
+        enabled: true,
+        scopes: ['global', 'sandbox'],
+        defaultScope: 'global',
+        currentScope: 'global'
+    };
         // Session management variables
         let sessionTimer = null;
         let warningTimer = null;
@@ -2071,6 +2181,55 @@ const editorTemplate = `<!DOCTYPE html>
             }
             return path;
         }
+
+        async function fetchSessionProfile() {
+            if (!authToken) {
+                return null;
+            }
+            try {
+                const resp = await fetch(getAPIPath('/api/session/profile'), { headers: getAuthHeaders() });
+                if (!resp.ok) {
+                    if (resp.status === 401) {
+                        logout();
+                    }
+                    return null;
+                }
+                const payload = await resp.json().catch(() => null);
+                const data = payload?.data || payload?.Data || payload;
+                if (!data) {
+                    return null;
+                }
+                // Parse scopes from backend, default to both global and sandbox if not provided
+                const scopes = Array.isArray(data.sandbox_scopes)
+                    ? data.sandbox_scopes.map(s => String(s || '').toLowerCase()).filter(Boolean)
+                    : ['global', 'sandbox'];
+                sandboxProfile = {
+                    enabled: data.sandbox_enabled !== undefined ? !!data.sandbox_enabled : true,
+                    scopes: scopes.length ? Array.from(new Set(scopes)) : ['global', 'sandbox'],
+                    defaultScope: String(data.sandbox_scope_default || 'global').toLowerCase(),
+                    currentScope: String(data.sandbox_scope_default || 'global').toLowerCase()
+                };
+                currentFileScope = sandboxProfile.currentScope;
+                applyDiagramScopeUI();
+                applyFileScopeUI();
+                return data;
+            } catch (e) {
+                console.warn('Failed to load session profile', e);
+                return null;
+            }
+        }
+
+        function resetSandboxProfile() {
+            sandboxProfile = {
+                enabled: false,
+                scopes: ['global'],
+                defaultScope: 'global',
+                currentScope: 'global'
+            };
+            currentFileScope = 'global';
+            applyDiagramScopeUI();
+            applyFileScopeUI();
+        }
         
         // Set up Monaco editor (called from initializeEditor)
         function setupMonacoEditor() {
@@ -2138,6 +2297,9 @@ const editorTemplate = `<!DOCTYPE html>
             initializeSplitter();
             initializeLeftSplitter();
 
+            applyDiagramScopeUI();
+            applyFileScopeUI();
+
             // Set initial UI state (logged out)
             updateAuthUI(false);
             
@@ -2161,6 +2323,7 @@ const editorTemplate = `<!DOCTYPE html>
                 startSessionManagement();                
 
                 updateAuthUI(true);
+                fetchSessionProfile();
                 fetchUserFunctions().then(functionNames => {
                     setChariotTokenizer(functionNames);
                 });
@@ -2645,6 +2808,7 @@ const editorTemplate = `<!DOCTYPE html>
                     startSessionManagement();                    
                     
                     updateAuthUI(true);
+                    await fetchSessionProfile();
                     await fetchUserFunctions().then(functionNames => {
                         setChariotTokenizer(functionNames);
                     });                    
@@ -2693,6 +2857,7 @@ const editorTemplate = `<!DOCTYPE html>
             authToken = null;
             sessionId = null;
             currentUser = null;
+            resetSandboxProfile();
             
             // Clear localStorage
             localStorage.removeItem('chariot_token');
@@ -2928,6 +3093,27 @@ const editorTemplate = `<!DOCTYPE html>
                     }
                 });
                 console.log('DEBUG: File select handler added');
+            }
+
+            // File scope selection
+            const fileScopeSelect = document.getElementById('fileScopeSelect');
+            if (fileScopeSelect) {
+                fileScopeSelect.addEventListener('change', async function() {
+                    currentFileScope = this.value || 'global';
+                    console.log('DEBUG: File scope changed to', currentFileScope);
+                    // Clear current file and reload list
+                    currentFileName = '';
+                    if (editor) {
+                        editor.setValue('');
+                    }
+                    const fileSelect = document.getElementById('fileSelect');
+                    if (fileSelect) {
+                        fileSelect.value = '';
+                    }
+                    updateSaveButtonStates();
+                    await loadFileList();
+                });
+                console.log('DEBUG: File scope select handler added');
             }
             
             // Save buttons
@@ -3359,6 +3545,8 @@ const editorTemplate = `<!DOCTYPE html>
                 const saveAsDiagramButton = document.getElementById('saveAsDiagramButton');
                 const deleteDiagramButton = document.getElementById('deleteDiagramButton');
                 const diagramSelect = document.getElementById('diagramSelect');
+                const scopeSelect = document.getElementById('diagramScopeSelect');
+                const shareCheckbox = document.getElementById('diagramGlobalShareCheckbox');
 
                 if (diagramSelect) {
                     diagramSelect.addEventListener('change', async function() {
@@ -3370,6 +3558,26 @@ const editorTemplate = `<!DOCTYPE html>
                         } else if (editor) {
                             editor.setValue('');
                         }
+                    });
+                }
+
+                if (scopeSelect) {
+                    scopeSelect.addEventListener('change', async function() {
+                        sandboxProfile.currentScope = scopeSelect.value || 'global';
+                        applyDiagramScopeUI();
+                        await loadDiagramsList(false);
+                        currentDiagramName = '';
+                        currentDiagramJSON = null;
+                        toggleDiagramActionButtons(false);
+                        if (editor) {
+                            editor.setValue('');
+                        }
+                    });
+                }
+
+                if (shareCheckbox) {
+                    shareCheckbox.addEventListener('change', function() {
+                        applyDiagramScopeUI();
                     });
                 }
 
@@ -3416,19 +3624,25 @@ const editorTemplate = `<!DOCTYPE html>
         }        
 
         // Load diagrams list from backend and populate dropdown
-        async function loadDiagramsList() {
+        async function loadDiagramsList(retainSelection = true) {
             const select = document.getElementById('diagramSelect');
             if (!select) return;
+            const previousSelection = retainSelection ? select.value : '';
             select.innerHTML = '<option value="">Select a diagram...</option>';
             select.disabled = true;
             toggleDiagramActionButtons(false);
             try {
-                const resp = await fetch(getAPIPath('/api/diagrams'), { headers: getAuthHeaders() });
+                const resp = await fetch(buildDiagramURL('/api/diagrams'), { headers: getAuthHeaders() });
                 if (!resp.ok) {
                     if (resp.status === 401) { logout(); return; }
                     const t = await resp.text();
                     showOutput('Failed to load diagrams: ' + t, 'error');
                     return;
+                }
+                const resolvedScope = (resp.headers.get('X-Chariot-Scope') || '').toLowerCase();
+                if (resolvedScope && resolvedScope !== sandboxProfile.currentScope) {
+                    sandboxProfile.currentScope = resolvedScope;
+                    applyDiagramScopeUI();
                 }
                 const result = await resp.json();
                 const list = Array.isArray(result) ? result : (result && result.result === 'OK' ? result.data : []);
@@ -3448,7 +3662,18 @@ const editorTemplate = `<!DOCTYPE html>
             } catch (e) {
                 showOutput('Error loading diagrams: ' + e.message, 'error');
             }
-            // already marked at entry
+            const options = Array.from(select.options || []);
+            if (retainSelection && previousSelection && options.some(opt => opt.value === previousSelection)) {
+                select.value = previousSelection;
+                currentDiagramName = previousSelection;
+                toggleDiagramActionButtons(true);
+            } else {
+                select.value = '';
+                currentDiagramName = '';
+                currentDiagramJSON = null;
+                toggleDiagramActionButtons(false);
+            }
+            select.disabled = false;
         }
 
         // Fetch selected diagram JSON and generate Chariot code using shared codegen
@@ -3464,7 +3689,7 @@ const editorTemplate = `<!DOCTYPE html>
             }
             const name = select.value;
             try {
-                const resp = await fetch(getAPIPath('/api/diagrams/' + encodeURIComponent(name)), { headers: getAuthHeaders() });
+                const resp = await fetch(buildDiagramURL('/api/diagrams/' + encodeURIComponent(name)), { headers: getAuthHeaders() });
                 if (!resp.ok) {
                     if (resp.status === 401) { logout(); return; }
                     const t = await resp.text();
@@ -3510,6 +3735,100 @@ const editorTemplate = `<!DOCTYPE html>
             if (delBtn) delBtn.disabled = !enabled;
         }
 
+        function getCurrentDiagramScope() {
+            return sandboxProfile.currentScope || 'global';
+        }
+
+        function getScopeLabel(scope) {
+            return scope === 'sandbox' ? 'Sandbox' : 'Global';
+        }
+
+        function getSaveTargetScope() {
+            const shareCheckbox = document.getElementById('diagramGlobalShareCheckbox');
+            if (shareCheckbox && shareCheckbox.checked) {
+                return 'global';
+            }
+            return getCurrentDiagramScope();
+        }
+
+        function resetDiagramShareOverride() {
+            const shareCheckbox = document.getElementById('diagramGlobalShareCheckbox');
+            if (shareCheckbox) {
+                shareCheckbox.checked = false;
+            }
+        }
+
+        function applyDiagramScopeUI() {
+            const controls = document.getElementById('diagramScopeControls');
+            const select = document.getElementById('diagramScopeSelect');
+            const shareLabel = document.getElementById('diagramGlobalShareLabel');
+            const shareCheckbox = document.getElementById('diagramGlobalShareCheckbox');
+            if (!controls || !select) {
+                return;
+            }
+            // Always show all available scopes from profile (baseline feature)
+            const scopes = sandboxProfile.scopes.length ? sandboxProfile.scopes : ['global', 'sandbox'];
+            select.innerHTML = '';
+            scopes.forEach(scope => {
+                const opt = document.createElement('option');
+                opt.value = scope;
+                opt.textContent = getScopeLabel(scope);
+                select.appendChild(opt);
+            });
+            if (!scopes.includes(sandboxProfile.currentScope)) {
+                const fallback = scopes.includes(sandboxProfile.defaultScope) ? sandboxProfile.defaultScope : scopes[0];
+                sandboxProfile.currentScope = fallback || 'global';
+            }
+            select.value = sandboxProfile.currentScope;
+            select.disabled = !authToken;
+            // Always show scope controls when logged in
+            controls.style.display = authToken ? 'flex' : 'none';
+            if (shareLabel && shareCheckbox) {
+                const showShare = sandboxProfile.enabled;
+                shareLabel.style.display = showShare ? 'flex' : 'none';
+                const disableShare = !showShare || sandboxProfile.currentScope === 'global';
+                shareCheckbox.disabled = disableShare;
+                if (disableShare) {
+                    shareCheckbox.checked = false;
+                }
+            }
+        }
+
+        function applyFileScopeUI() {
+            const controls = document.getElementById('fileScopeControls');
+            const select = document.getElementById('fileScopeSelect');
+            if (!controls || !select) {
+                return;
+            }
+            // Always show all available scopes from profile (baseline feature)
+            const scopes = sandboxProfile.scopes.length ? sandboxProfile.scopes : ['global', 'sandbox'];
+            select.innerHTML = '';
+            scopes.forEach(scope => {
+                const opt = document.createElement('option');
+                opt.value = scope;
+                opt.textContent = getScopeLabel(scope);
+                select.appendChild(opt);
+            });
+            if (!scopes.includes(currentFileScope)) {
+                const fallback = scopes.includes(sandboxProfile.defaultScope) ? sandboxProfile.defaultScope : scopes[0];
+                currentFileScope = fallback || 'global';
+            }
+            select.value = currentFileScope;
+            select.disabled = !authToken;
+            // Always show scope controls when logged in
+            controls.style.display = authToken ? 'flex' : 'none';
+        }
+
+        function buildDiagramURL(pathname, scopeOverride) {
+            const target = getAPIPath(pathname);
+            const url = new URL(target, window.location.origin);
+            const scope = scopeOverride || getCurrentDiagramScope();
+            if (scope) {
+                url.searchParams.set('scope', scope);
+            }
+            return url.toString();
+        }
+
         async function saveCurrentDiagram(asNew) {
             if (!authToken) { showOutput('Please log in first', 'error'); return; }
             const select = document.getElementById('diagramSelect');
@@ -3539,18 +3858,20 @@ const editorTemplate = `<!DOCTYPE html>
                 return;
             }
             try {
-                const resp = await fetch(getAPIPath('/api/diagrams'), {
+                const targetScope = getSaveTargetScope();
+                const resp = await fetch(buildDiagramURL('/api/diagrams', targetScope), {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({ name, content: contentJSON })
                 });
                 if (resp.status === 401) { logout(); return; }
                 if (resp.ok) {
-                    showOutput('Diagram saved: ' + name, 'success');
+                    showOutput('Diagram saved to ' + getScopeLabel(targetScope) + ' scope: ' + name, 'success');
                     await loadDiagramsList();
                     const sel = document.getElementById('diagramSelect');
                     if (sel) sel.value = name;
                     currentDiagramName = name;
+                    resetDiagramShareOverride();
                 } else {
                     const t = await resp.text();
                     showOutput('Save failed: ' + t, 'error');
@@ -3567,7 +3888,7 @@ const editorTemplate = `<!DOCTYPE html>
             const name = select.value;
             if (!confirm('Delete diagram "' + name + '"? This cannot be undone.')) return;
             try {
-                const resp = await fetch(getAPIPath('/api/diagrams/' + encodeURIComponent(name)), {
+                const resp = await fetch(buildDiagramURL('/api/diagrams/' + encodeURIComponent(name)), {
                     method: 'DELETE',
                     headers: getAuthHeaders(),
                 });
@@ -4280,11 +4601,13 @@ const editorTemplate = `<!DOCTYPE html>
             saveButton.textContent = '💾 Saving...';
             
             try {
-                const response = await fetch(getAPIPath('/api/save'), {
+                const url = getAPIPath('/api/files?scope=' + encodeURIComponent(currentFileScope));
+                console.log('DEBUG: Save - scope:', currentFileScope, 'fileName:', currentFileName, 'url:', url);
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
-                        path: CHARIOT_FILES_FOLDER + '/' + currentFileName,
+                        name: currentFileName,
                         content: content
                     })
                 });
@@ -4368,11 +4691,13 @@ const editorTemplate = `<!DOCTYPE html>
             saveAsButton.textContent = '💾 Saving...';
             
             try {
-                const response = await fetch(getAPIPath('/api/save'), {
+                const url = getAPIPath('/api/files?scope=' + encodeURIComponent(currentFileScope));
+                console.log('DEBUG: Save As - scope:', currentFileScope, 'fileName:', fileName, 'url:', url);
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
-                        path: CHARIOT_FILES_FOLDER + '/' + fileName,
+                        name: fileName,
                         content: content
                     })
                 });
@@ -4410,7 +4735,7 @@ const editorTemplate = `<!DOCTYPE html>
         // Save button event listener        
         // Load list of files from the server
         async function loadFileList() {
-            console.log('DEBUG: loadFileList called, authToken:', !!authToken);
+            console.log('DEBUG: loadFileList called, authToken:', !!authToken, 'scope:', currentFileScope);
             
             if (!authToken) {
                 console.log('DEBUG: No authToken, skipping file list load');
@@ -4418,7 +4743,7 @@ const editorTemplate = `<!DOCTYPE html>
             }
             
             try {
-                const url = getAPIPath('/api/files?folder=' + encodeURIComponent(CHARIOT_FILES_FOLDER));
+                const url = getAPIPath('/api/files?scope=' + encodeURIComponent(currentFileScope));
                 console.log('DEBUG: Fetching file list from:', url);
                 
                 const headers = getAuthHeaders();
@@ -4507,7 +4832,9 @@ const editorTemplate = `<!DOCTYPE html>
             if (!authToken) return;
             
             try {
-                const response = await fetch('/charioteer/api/file?path=' + encodeURIComponent(CHARIOT_FILES_FOLDER + '/' + fileName), {
+                const url = getAPIPath('/api/files/' + encodeURIComponent(fileName) + '?scope=' + encodeURIComponent(currentFileScope));
+                console.log('DEBUG: Load file - scope:', currentFileScope, 'fileName:', fileName, 'url:', url);
+                const response = await fetch(url, {
                     headers: getAuthHeaders()
                 });
                 
@@ -4573,34 +4900,53 @@ const editorTemplate = `<!DOCTYPE html>
             renameButton.textContent = '📝 Renaming...';
             
             try {
-                const response = await fetch(getAPIPath('/api/rename'), {
+                // Get current content
+                const content = editor.getValue();
+                
+                // Save with new name
+                const saveUrl = getAPIPath('/api/files?scope=' + encodeURIComponent(currentFileScope));
+                const saveResponse = await fetch(saveUrl, {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
-                        oldPath: CHARIOT_FILES_FOLDER + '/' + currentFileName,
-                        newPath: CHARIOT_FILES_FOLDER + '/' + newFileName
+                        name: newFileName,
+                        content: content
                     })
                 });
                 
-                if (response.status === 401) {
+                if (saveResponse.status === 401) {
                     logout();
                     return;
                 }
                 
-                if (response.ok) {
-                    const oldFileName = currentFileName;
-                    currentFileName = newFileName;
-                    
-                    // Refresh file list and select the renamed file
-                    await loadFileList();
-                    document.getElementById('fileSelect').value = newFileName;
-                    
-                    updateSaveButtonStates();
-                    showOutput('File renamed from "' + oldFileName + '" to "' + newFileName + '"', 'success');
-                } else {
-                    const error = await response.text();
+                if (!saveResponse.ok) {
+                    const error = await saveResponse.text();
                     showOutput('Rename failed: ' + error, 'error');
+                    return;
                 }
+                
+                // Delete old file
+                const deleteUrl = getAPIPath('/api/files/' + encodeURIComponent(currentFileName) + '?scope=' + encodeURIComponent(currentFileScope));
+                const deleteResponse = await fetch(deleteUrl, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                
+                if (deleteResponse.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                const oldFileName = currentFileName;
+                currentFileName = newFileName;
+                originalContent = content;
+                
+                // Refresh file list and select the renamed file
+                await loadFileList();
+                document.getElementById('fileSelect').value = newFileName;
+                
+                updateSaveButtonStates();
+                showOutput('File renamed from "' + oldFileName + '" to "' + newFileName + '"', 'success');
                 
             } catch (error) {
                 showOutput('Rename error: ' + error.message, 'error');
@@ -4632,12 +4978,10 @@ const editorTemplate = `<!DOCTYPE html>
             deleteButton.textContent = '🗑️ Deleting...';
             
             try {
-                const response = await fetch(getAPIPath('/api/delete'), {
-                    method: 'POST',
-                    headers: getAuthHeadersWithJSON(),
-                    body: JSON.stringify({
-                        path: CHARIOT_FILES_FOLDER + '/' + currentFileName
-                    })
+                const url = getAPIPath('/api/files/' + encodeURIComponent(currentFileName) + '?scope=' + encodeURIComponent(currentFileScope));
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
                 });
                 
                 if (response.status === 401) {
@@ -7441,12 +7785,10 @@ func main() {
 	// Clean up metadata files on startup
 	cleanupMetadataFiles("files")
 
-	// Protected routes -- local file operations
-	http.HandleFunc("/api/files", authMiddleware(listFilesHandler))
-	http.HandleFunc("/api/file", authMiddleware(getFileHandler))
-	http.HandleFunc("/api/save", authMiddleware(saveFileHandler))
-	http.HandleFunc("/api/rename", authMiddleware(renameFileHandler))
-	http.HandleFunc("/api/delete", authMiddleware(deleteFileHandler))
+	// Protected routes -- proxy file operations to backend
+	http.HandleFunc("/api/session/profile", authMiddleware(sessionProfileHandler))
+	http.HandleFunc("/api/files/", authMiddleware(fileGetProxyHandler))  // Handles /api/files/:name
+	http.HandleFunc("/api/files", authMiddleware(filesListProxyHandler)) // Handles /api/files (list/save)
 	http.HandleFunc("/api/execute", authMiddleware(executeHandler))
 	http.HandleFunc("/api/execute-async", authMiddleware(executeAsyncHandler))
 	http.HandleFunc("/api/logs/", authMiddleware(streamLogsHandler))
@@ -7461,11 +7803,9 @@ func main() {
 	http.HandleFunc("/api/runtime/inspect", authMiddleware(runtimeInspectHandler))
 
 	// Prefixed API routes for proxy path support
-	http.HandleFunc("/charioteer/api/files", authMiddleware(listFilesHandler))
-	http.HandleFunc("/charioteer/api/file", authMiddleware(getFileHandler))
-	http.HandleFunc("/charioteer/api/save", authMiddleware(saveFileHandler))
-	http.HandleFunc("/charioteer/api/rename", authMiddleware(renameFileHandler))
-	http.HandleFunc("/charioteer/api/delete", authMiddleware(deleteFileHandler))
+	http.HandleFunc("/charioteer/api/session/profile", authMiddleware(sessionProfileHandler))
+	http.HandleFunc("/charioteer/api/files/", authMiddleware(fileGetProxyHandler))  // Handles /charioteer/api/files/:name
+	http.HandleFunc("/charioteer/api/files", authMiddleware(filesListProxyHandler)) // Handles /charioteer/api/files (list/save)
 	http.HandleFunc("/charioteer/api/execute", authMiddleware(executeHandler))
 	http.HandleFunc("/charioteer/api/execute-async", authMiddleware(executeAsyncHandler))
 	http.HandleFunc("/charioteer/api/logs/", authMiddleware(streamLogsHandler))

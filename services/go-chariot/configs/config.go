@@ -51,6 +51,10 @@ type Config struct {
 	DiagramPath string `evar:"diagram_path"` // Path to store VisualDSL diagrams
 	// Cert path
 	CertPath string `evar:"cert_path"` // Path to store certificates
+	// Sandboxes
+	SandboxEnabled      bool   `evar:"sandbox_enabled"`       // Enable per-user sandbox directories
+	SandboxRoot         string `evar:"sandbox_root"`          // Root directory for sandbox storage
+	SandboxDefaultScope string `evar:"sandbox_default_scope"` // Preferred default scope (sandbox or global)
 	// Function library
 	FunctionLib string `evar:"function_lib"` // Filename of the function library
 	Bootstrap   string `evar:"bootstrap"`    // Bootstrap script to run on startup
@@ -193,4 +197,12 @@ func ExpandAndNormalizePaths() {
 	ChariotConfig.TreePath = normalize(ChariotConfig.TreePath)
 	ChariotConfig.DiagramPath = normalize(ChariotConfig.DiagramPath)
 	ChariotConfig.CertPath = normalize(ChariotConfig.CertPath)
+
+	// Default sandbox root to DataPath/sandboxes if not explicitly configured
+	if strings.TrimSpace(ChariotConfig.SandboxRoot) == "" && ChariotConfig.DataPath != "" {
+		ChariotConfig.SandboxRoot = filepath.Join(ChariotConfig.DataPath, "sandboxes")
+	} else {
+		ChariotConfig.SandboxRoot = expandUserPath(ChariotConfig.SandboxRoot)
+	}
+	ChariotConfig.SandboxRoot = normalize(ChariotConfig.SandboxRoot)
 }

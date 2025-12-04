@@ -20,6 +20,7 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	// Protected routes
 	api := e.Group("/api")
 	api.Use(h.SessionAuth)
+	api.GET("/session/profile", h.SessionProfile)
 	api.GET("/data", h.GetData)
 	api.POST("/execute", h.Execute)
 	api.POST("/execute-async", h.ExecuteAsync)
@@ -29,6 +30,13 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	api.GET("/global-variables", h.ListGlobalVariables)
 	api.POST("/function/save", h.SaveFunctionHandler)
 	api.POST("/functions/save-library", h.SaveFunctionLibraryHandler)
+
+	// Files API
+	files := api.Group("/files")
+	files.GET("", h.ListFiles)           // GET /api/files?scope=sandbox|global
+	files.GET("/:name", h.GetFile)       // GET /api/files/:name?scope=sandbox|global
+	files.POST("", h.SaveFile)           // POST /api/files?scope=sandbox|global
+	files.DELETE("/:name", h.DeleteFile) // DELETE /api/files/:name?scope=sandbox|global
 
 	// Diagrams API
 	diagrams := api.Group("/diagrams")
