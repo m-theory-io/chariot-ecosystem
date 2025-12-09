@@ -17,6 +17,8 @@ Chariot provides built-in cryptographic functions for encryption, decryption, di
 | `generateKey(keySize)`           | Generate a random AES key of given size (bytes); returns base64  |
 | `generateRSAKey(bits)`           | Generate an RSA keypair (min 2048 bits); returns PEM strings     |
 | `randomBytes(size)`              | Generate random bytes of given size; returns base64              |
+| `encryptDirect(key, data)`       | Encrypt data with base64 key directly (no vault); returns base64 ciphertext |
+| `decryptDirect(key, ciphertext)` | Decrypt base64 ciphertext with base64 key directly (no vault); returns plaintext |
 
 ---
 
@@ -96,11 +98,29 @@ Generates a random byte sequence of the specified size. Returns a base64-encoded
 setq(token, randomBytes(16))
 ```
 
+#### `encryptDirect(key, data)`
+
+Encrypts the given string data using a base64-encoded AES key provided directly (bypasses vault). Returns a base64-encoded ciphertext string.
+
+```chariot
+setq(myKey, generateKey(32))  // Generate a 256-bit AES key
+setq(cipher, encryptDirect(myKey, 'Sensitive data'))
+```
+
+#### `decryptDirect(key, ciphertext)`
+
+Decrypts the base64-encoded ciphertext using a base64-encoded AES key provided directly (bypasses vault). Returns the plaintext string.
+
+```chariot
+setq(plain, decryptDirect(myKey, cipher))
+```
+
 ---
 
 ### Notes
 
-- All cryptographic operations use secure key management; keys are referenced by ID only.
+- Vault-based operations (`encrypt`, `decrypt`, `sign`, `verify`) use secure key management; keys are referenced by ID only.
+- Direct operations (`encryptDirect`, `decryptDirect`) bypass the vault and work with base64-encoded keys directly.
 - All encryption and signature outputs are base64-encoded strings.
 - Hash outputs are hex-encoded strings.
 - `generateKey` and `randomBytes` are suitable for generating secrets, tokens, or initialization vectors.

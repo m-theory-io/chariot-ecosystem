@@ -95,7 +95,7 @@ func main() {
 	slogger := logs.NewZapLogger()
 	defer slogger.Sync() // Ensure logger is flushed before exit
 	cfg.ChariotLogger = slogger
-	slogger.Info("Starting Chariot service...")
+	slogger.Info("Starting Chariot service beginning...")
 	// Warn if legacy env var is present
 	if legacy := os.Getenv("CHARIOT_BOOTSTRAP_FILE"); legacy != "" {
 		slogger.Warn("Ignoring legacy env var CHARIOT_BOOTSTRAP_FILE; use CHARIOT_BOOTSTRAP instead",

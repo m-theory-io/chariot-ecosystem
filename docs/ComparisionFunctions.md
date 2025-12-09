@@ -84,29 +84,32 @@ smallerEq(6, 5)     // false
 
 #### `and(a, b, ...)`
 
-Logical AND of all arguments. Returns `true` if all are true, otherwise `false`.
+Logical AND of all arguments. Returns `true` if all are true, otherwise `false`. If any argument is `DBNull`, returns `false`. Short-circuits on first `false` value.
 
 ```chariot
 and(true, true, true)   // true
 and(true, false)        // false
+and(true, DBNull)       // false (null in AND returns false)
 ```
 
 #### `or(a, b, ...)`
 
-Logical OR of all arguments. Returns `true` if any argument is true.
+Logical OR of all arguments. Returns `true` if any argument is true. If any argument is `DBNull`, returns `true`. Short-circuits on first `true` value.
 
 ```chariot
 or(false, false, true)  // true
 or(false, false)        // false
+or(false, DBNull)       // true (null in OR returns true)
 ```
 
 #### `not(a)`
 
-Logical NOT. Returns `true` if `a` is false, and vice versa.
+Logical NOT. Returns `true` if `a` is false, and vice versa. `not(DBNull)` returns `true`.
 
 ```chariot
-not(true)   // false
-not(false)  // true
+not(true)    // false
+not(false)   // true
+not(DBNull)  // true
 ```
 
 #### `iif(cond, x, y)`
