@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 // StorageScope represents whether a request targets the shared/global space or a sandbox.
@@ -114,11 +116,21 @@ func storageBasePath(kind StorageKind, scope StorageScope, username string) (str
 		if key == "" {
 			return "", errors.New("sandbox scope requires authenticated username")
 		}
-		if ChariotConfig.SandboxRoot == "" {
-			return "", errors.New("sandbox root not configured")
+		if ChariotConfig.DataPath == "" {
+			return "", errors.New("data path not configured")
 		}
+		// Build sandbox path relative to DataPath to use the same volume mount
 		subdir := sandboxKindSegment(kind)
-		return filepath.Join(ChariotConfig.SandboxRoot, key, subdir), nil
+		sandboxBase := "sandboxes"
+		if ChariotConfig.SandboxRoot != "" && ChariotConfig.SandboxRoot != "data/sandboxes" {
+			// Allow override if absolute path is provided
+			if filepath.IsAbs(ChariotConfig.SandboxRoot) {
+				return filepath.Join(ChariotConfig.SandboxRoot, key, subdir), nil
+			}
+			// Otherwise treat as relative to DataPath
+			sandboxBase = ChariotConfig.SandboxRoot
+		}
+		return filepath.Join(ChariotConfig.DataPath, sandboxBase, key, subdir), nil
 	default:
 		return "", fmt.Errorf("unknown storage scope '%s'", scope)
 	}
@@ -162,24 +174,46 @@ func sandboxKindSegment(kind StorageKind) string {
 // EnsureSandboxDirectories creates all required sandbox subdirectories for a user if they don't exist.
 func EnsureSandboxDirectories(username string) error {
 	if !ChariotConfig.SandboxEnabled {
+		ChariotLogger.Debug("Sandbox directories not created - sandboxes disabled")
 		return nil // Sandboxes disabled, nothing to do
 	}
 	key := SanitizeSandboxKey(username)
 	if key == "" {
+		ChariotLogger.Error("Invalid username for sandbox creation", zap.String("username", username))
 		return errors.New("invalid username for sandbox creation")
 	}
-	if ChariotConfig.SandboxRoot == "" {
-		return errors.New("sandbox root not configured")
+	if ChariotConfig.DataPath == "" {
+		ChariotLogger.Error("DataPath not configured")
+		return errors.New("data path not configured")
 	}
 
-	// Create all kind-specific directories
+	ChariotLogger.Info("Ensuring sandbox directories",
+		zap.String("username", username),
+		zap.String("sanitizedKey", key),
+		zap.String("dataPath", ChariotConfig.DataPath),
+	)
+
+	// Create all kind-specific directories using DataPath (same logic as storageBasePath)
 	kinds := []StorageKind{StorageKindData, StorageKindTree, StorageKindDiagram}
 	for _, kind := range kinds {
 		subdir := sandboxKindSegment(kind)
-		path := filepath.Join(ChariotConfig.SandboxRoot, key, subdir)
+		// Build path relative to DataPath to use the mounted volume
+		path := filepath.Join(ChariotConfig.DataPath, "sandboxes", key, subdir)
+		ChariotLogger.Debug("Creating sandbox directory",
+			zap.String("path", path),
+			zap.String("kind", string(kind)),
+		)
 		if err := os.MkdirAll(path, 0o755); err != nil {
+			ChariotLogger.Error("Failed to create sandbox directory",
+				zap.String("path", path),
+				zap.Error(err),
+			)
 			return fmt.Errorf("create sandbox directory %s: %w", path, err)
 		}
+		ChariotLogger.Info("Created sandbox directory",
+			zap.String("path", path),
+			zap.String("kind", string(kind)),
+		)
 	}
 	return nil
 }

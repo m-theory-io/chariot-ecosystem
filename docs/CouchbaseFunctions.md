@@ -18,7 +18,7 @@ Chariot provides built-in support for Couchbase database operations, including c
 | `cbRemove(nodeName, documentId)`                    | Remove a document by ID                                             |
 | `cbReplace(nodeName, documentId, document, [cas], [expiryDuration])` | Replace a document by ID, with optional CAS and expiry              |
 | `cbClose(nodeName)`                                 | Close the Couchbase connection and remove the node from runtime     |
-| `newID([prefix], [format])`                         | Generate a new document ID with optional prefix and format          |
+| `newID(prefix, [format])`                           | Generate a new document ID with optional format                     |
 ---
 
 ### Function Details
@@ -105,14 +105,14 @@ Close the Couchbase connection and remove the node from the runtime.
 cbClose('cb1')
 ```
 
-#### `newID([prefix], [format])`
+#### `newID(prefix, [format])`
 
-Generate a new document ID. `prefix` is optional (default: `"doc"`), `format` is optional (default: `"short"`).
+Generate a new document ID. `prefix` is required, `format` is optional (default: `"short"`).
 
 ```chariot
-newID()              // e.g., "doc_20240627_001"
-newID('customer')    // e.g., "customer_20240627_002"
-newID('order', 'long')
+newID('doc')              // e.g., "doc_20240627_001"
+newID('customer')         // e.g., "customer_20240627_002"
+newID('order', 'long')    // e.g., "order_20240627_123456_abc"
 ```
 
 ---

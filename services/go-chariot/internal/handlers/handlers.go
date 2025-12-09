@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -559,6 +558,9 @@ func (h *Handlers) HandleLogin(c echo.Context) error {
 	}
 
 	var username, password string
+	cfg.ChariotLogger.Info("🔐 LOGIN HANDLER EXECUTED",
+		zap.String("username", username),
+	)
 
 	// Check Content-Type to determine how to parse the request
 	contentType := c.Request().Header.Get("Content-Type")
@@ -626,9 +628,21 @@ func (h *Handlers) HandleLogin(c echo.Context) error {
 	session.Authenticated = true
 
 	// Ensure user's sandbox directories exist
+	cfg.ChariotLogger.Info("Creating sandbox directories for user",
+		zap.String("username", username),
+		zap.Bool("sandboxEnabled", cfg.ChariotConfig.SandboxEnabled),
+		zap.String("sandboxRoot", cfg.ChariotConfig.SandboxRoot),
+	)
 	if err := cfg.EnsureSandboxDirectories(username); err != nil {
-		log.Printf("Warning: Failed to create sandbox directories for user %s: %v", username, err)
+		cfg.ChariotLogger.Warn("Failed to create sandbox directories",
+			zap.String("username", username),
+			zap.Error(err),
+		)
 		// Don't fail login, just log the warning
+	} else {
+		cfg.ChariotLogger.Info("Sandbox directories created successfully",
+			zap.String("username", username),
+		)
 	}
 
 	// Success response
