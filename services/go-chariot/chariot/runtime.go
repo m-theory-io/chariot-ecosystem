@@ -1171,5 +1171,13 @@ func executeFunctionValue(rt *Runtime, fn *FunctionValue, args []Value) (Value, 
 	// Restore scope (KEEP THIS)
 	rt.currentScope = prevScope
 
+	// Handle return statements
+	if err != nil {
+		if retErr, ok := err.(*ReturnError); ok {
+			// Return is successful - extract the value
+			return retErr.Value, nil
+		}
+	}
+
 	return result, err
 }

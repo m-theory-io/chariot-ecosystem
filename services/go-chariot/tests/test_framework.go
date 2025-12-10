@@ -636,6 +636,13 @@ func valueEquals(expected, actual chariot.Value) bool {
 		}
 	}
 
+	// Handle ExitRequest comparison
+	if expectedExit, ok := expected.(*chariot.ExitRequest); ok {
+		if actualExit, ok := actual.(*chariot.ExitRequest); ok {
+			return expectedExit.Code == actualExit.Code
+		}
+	}
+
 	// Fallback to direct comparison
 	return expected == actual
 }
