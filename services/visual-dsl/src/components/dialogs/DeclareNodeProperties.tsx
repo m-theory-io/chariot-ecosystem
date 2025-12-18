@@ -21,6 +21,7 @@ const CHARIOT_TYPES = [
   { label: 'Any', value: 'V' },
   { label: 'Array', value: 'A' },
   { label: 'Boolean', value: 'L' },
+  { label: 'ETL Transform', value: 'E' },
   { label: 'Function', value: 'F' },
   { label: 'HostObject', value: 'O' },
   { label: 'JSONNode', value: 'J' },
@@ -66,6 +67,11 @@ export const DeclareNodePropertiesDialog: React.FC<DeclareNodePropertiesProps> =
     onClose();
   };
 
+
+
+  const handleCancel = () => {
+    onClose();
+  };
   const handleDelete = () => {
     onDelete();
     onClose();
@@ -82,7 +88,7 @@ export const DeclareNodePropertiesDialog: React.FC<DeclareNodePropertiesProps> =
             Declare Properties
           </h3>
           <button
-            onClick={handleClose}
+            onClick={handleCancel}
             className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold w-6 h-6 flex items-center justify-center border border-gray-800 dark:border-gray-200"
           >
             ×

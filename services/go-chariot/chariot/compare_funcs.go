@@ -8,67 +8,100 @@ import (
 // RegisterCompares registers all comparison functions
 func RegisterCompares(rt *Runtime) {
 	rt.Register("equal", func(args ...Value) (Value, error) {
-		if len(args) != 2 {
-			return nil, errors.New("equal requires 2 arguments")
+		if len(args) < 2 {
+			return nil, errors.New("equal requires at least 2 arguments")
 		}
 
 		// Unwrap ScopeEntry args
-		if targ, ok := args[0].(ScopeEntry); ok {
-			args[0] = targ.Value
-		}
-		if targ, ok := args[1].(ScopeEntry); ok {
-			args[1] = targ.Value
-		}
-
-		// Handle null equality
-		if args[0] == DBNull && args[1] == DBNull {
-			return Bool(true), nil
-		} else if args[0] == DBNull || args[1] == DBNull {
-			return Bool(false), nil
+		processed := make([]Value, len(args))
+		for i, arg := range args {
+			if targ, ok := arg.(ScopeEntry); ok {
+				arg = targ.Value
+			}
+			processed[i] = arg
 		}
 
-		// Type-specific equality checks
-		switch v1 := args[0].(type) {
-		case Number:
-			if v2, ok := args[1].(Number); ok {
-				return Bool(v1 == v2), nil
+		compareValues := func(left, right Value) (bool, error) {
+			if left == DBNull && right == DBNull {
+				return true, nil
 			}
-		case string:
-			// convert args[1] to string if it's a Str
-			if v2, ok := args[1].(Str); ok {
-				return Bool(v1 == string(v2)), nil
-			}
-			// If args[1] is not a Str, it can't be equal to a string
-			return Bool(false), nil
-		case Str:
-			// convert args[1] to Str is string
-			if v2, ok := args[1].(string); ok {
-				return Bool(v1 == Str(v2)), nil
+			if left == DBNull || right == DBNull {
+				return false, nil
 			}
 
-			if v2, ok := args[1].(Str); ok {
-				return Bool(v1 == v2), nil
+			switch v1 := left.(type) {
+			case Number:
+				if v2, ok := right.(Number); ok {
+					return v1 == v2, nil
+				}
+			case string:
+				if v2, ok := right.(Str); ok {
+					return v1 == string(v2), nil
+				}
+				return false, nil
+			case Str:
+				if v2, ok := right.(string); ok {
+					return v1 == Str(v2), nil
+				}
+				if v2, ok := right.(Str); ok {
+					return v1 == v2, nil
+				}
+			case Bool:
+				if v2, ok := right.(Bool); ok {
+					return v1 == v2, nil
+				}
 			}
-		case Bool:
-			if v2, ok := args[1].(Bool); ok {
-				return Bool(v1 == v2), nil
+
+			return false, nil
+		}
+
+		baseline := processed[0]
+		for i := 1; i < len(processed); i++ {
+			equal, err := compareValues(baseline, processed[i])
+			if err != nil {
+				return nil, err
+			}
+			if !equal {
+				return Bool(false), nil
 			}
 		}
 
-		// Different types are never equal
-		return Bool(false), nil
+		return Bool(true), nil
 	})
 	rt.Register("equals", rt.funcs["equal"]) // Alias for equal
 
 	rt.Register("unequal", func(args ...Value) (Value, error) {
-		result, err := rt.funcs["equal"](args...)
-		if err != nil {
-			return nil, err
+		if len(args) < 2 {
+			return nil, errors.New("unequal requires at least 2 arguments")
 		}
 
-		// Invert the result
-		boolResult, _ := result.(Bool)
-		return Bool(!bool(boolResult)), nil
+		// Unwrap ScopeEntry args
+		processed := make([]Value, len(args))
+		for i, arg := range args {
+			if targ, ok := arg.(ScopeEntry); ok {
+				arg = targ.Value
+			}
+			processed[i] = arg
+		}
+
+		equalClosure := rt.funcs["equal"]
+		for i := 0; i < len(processed); i++ {
+			for j := i + 1; j < len(processed); j++ {
+				result, err := equalClosure(processed[i], processed[j])
+				if err != nil {
+					return nil, err
+				}
+				if boolResult, ok := result.(Bool); ok {
+					if bool(boolResult) {
+						return Bool(false), nil
+					}
+				} else {
+					return nil, fmt.Errorf("equal returned non-bool %T", result)
+				}
+			}
+		}
+
+		return Bool(true), nil
 	})
 
 	rt.Register("bigger", func(args ...Value) (Value, error) {
@@ -280,25 +313,33 @@ func RegisterCompares(rt *Runtime) {
 	})
 
 	rt.Register("not", func(args ...Value) (Value, error) {
-		if len(args) != 1 {
-			return nil, errors.New("not requires 1 argument")
+		if len(args) == 0 {
+			return nil, errors.New("not requires at least 1 argument")
 		}
 
 		// Unwrap ScopeEntry args
-		if targ, ok := args[0].(ScopeEntry); ok {
-			args[0] = targ.Value
-		}
-		// Handle null values
-		if args[0] == DBNull {
-			return Bool(true), nil // NOT null is true
+		for i, arg := range args {
+			if targ, ok := arg.(ScopeEntry); ok {
+				args[i] = targ.Value
+			}
 		}
 
-		b, ok := args[0].(Bool)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: expected boolean, got %T", args[0])
+		for _, arg := range args {
+			if arg == DBNull {
+				continue // DBNull counts as false, so it satisfies the NOT condition
+			}
+
+			b, ok := arg.(Bool)
+			if !ok {
+				return nil, fmt.Errorf("type mismatch: expected boolean, got %T", arg)
+			}
+
+			if bool(b) {
+				return Bool(false), nil // any true operand makes the NOT false
+			}
 		}
 
-		return Bool(!bool(b)), nil
+		return Bool(true), nil
 	})
 
 	rt.Register("iif", func(args ...Value) (Value, error) {

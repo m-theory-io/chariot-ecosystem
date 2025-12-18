@@ -72,6 +72,11 @@ const AddMappingNodeProperties: React.FC<AddMappingNodePropertiesProps> = ({
     onClose();
   };
 
+
+
+  const handleCancel = () => {
+    onClose();
+  };
   const handleAddProgramLine = () => {
     if (newProgramLine.trim()) {
       setProgram([...program, newProgramLine.trim()]);
@@ -100,7 +105,7 @@ const AddMappingNodeProperties: React.FC<AddMappingNodePropertiesProps> = ({
             AddMapping Properties
           </h3>
           <button
-            onClick={handleClose}
+            onClick={handleCancel}
             className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
           >
             ✕
@@ -269,7 +274,7 @@ const AddMappingNodeProperties: React.FC<AddMappingNodePropertiesProps> = ({
               Save Properties
             </button>
             <button
-              onClick={handleClose}
+              onClick={handleCancel}
               className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-gray-800 dark:border-gray-200"
             >
               Cancel

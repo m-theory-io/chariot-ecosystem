@@ -14,14 +14,15 @@ const (
 	TypeDate    = "D" // Date value
 
 	// Complex types
-	TypeArray      = "A" // Array value
-	TypeExpression = "E" // Expression value
-	TypeXML        = "X" // XML fragment
-	TypeJSON       = "J" // JSON value
-	TypeMap        = "M" // Map value
-	TypeTree       = "T" // Tree structure
-	TypeFunction   = "F" // Function reference
-	TypeObject     = "O" // HostObject reference
+	TypeArray        = "A"              // Array value
+	TypeETLTransform = "E"              // ETL Transform value (exposed to declare/setq)
+	TypeExpression   = TypeETLTransform // Deprecated alias retained for compatibility
+	TypeXML          = "X"              // XML fragment
+	TypeJSON         = "J"              // JSON value
+	TypeMap          = "M"              // Map value
+	TypeTree         = "T"              // Tree structure
+	TypeFunction     = "F"              // Function reference
+	TypeObject       = "O"              // HostObject reference
 	// Agent/Plan types
 	TypePlan = "P" // Plan value (BDI plan)
 
@@ -172,6 +173,10 @@ func IsTypeCompatible(value Value, typeCode string) bool {
 		_, ok := value.(*HostObjectValue)
 		return ok
 
+	case TypeETLTransform:
+		_, ok := value.(*ETLTransformValue)
+		return ok
+
 	case TypeVariableExpr:
 		return true
 
@@ -258,7 +263,7 @@ func isLeapYear(year int) bool {
 func isValidTypeCode(typeCode string) bool {
 	switch typeCode {
 	case TypeNumber, TypeString, TypeBoolean, TypeDate,
-		TypeArray, TypeExpression, TypeXML, TypeJSON,
+		TypeArray, TypeETLTransform, TypeXML, TypeJSON,
 		TypeMap, TypeTree, TypeFunction, TypeObject,
 		TypePlan,
 		TypeVariableExpr:

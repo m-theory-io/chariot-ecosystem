@@ -70,6 +70,12 @@ var ChariotConfig = &Config{}
 var ChariotLogger *logs.ZapLogger
 var ChariotKey = "BF0CB725-1AFE-4EB5-B06C-0AA0A778C2FA"
 
+func init() {
+	if ChariotLogger == nil {
+		ChariotLogger = logs.NewZapLogger()
+	}
+}
+
 // StringVar reads an environment variable and sets it in the Config struct.
 // If the environment variable is not set, it assigns a default value.
 func (c *Config) StringVar(evar string, receiver *string, defValue string) {

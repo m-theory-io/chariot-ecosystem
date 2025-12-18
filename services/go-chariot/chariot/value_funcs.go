@@ -1161,6 +1161,8 @@ func ConvertToNativeJSON(val interface{}) interface{} {
 			m[k] = ConvertToNativeJSON(v2)
 		}
 		return m
+	case *ETLTransformValue:
+		return v.ToNativeMap()
 	case *OfferVariable:
 		return map[string]interface{}{
 			"_type":      "offer_variable",
@@ -1371,6 +1373,10 @@ func validateTypeCompatibility(typeStr string, value Value) error {
 		if _, ok := value.(*Plan); !ok {
 			return fmt.Errorf("type mismatch: expected plan, got %T", value)
 		}
+	case TypeETLTransform:
+		if _, ok := value.(*ETLTransformValue); !ok {
+			return fmt.Errorf("type mismatch: expected ETL transform, got %T", value)
+		}
 	case "V", "any":
 		// Accept any type
 		return nil
@@ -1507,6 +1513,9 @@ func defaultValue(typeStr string) (Value, error) {
 	case TypePlan:
 		// Plans should be constructed via plan(...); default to null
 		return DBNull, nil
+	case TypeETLTransform:
+		// Transforms are registered externally; default to null reference
+		return DBNull, nil
 	default:
 		return nil, fmt.Errorf("unknown type specifier '%s'", typeStr)
 	}
@@ -1539,6 +1548,10 @@ func ValueTypeToSpec(vt ValueType) string {
 		return "J"
 	case ValueXML:
 		return "X"
+	case ValuePlan:
+		return "P"
+	case ValueETLTransform:
+		return "E"
 	case ValueNil:
 		return "V"
 	case ValueVariableExpr:

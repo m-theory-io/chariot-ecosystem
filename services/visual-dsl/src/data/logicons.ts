@@ -140,49 +140,70 @@ export const logiconDefinitions: LogiconData[] = [
   // Comparison Functions
   {
     id: 'and',
-    label: 'And',
+    label: 'and',
     icon: '🤝',
     description: 'Logical AND operation',
     category: 'comparison'
   },
   {
     id: 'or',
-    label: 'Or',
+    label: 'or',
     icon: '🔗',
     description: 'Logical OR operation',
     category: 'comparison'
   },
   {
     id: 'not',
-    label: 'Not',
+    label: 'not',
     icon: '🚫',
     description: 'Logical NOT operation',
     category: 'comparison'
   },
   {
     id: 'equal',
-    label: 'Equal',
+    label: 'equal',
     icon: '⚖️',
     description: 'Equality comparison',
     category: 'comparison'
   },
   {
+    id: 'unequal',
+    label: 'unequal',
+    icon: '⚔️',
+    description: 'Inequality comparison',
+    category: 'comparison'
+  },
+  {
     id: 'bigger',
-    label: 'Greater',
+    label: 'bigger',
     icon: '▶️',
     description: 'Greater than comparison',
     category: 'comparison'
   },
   {
+    id: 'biggerEq',
+    label: 'biggerEq',
+    icon: '⏩',
+    description: 'Greater than or equal comparison',
+    category: 'comparison'
+  },
+  {
     id: 'smaller',
-    label: 'Less',
+    label: 'smaller',
     icon: '◀️',
     description: 'Less than comparison',
     category: 'comparison'
   },
   {
+    id: 'smallerEq',
+    label: 'smallerEq',
+    icon: '⏪',
+    description: 'Less than or equal comparison',
+    category: 'comparison'
+  },
+  {
     id: 'iif',
-    label: 'IIf',
+    label: 'iif',
     icon: '❓',
     description: 'Immediate if statement',
     category: 'comparison'

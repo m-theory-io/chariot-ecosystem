@@ -50,6 +50,11 @@ export const TreeSaveNodePropertiesDialog: React.FC<TreeSaveNodePropertiesProps>
     onClose();
   };
 
+
+
+  const handleCancel = () => {
+    onClose();
+  };
   const handleDelete = () => {
     onDelete();
     onClose();
@@ -66,7 +71,7 @@ export const TreeSaveNodePropertiesDialog: React.FC<TreeSaveNodePropertiesProps>
             Tree Save Properties
           </h3>
           <button
-            onClick={handleClose}
+            onClick={handleCancel}
             className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold w-6 h-6 flex items-center justify-center border border-gray-800 dark:border-gray-200"
           >
             ×

@@ -59,6 +59,7 @@ export const CBQueryNodePropertiesDialog: React.FC<CBQueryNodePropertiesDialogPr
     onClose();
   };
 
+
   const handleCancel = () => {
     onClose();
   };

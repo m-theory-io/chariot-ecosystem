@@ -29,6 +29,11 @@ export const TreeToYAMLNodePropertiesDialog: React.FC<TreeToYAMLNodePropertiesPr
 
   const handleSave = () => { commit(); onClose(); };
   const handleClose = () => { commit(); onClose(); };
+
+
+  const handleCancel = () => {
+    onClose();
+  };
   const handleDelete = () => { onDelete(); onClose(); };
 
   if (!isOpen) return null;
@@ -38,7 +43,7 @@ export const TreeToYAMLNodePropertiesDialog: React.FC<TreeToYAMLNodePropertiesPr
       <div className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-800 dark:border-gray-200 shadow-xl max-w-md w-full mx-4">
         <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-800 dark:border-gray-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Tree To YAML Properties</h3>
-          <button onClick={handleClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold w-6 h-6 flex items-center justify-center border border-gray-800 dark:border-gray-200">×</button>
+          <button onClick={handleCancel} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold w-6 h-6 flex items-center justify-center border border-gray-800 dark:border-gray-200">×</button>
         </div>
         <div className="p-6 space-y-4">
           <div>
