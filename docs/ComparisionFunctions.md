@@ -8,40 +8,42 @@ Chariot provides a set of closure functions for comparing values, supporting num
 
 | Function         | Description                                               |
 |------------------|----------------------------------------------------------|
-| `equal(a, b)`    | Returns `true` if `a` and `b` are equal                  |
-| `equals(a, b)`   | Alias for `equal`                                        |
-| `unequal(a, b)`  | Returns `true` if `a` and `b` are not equal              |
+| `equal(a, b, ...)` | Returns `true` when every argument matches the first value |
+| `unequal(a, b, ...)` | Returns `true` only when every argument differs from the rest |
 | `bigger(a, b)`   | Returns `true` if `a` is greater than `b` (number/string)|
 | `smaller(a, b)`  | Returns `true` if `a` is less than `b` (number/string)   |
 | `biggerEq(a, b)` | Returns `true` if `a` is greater than or equal to `b`    |
 | `smallerEq(a, b)`| Returns `true` if `a` is less than or equal to `b`       |
 | `and(a, b, ...)` | Logical AND of all arguments                             |
 | `or(a, b, ...)`  | Logical OR of all arguments                              |
-| `not(a)`         | Logical NOT                                              |
+| `not(a, ...)`    | Logical NOT (true only when all args are false/DBNull)   |
 | `iif(cond, x, y)`| Returns `x` if `cond` is true, else returns `y`          |
 
 ---
 
 ### Function Details
 
-#### `equal(a, b)` / `equals(a, b)`
+#### `equal(a, b, ...)`
 
-Returns `true` if `a` and `b` are equal. Supports numbers, strings, booleans, and nulls.
+Returns `true` only when every provided argument evaluates to the same value. Supports numbers, strings, booleans, and nulls. The `equals()` helper remains available as an alias but simply forwards to `equal()`.
 
 ```chariot
-equal(5, 5)         // true
-equal('a', 'b')     // false
-equal(true, false)  // false
-equal(DBNull, DBNull) // true
+equal(5, 5, 5)          // true
+equal('a', 'b')         // false
+equal(true, true, true) // true
+equal(DBNull, DBNull)   // true
+equal(1, 1, 2)          // false
 ```
 
-#### `unequal(a, b)`
+#### `unequal(a, b, ...)`
 
-Returns `true` if `a` and `b` are not equal.
+Returns `true` only when no two arguments are equal to one another. Supply at least two operands.
 
 ```chariot
-unequal(5, 3)       // true
-unequal('x', 'x')   // false
+unequal(5, 3)            // true
+unequal('x', 'x')        // false
+unequal(1, 2, 3)         // true
+unequal('a', 'b', 'a')   // false (duplicate)
 ```
 
 #### `bigger(a, b)`
@@ -102,14 +104,16 @@ or(false, false)        // false
 or(false, DBNull)       // true (null in OR returns true)
 ```
 
-#### `not(a)`
+#### `not(a, ...)`
 
-Logical NOT. Returns `true` if `a` is false, and vice versa. `not(DBNull)` returns `true`.
+Logical NOT. Accepts one or more arguments and returns `true` only when every argument evaluates to `false` or `DBNull`. If any argument is `true`, the closure returns `false` immediately.
 
 ```chariot
-not(true)    // false
-not(false)   // true
-not(DBNull)  // true
+not(false)                 // true
+not(false, DBNull)         // true (both operands are falsey)
+not(false, true)           // false (one operand is true)
+not(DBNull, false, false)  // true
+not(DBNull, true)          // false
 ```
 
 #### `iif(cond, x, y)`

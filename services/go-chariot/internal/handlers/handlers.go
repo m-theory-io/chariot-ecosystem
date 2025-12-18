@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +21,15 @@ import (
 type ResultJSON struct {
 	Result string      `json:"result"`
 	Data   interface{} `json:"data"`
+}
+
+type etlTransformResponse struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	DataType    string   `json:"dataType"`
+	Category    string   `json:"category"`
+	Program     []string `json:"program"`
+	Examples    []string `json:"examples"`
 }
 
 // Handlers holds all HTTP handlers and their dependencies
@@ -469,6 +479,45 @@ func (h *Handlers) ListGlobalVariables(c echo.Context) error {
 	})
 }
 
+func (h *Handlers) ListETLTransforms(c echo.Context) error {
+	session, ok := c.Get("session").(*chariot.Session)
+	if !ok || session == nil {
+		return c.JSON(http.StatusUnauthorized, ResultJSON{Result: "ERROR", Data: "session required"})
+	}
+
+	registry, err := resolveETLTransformRegistry(session.Runtime)
+	if err != nil {
+		cfg.ChariotLogger.Warn("Failed to resolve ETL transform registry", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+
+	names := registry.List()
+	sort.Strings(names)
+	responses := make([]etlTransformResponse, 0, len(names))
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		if transform, exists := registry.Get(name); exists && transform != nil {
+			programCopy := make([]string, len(transform.Program))
+			copy(programCopy, transform.Program)
+			examplesCopy := make([]string, len(transform.Examples))
+			copy(examplesCopy, transform.Examples)
+
+			responses = append(responses, etlTransformResponse{
+				Name:        transform.Name,
+				Description: transform.Description,
+				DataType:    transform.DataType,
+				Category:    transform.Category,
+				Program:     programCopy,
+				Examples:    examplesCopy,
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: responses})
+}
+
 // GetData retrieves user-specific data and available resources
 func (h *Handlers) GetData(c echo.Context) error {
 	// Get the authenticated session
@@ -890,6 +939,29 @@ func convertValueToJSON(val interface{}) interface{} {
 			return s
 		}
 		return fmt.Sprintf("%v", val)
+	}
+}
+
+func resolveETLTransformRegistry(rt *chariot.Runtime) (*chariot.ETLTransformRegistry, error) {
+	if rt == nil {
+		return nil, fmt.Errorf("runtime is not initialized")
+	}
+
+	value, exists := rt.GetVariable("etlTransformRegistry")
+	if !exists || value == nil {
+		return nil, fmt.Errorf("etlTransformRegistry variable not found")
+	}
+
+	switch reg := value.(type) {
+	case *chariot.ETLTransformRegistry:
+		return reg, nil
+	case *chariot.HostObjectValue:
+		if typed, ok := reg.Value.(*chariot.ETLTransformRegistry); ok {
+			return typed, nil
+		}
+		return nil, fmt.Errorf("host object does not wrap ETLTransformRegistry")
+	default:
+		return nil, fmt.Errorf("unexpected registry type %T", value)
 	}
 }
 

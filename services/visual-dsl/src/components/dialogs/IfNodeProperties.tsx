@@ -100,6 +100,7 @@ export const IfNodePropertiesDialog: React.FC<IfNodePropertiesDialogProps> = ({
     onClose();
   };
 
+
   const handleCancel = () => {
     onClose();
   };

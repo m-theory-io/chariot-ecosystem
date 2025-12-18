@@ -53,6 +53,7 @@ export const CaseNodePropertiesDialog: React.FC<CaseNodePropertiesDialogProps> =
     onClose();
   };
 
+
   const handleCancel = () => {
     onClose();
   };

@@ -50,6 +50,7 @@ export const SwitchNodePropertiesDialog: React.FC<SwitchNodePropertiesDialogProp
     onClose();
   };
 
+
   const handleCancel = () => {
     onClose();
   };

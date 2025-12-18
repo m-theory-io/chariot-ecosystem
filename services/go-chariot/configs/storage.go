@@ -116,24 +116,28 @@ func storageBasePath(kind StorageKind, scope StorageScope, username string) (str
 		if key == "" {
 			return "", errors.New("sandbox scope requires authenticated username")
 		}
-		if ChariotConfig.DataPath == "" {
-			return "", errors.New("data path not configured")
-		}
-		// Build sandbox path relative to DataPath to use the same volume mount
 		subdir := sandboxKindSegment(kind)
-		sandboxBase := "sandboxes"
-		if ChariotConfig.SandboxRoot != "" && ChariotConfig.SandboxRoot != "data/sandboxes" {
-			// Allow override if absolute path is provided
-			if filepath.IsAbs(ChariotConfig.SandboxRoot) {
-				return filepath.Join(ChariotConfig.SandboxRoot, key, subdir), nil
-			}
-			// Otherwise treat as relative to DataPath
-			sandboxBase = ChariotConfig.SandboxRoot
-		}
-		return filepath.Join(ChariotConfig.DataPath, sandboxBase, key, subdir), nil
+		return sandboxPath(key, subdir)
 	default:
 		return "", fmt.Errorf("unknown storage scope '%s'", scope)
 	}
+}
+
+func sandboxPath(key, subdir string) (string, error) {
+	if key == "" {
+		return "", errors.New("sandbox scope requires authenticated username")
+	}
+	if ChariotConfig.SandboxRoot != "" && filepath.IsAbs(ChariotConfig.SandboxRoot) {
+		return filepath.Join(ChariotConfig.SandboxRoot, key, subdir), nil
+	}
+	if ChariotConfig.DataPath == "" {
+		return "", errors.New("data path not configured")
+	}
+	sandboxBase := "sandboxes"
+	if ChariotConfig.SandboxRoot != "" && ChariotConfig.SandboxRoot != "data/sandboxes" {
+		sandboxBase = ChariotConfig.SandboxRoot
+	}
+	return filepath.Join(ChariotConfig.DataPath, sandboxBase, key, subdir), nil
 }
 
 func globalKindPath(kind StorageKind) (string, error) {
@@ -182,7 +186,10 @@ func EnsureSandboxDirectories(username string) error {
 		ChariotLogger.Error("Invalid username for sandbox creation", zap.String("username", username))
 		return errors.New("invalid username for sandbox creation")
 	}
-	if ChariotConfig.DataPath == "" {
+	basePath := ChariotConfig.DataPath
+	if ChariotConfig.SandboxRoot != "" && filepath.IsAbs(ChariotConfig.SandboxRoot) {
+		basePath = ChariotConfig.SandboxRoot
+	} else if basePath == "" {
 		ChariotLogger.Error("DataPath not configured")
 		return errors.New("data path not configured")
 	}
@@ -190,15 +197,20 @@ func EnsureSandboxDirectories(username string) error {
 	ChariotLogger.Info("Ensuring sandbox directories",
 		zap.String("username", username),
 		zap.String("sanitizedKey", key),
-		zap.String("dataPath", ChariotConfig.DataPath),
+		zap.String("basePath", basePath),
 	)
 
 	// Create all kind-specific directories using DataPath (same logic as storageBasePath)
 	kinds := []StorageKind{StorageKindData, StorageKindTree, StorageKindDiagram}
 	for _, kind := range kinds {
-		subdir := sandboxKindSegment(kind)
-		// Build path relative to DataPath to use the mounted volume
-		path := filepath.Join(ChariotConfig.DataPath, "sandboxes", key, subdir)
+		path, err := sandboxPath(key, sandboxKindSegment(kind))
+		if err != nil {
+			ChariotLogger.Error("Failed to resolve sandbox directory",
+				zap.String("kind", string(kind)),
+				zap.Error(err),
+			)
+			return err
+		}
 		ChariotLogger.Debug("Creating sandbox directory",
 			zap.String("path", path),
 			zap.String("kind", string(kind)),

@@ -113,6 +113,7 @@ export const WhileNodePropertiesDialog: React.FC<WhileNodePropertiesDialogProps>
     onClose();
   };
 
+
   const handleCancel = () => {
     onClose();
   };

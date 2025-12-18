@@ -43,6 +43,11 @@ export const SetNameNodePropertiesDialog: React.FC<SetNameNodePropertiesProps> =
     onClose();
   };
 
+
+
+  const handleCancel = () => {
+    onClose();
+  };
   const handleDelete = () => {
     onDelete();
     onClose();
@@ -57,7 +62,7 @@ export const SetNameNodePropertiesDialog: React.FC<SetNameNodePropertiesProps> =
         <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-800 dark:border-gray-200 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Set Name Properties</h3>
           <button
-            onClick={handleClose}
+            onClick={handleCancel}
             className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold w-6 h-6 flex items-center justify-center border border-gray-800 dark:border-gray-200"
           >
             ×

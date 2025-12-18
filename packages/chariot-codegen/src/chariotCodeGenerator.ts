@@ -87,6 +87,62 @@ export class ChariotCodeGenerator {
       'log print': 'Log Print',
       'loop body': 'Loop Body',
       'symbol': 'Symbol',
+      'and': 'and',
+      'or': 'or',
+      'not': 'not',
+      'equal': 'equal',
+      'equals': 'equal',
+      'unequal': 'unequal',
+      'bigger': 'bigger',
+      'greater': 'bigger',
+      'smaller': 'smaller',
+      'less': 'smaller',
+      'biggereq': 'biggerEq',
+      'greaterorequal': 'biggerEq',
+      'smallereq': 'smallerEq',
+      'lessorequal': 'smallerEq',
+      'add': 'add',
+      'addition': 'add',
+      'sub': 'sub',
+      'subtract': 'sub',
+      'mul': 'mul',
+      'multiply': 'mul',
+      'div': 'div',
+      'divide': 'div',
+      'abs': 'abs',
+      'absolute': 'abs',
+      'max': 'max',
+      'maximum': 'max',
+      'min': 'min',
+      'minimum': 'min',
+      'round': 'round',
+      'random': 'random',
+      'concat': 'concat',
+      'concatenate': 'concat',
+      'split': 'split',
+      'replace': 'replace',
+      'substring': 'substring',
+      'substr': 'substring',
+      'string length': 'strlen',
+      'stringlength': 'strlen',
+      'strlen': 'strlen',
+      'upper': 'upper',
+      'uppercase': 'upper',
+      'lower': 'lower',
+      'lowercase': 'lower',
+      'date': 'date',
+      'now': 'now',
+      'today': 'today',
+      'date add': 'dateAdd',
+      'dateadd': 'dateAdd',
+      'format date': 'formatDate',
+      'formatdate': 'formatDate',
+      'encrypt': 'encrypt',
+      'decrypt': 'decrypt',
+      'hash 256': 'hash256',
+      'hash256': 'hash256',
+      'hash-256': 'hash256',
+      'sign': 'sign',
     };
     return aliasMap[lowerKey] || normalized;
   }
@@ -327,6 +383,38 @@ export class ChariotCodeGenerator {
         return this.generateTreeGetMetadataCode(node);
       case 'Add To':
         return this.generateAddToCode(node);
+      case 'concat':
+        return this.generateConcatCode(node);
+      case 'split':
+        return this.generateSplitCode(node);
+      case 'replace':
+        return this.generateReplaceCode(node);
+      case 'substring':
+        return this.generateSubstringCode(node);
+      case 'strlen':
+        return this.generateStringLengthCode(node);
+      case 'upper':
+        return this.generateUpperCode(node);
+      case 'lower':
+        return this.generateLowerCode(node);
+      case 'date':
+        return this.generateDateCode(node);
+      case 'now':
+        return this.generateNowCode(node);
+      case 'today':
+        return this.generateTodayCode(node);
+      case 'dateAdd':
+        return this.generateDateAddCode(node);
+      case 'formatDate':
+        return this.generateFormatDateCode(node);
+      case 'encrypt':
+        return this.generateEncryptCode(node);
+      case 'decrypt':
+        return this.generateDecryptCode(node);
+      case 'hash256':
+        return this.generateHash256Code(node);
+      case 'sign':
+        return this.generateSignCode(node);
       case 'LogPrint':
       case 'Log Print':
       case 'logPrint':
@@ -335,6 +423,28 @@ export class ChariotCodeGenerator {
         return this.generateCreateTransformCode(node);
       case 'Add Mapping':
         return this.generateAddMappingCode(node);
+      case 'Add Mapping Transform':
+      case 'AddMappingWithTransform':
+      case 'addMappingWithTransform':
+        return this.generateAddMappingWithTransformCode(node);
+      case 'Do ETL':
+      case 'doETL':
+        return this.generateDoETLCode(node);
+      case 'ETL Status':
+      case 'etlStatus':
+        return this.generateETLStatusCode(node);
+      case 'Get Transform':
+      case 'GetTransform':
+      case 'getTransform':
+        return this.generateGetTransformCode(node);
+      case 'List Transforms':
+      case 'ListTransforms':
+      case 'listTransforms':
+        return this.generateListTransformsCode(node);
+      case 'Register Transform':
+      case 'RegisterTransform':
+      case 'registerTransform':
+        return this.generateRegisterTransformCode(node);
       case 'Array':
         return this.generateArrayCode(node);
       case 'Range':
@@ -363,6 +473,42 @@ export class ChariotCodeGenerator {
       case 'NBA Decision':
       case 'nbaDecision':
         return this.generateNBADecisionCode(node);
+      case 'and':
+        return this.generateAndCode(node);
+      case 'or':
+        return this.generateOrCode(node);
+      case 'not':
+        return this.generateNotCode(node);
+      case 'equal':
+        return this.generateEqualCode(node);
+      case 'unequal':
+        return this.generateUnequalCode(node);
+      case 'bigger':
+        return this.generateBiggerCode(node);
+      case 'biggerEq':
+        return this.generateBiggerEqCode(node);
+      case 'smaller':
+        return this.generateSmallerCode(node);
+      case 'smallerEq':
+        return this.generateSmallerEqCode(node);
+      case 'add':
+        return this.generateAddCode(node);
+      case 'sub':
+        return this.generateSubCode(node);
+      case 'mul':
+        return this.generateMulCode(node);
+      case 'div':
+        return this.generateDivCode(node);
+      case 'abs':
+        return this.generateAbsCode(node);
+      case 'max':
+        return this.generateMaxCode(node);
+      case 'min':
+        return this.generateMinCode(node);
+      case 'round':
+        return this.generateRoundCode(node);
+      case 'random':
+        return this.generateRandomCode(node);
       case 'Exists':
       case 'exists':
         return this.generateExistsCode(node);
@@ -410,8 +556,42 @@ export class ChariotCodeGenerator {
         return this.generateSetAttributesCode(node);
       case 'Set Text':
         return this.generateSetTextCode(node);
+      case 'Sleep':
+        return this.generateSleepCode(node);
+      case 'Get Env':
+        return this.generateGetEnvCode(node);
+      case 'Exit':
+        return this.generateExitCode(node);
+      case 'Call Method':
+        return this.generateCallMethodCode(node);
+      case 'Get Host Object':
+        return this.generateGetHostObjectCode(node);
+      case 'Host Object':
+        return this.generateHostObjectCode(node);
+      case 'Apply':
+        return this.generateApplyCode(node);
+      case 'Clone':
+        return this.generateCloneCode(node);
+      case 'Contains':
+        return this.generateContainsCode(node);
+      case 'Get All Meta':
+        return this.generateGetAllMetaCode(node);
+      case 'Get At':
+        return this.generateGetAtCode(node);
+      case 'Get Attributes':
+        return this.generateGetAttributesCode(node);
+      case 'Get Meta':
+        return this.generateGetMetaCode(node);
+      case 'Get Property':
+        return this.generateGetPropCode(node);
+      case 'Set Meta':
+        return this.generateSetMetaCode(node);
+      case 'Set Property':
+        return this.generateSetPropCode(node);
+      case 'Index Of':
+        return this.generateIndexOfCode(node);
       default:
-        return this.generateGenericFunctionCode(node);
+        return 'Error - unknown function'; // this.generateGenericFunctionCode(node);
     }
   }
 
@@ -903,6 +1083,166 @@ export class ChariotCodeGenerator {
     return `logPrint(${args.join(', ')})`;
   }
 
+  private generateSleepCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const milliseconds = props.milliseconds || '1000';
+    // Sleep takes a numeric argument - don't quote it
+    return `sleep(${milliseconds})`;
+  }
+
+  private generateGetEnvCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const varName = props.varName || 'PATH';
+    // Environment variable name should be quoted as a string literal
+    return `getEnv('${varName}')`;
+  }
+
+  private generateExitCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const exitCode = props.exitCode;
+    // Exit takes optional numeric code - don't quote it, or omit if 0/empty
+    if (!exitCode || exitCode === '0') {
+      return 'exit()';
+    }
+    return `exit(${exitCode})`;
+  }
+
+  private generateCallMethodCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const objectName = props.objectName || 'obj';
+    const methodName = props.methodName || 'method';
+    const args = props.args || '';
+    
+    // Format: callMethod(objOrName, 'methodName', args...)
+    const argsList = args ? `, ${args}` : '';
+    
+    // If objectName looks like a variable, don't quote it; otherwise quote it
+    const objRef = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(objectName) 
+      ? objectName 
+      : `'${objectName}'`;
+    
+    return `callMethod(${objRef}, '${methodName}'${argsList})`;
+  }
+
+  private generateGetHostObjectCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const objectName = props.objectName || 'obj';
+    // Format: getHostObject('name')
+    return `getHostObject('${objectName}')`;
+  }
+
+  private generateHostObjectCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const objectName = props.objectName || 'obj';
+    const wrappedObject = props.wrappedObject || '';
+    
+    // Format: hostObject('name') or hostObject('name', obj)
+    if (wrappedObject) {
+      return `hostObject('${objectName}', ${wrappedObject})`;
+    }
+    return `hostObject('${objectName}')`;
+  }
+
+  private generateApplyCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const functionName = props.functionName || 'func';
+    const collection = props.collection || 'collection';
+    // Format: apply(fn, collection)
+    return `apply(${functionName}, ${collection})`;
+  }
+
+  private generateCloneCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const object = props.object || 'obj';
+    const newName = props.newName || '';
+    // Format: clone(obj) or clone(obj, 'newName')
+    if (newName) {
+      return `clone(${object}, '${newName}')`;
+    }
+    return `clone(${object})`;
+  }
+
+  private generateContainsCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const object = props.object || 'str';
+    const value = props.value || 'value';
+    // Format: contains(obj, value)
+    // If value looks like a string literal, keep quotes; if variable, no quotes
+    const valueArg = value.startsWith("'") || value.startsWith('"') 
+      ? value 
+      : `'${value}'`;
+    return `contains(${object}, ${valueArg})`;
+  }
+
+  private generateGetAllMetaCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const target = props.target || 'obj';
+    return `getAllMeta(${target})`;
+  }
+
+  private generateGetAtCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const target = props.target || 'obj';
+    const index = props.index || '0';
+    return `getAt(${target}, ${index})`;
+  }
+
+  private generateGetAttributesCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const target = props.target || 'obj';
+    return `getAttributes(${target})`;
+  }
+
+  private generateGetMetaCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const target = props.target || 'obj';
+    const key = props.key || 'metaKey';
+    const keyArg = key.startsWith("'") || key.startsWith('"') ? key : `'${key}'`;
+    return `getMeta(${target}, ${keyArg})`;
+  }
+
+  private generateGetPropCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const target = props.target || 'obj';
+    const key = props.key || 'key';
+    const keyArg = key.startsWith("'") || key.startsWith('"') ? key : `'${key}'`;
+    return `getProp(${target}, ${keyArg})`;
+  }
+
+  private generateIndexOfCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const target = props.target || 'obj';
+    const value = props.value || 'value';
+    const startIndex = props.startIndex || '';
+    const valueArg = value.startsWith("'") || value.startsWith('"') ? value : `'${value}'`;
+    if (startIndex && startIndex.trim().length > 0) {
+      return `indexOf(${target}, ${valueArg}, ${startIndex})`;
+    }
+    return `indexOf(${target}, ${valueArg})`;
+  }
+
+  private generateSetMetaCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const targetRaw = (props.target ?? 'obj').toString().trim();
+    const target = targetRaw !== '' ? targetRaw : 'obj';
+    const keyRaw = (props.key ?? 'metaKey').toString().trim();
+    const key = keyRaw !== '' ? keyRaw : 'metaKey';
+    const keyArg = key.startsWith("'") || key.startsWith('"') ? key : `'${key}'`;
+    const valueArg = this.formatSetterValue(props.value);
+    return `setMeta(${target}, ${keyArg}, ${valueArg})`;
+  }
+
+  private generateSetPropCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const targetRaw = (props.target ?? 'obj').toString().trim();
+    const target = targetRaw !== '' ? targetRaw : 'obj';
+    const keyRaw = (props.key ?? 'key').toString().trim();
+    const key = keyRaw !== '' ? keyRaw : 'key';
+    const keyArg = key.startsWith("'") || key.startsWith('"') ? key : `'${key}'`;
+    const valueArg = this.formatSetterValue(props.value);
+    return `setProp(${target}, ${keyArg}, ${valueArg})`;
+  }
+
   private generateCreateTransformCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     let transformName = props.transformName || 'transform';
@@ -945,6 +1285,109 @@ export class ChariotCodeGenerator {
     args.push(`'${dataType}'`);
     args.push(String(required));
     return `addMapping(${args.join(', ')})`;
+  }
+
+  private generateAddMappingWithTransformCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    let transform = (props.transform ?? 'transform').toString().trim() || 'transform';
+    if ((transform.startsWith('"') && transform.endsWith('"')) || (transform.startsWith("'") && transform.endsWith("'"))) {
+      transform = transform.slice(1, -1);
+    }
+
+    const literal = (value: unknown, fallback: string) => {
+      const raw = (value ?? fallback).toString().trim() || fallback;
+      if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"'))) {
+        return raw;
+      }
+      return `'${raw.replace(/'/g, "\\'")}'`;
+    };
+
+    const sourceField = literal(props.sourceField, 'sourceField');
+    const targetColumn = literal(props.targetColumn, 'targetColumn');
+    const transformName = literal(props.transformName, 'transformName');
+    const dataType = literal(props.dataType, 'string');
+    const required = props.required !== undefined ? props.required : false;
+    const defaultValueRaw = (props.defaultValue ?? '').toString().trim();
+
+    const args = [transform, sourceField, targetColumn, transformName, dataType, String(required)];
+    if (defaultValueRaw.length > 0) {
+      args.push(literal(defaultValueRaw, defaultValueRaw));
+    }
+    return `addMappingWithTransform(${args.join(', ')})`;
+  }
+
+  private generateDoETLCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const jobIdArg = this.formatSetterValue(props.jobId ?? "'etl_job'");
+    const csvFileArg = this.formatSetterValue(props.csvFile ?? "'data.csv'");
+    const transformConfig = (props.transformConfig ?? 'transformConfig').toString().trim() || 'transformConfig';
+    const targetConfig = (props.targetConfig ?? 'targetConfig').toString().trim() || 'targetConfig';
+    const optionsRaw = (props.options ?? '').toString().trim();
+
+    const args = [jobIdArg, csvFileArg, transformConfig, targetConfig];
+    if (optionsRaw.length > 0) {
+      args.push(optionsRaw);
+    }
+    return `doETL(${args.join(', ')})`;
+  }
+
+  private generateETLStatusCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const jobIdArg = this.formatSetterValue(props.jobId ?? "'etl_job'");
+    return `etlStatus(${jobIdArg})`;
+  }
+
+  private generateGetTransformCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const nameArg = this.formatSetterValue(props.transformName ?? "'transformName'");
+    return `getTransform(${nameArg})`;
+  }
+
+  private generateListTransformsCode(_node: VisualDSLNode): string {
+    return 'listTransforms()';
+  }
+
+  private generateRegisterTransformCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const literal = (value: unknown, fallback: string) => {
+      const rawInput = (value ?? fallback).toString().trim();
+      const resolved = rawInput.length > 0 ? rawInput : fallback;
+      if (resolved.length === 0) {
+        return "''";
+      }
+      if ((resolved.startsWith("'") && resolved.endsWith("'")) || (resolved.startsWith('"') && resolved.endsWith('"'))) {
+        return resolved;
+      }
+      return `'${resolved.replace(/'/g, "\\'")}'`;
+    };
+
+    const nameArg = this.formatSetterValue(props.transformName ?? "'transformName'");
+    const entries: string[] = [];
+
+    const descriptionRaw = (props.description ?? '').toString().trim();
+    if (descriptionRaw.length > 0) {
+      entries.push(`'description', ${literal(descriptionRaw, descriptionRaw)}`);
+    }
+
+    const dataTypeRaw = (props.dataType ?? 'string').toString().trim();
+    const dataTypeValue = dataTypeRaw.length > 0 ? dataTypeRaw : 'string';
+    entries.push(`'dataType', ${literal(dataTypeValue, dataTypeValue)}`);
+
+    const categoryRaw = (props.category ?? '').toString().trim();
+    if (categoryRaw.length > 0) {
+      entries.push(`'category', ${literal(categoryRaw, categoryRaw)}`);
+    }
+
+    const programLines = Array.isArray(props.program) ? props.program : [];
+    const sanitizedProgram = programLines
+      .map(line => (line ?? '').toString().trim())
+      .filter(line => line.length > 0)
+      .map(line => `'${line.replace(/'/g, "\\'")}'`);
+    const programExpr = sanitizedProgram.length > 0 ? `array(${sanitizedProgram.join(', ')})` : 'array()';
+    entries.push(`'program', ${programExpr}`);
+
+    const config = entries.length > 0 ? `map(${entries.join(', ')})` : 'map()';
+    return `registerTransform(${nameArg}, ${config})`;
   }
 
   private generateArrayCode(node: VisualDSLNode): string {
@@ -1030,6 +1473,272 @@ export class ChariotCodeGenerator {
     const candidates = props.candidates || 'candidates';
     const rlHandle = props.rlHandle || 'rlHandle';
     return `nbaDecision(${candidates}, ${rlHandle})`;
+  }
+
+  private generateAndCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeLogicOperands(props.operands, 2, 'true');
+    return `and(${operands.join(', ')})`;
+  }
+
+  private generateOrCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeLogicOperands(props.operands, 2, 'false');
+    return `or(${operands.join(', ')})`;
+  }
+
+  private generateNotCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeLogicOperands(props.operands ?? props.operand, 1, 'flag');
+    return `not(${operands.join(', ')})`;
+  }
+
+  private generateEqualCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const legacyLeft = this.coerceExpression(props.leftOperand, 'valueA');
+    const legacyRight = this.coerceExpression(props.rightOperand, 'valueB');
+    const rawOperands = Array.isArray(props.operands) ? props.operands : [legacyLeft, legacyRight];
+    const operands = this.normalizeLogicOperands(rawOperands, 2, legacyRight);
+    return `equal(${operands.join(', ')})`;
+  }
+
+  private generateUnequalCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const legacyLeft = this.coerceExpression(props.leftOperand, 'valueA');
+    const legacyRight = this.coerceExpression(props.rightOperand, 'valueB');
+    const rawOperands = Array.isArray(props.operands) ? props.operands : [legacyLeft, legacyRight];
+    const operands = this.normalizeLogicOperands(rawOperands, 2, legacyRight);
+    return `unequal(${operands.join(', ')})`;
+  }
+
+  private generateBiggerCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const left = this.coerceExpression(props.leftOperand, 'valueA');
+    const right = this.coerceExpression(props.rightOperand, 'valueB');
+    return `bigger(${left}, ${right})`;
+  }
+
+  private generateBiggerEqCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const left = this.coerceExpression(props.leftOperand, 'valueA');
+    const right = this.coerceExpression(props.rightOperand, 'valueB');
+    return `biggerEq(${left}, ${right})`;
+  }
+
+  private generateSmallerCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const left = this.coerceExpression(props.leftOperand, 'valueA');
+    const right = this.coerceExpression(props.rightOperand, 'valueB');
+    return `smaller(${left}, ${right})`;
+  }
+
+  private generateSmallerEqCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const left = this.coerceExpression(props.leftOperand, 'valueA');
+    const right = this.coerceExpression(props.rightOperand, 'valueB');
+    return `smallerEq(${left}, ${right})`;
+  }
+
+  private generateAddCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const [left, right] = this.resolveBinaryMathOperands(props, 'valueA', 'valueB');
+    return `add(${left}, ${right})`;
+  }
+
+  private generateSubCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const [left, right] = this.resolveBinaryMathOperands(props, 'valueA', 'valueB');
+    return `sub(${left}, ${right})`;
+  }
+
+  private generateMulCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const [left, right] = this.resolveBinaryMathOperands(props, 'valueA', 'valueB');
+    return `mul(${left}, ${right})`;
+  }
+
+  private generateDivCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const [left, right] = this.resolveBinaryMathOperands(props, 'numerator', 'denominator');
+    return `div(${left}, ${right})`;
+  }
+
+  private generateAbsCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const source = operands.length > 0 ? operands[0] : (props as { operand?: unknown; value?: unknown }).operand ?? props.value;
+    const value = this.coerceExpression(source, 'value');
+    return `abs(${value})`;
+  }
+
+  private generateMaxCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const values = this.normalizeMathList((props as { operands?: unknown }).operands, ['valueA', 'valueB']);
+    return `max(${values.join(', ')})`;
+  }
+
+  private generateMinCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const values = this.normalizeMathList((props as { operands?: unknown }).operands, ['valueA', 'valueB']);
+    return `min(${values.join(', ')})`;
+  }
+
+  private generateRoundCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const valueSource = operands.length > 0 ? operands[0] : (props as { value?: unknown; operand?: unknown }).value ?? props.operand;
+    const value = this.coerceExpression(valueSource, 'value');
+    const decimalsRaw = (props as { decimalPlaces?: unknown }).decimalPlaces ?? '';
+    const decimalsText = decimalsRaw.toString().trim();
+    if (decimalsText.length === 0) {
+      return `round(${value})`;
+    }
+    const decimals = this.coerceExpression(decimalsRaw, '0');
+    return `round(${value}, ${decimals})`;
+  }
+
+  private generateRandomCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    if (operands.length === 0) {
+      return 'random()';
+    }
+    if (operands.length === 1) {
+      return `random(${operands[0]})`;
+    }
+    return `random(${operands[0]}, ${operands[1]})`;
+  }
+
+  private generateConcatCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const normalized = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const operands = normalized.length > 0 ? normalized : ['valueA', 'valueB'];
+    return `concat(${operands.join(', ')})`;
+  }
+
+  private generateSplitCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    const delimiter = this.coerceStringArgument((props as { delimiter?: unknown }).delimiter, "','");
+    return `split(${value}, ${delimiter})`;
+  }
+
+  private generateReplaceCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    const searchValue = this.coerceStringArgument((props as { searchValue?: unknown }).searchValue, 'oldText');
+    const replaceValue = this.coerceStringArgument((props as { replaceValue?: unknown }).replaceValue, 'newText');
+    const countRaw = (props as { count?: unknown }).count ?? '';
+    const countText = countRaw.toString().trim();
+    if (countText.length === 0) {
+      return `replace(${value}, ${searchValue}, ${replaceValue})`;
+    }
+    const count = this.coerceExpression(countRaw, '-1');
+    return `replace(${value}, ${searchValue}, ${replaceValue}, ${count})`;
+  }
+
+  private generateSubstringCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    const start = this.coerceExpression((props as { start?: unknown }).start, '0');
+    const lengthRaw = (props as { length?: unknown }).length ?? '';
+    const lengthText = lengthRaw.toString().trim();
+    if (lengthText.length === 0) {
+      return `substring(${value}, ${start})`;
+    }
+    const lengthExpr = this.coerceExpression(lengthRaw, '0');
+    return `substring(${value}, ${start}, ${lengthExpr})`;
+  }
+
+  private generateStringLengthCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    return `strlen(${value})`;
+  }
+
+  private generateUpperCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    return `upper(${value})`;
+  }
+
+  private generateLowerCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    return `lower(${value})`;
+  }
+
+  private generateDateCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const modeRaw = (props as { mode?: unknown }).mode;
+    const normalizedMode = typeof modeRaw === 'string' ? modeRaw.toLowerCase() : '';
+    const hasComponentFallback = ['year', 'month', 'day'].some((key) => {
+      const value = (props as Record<string, unknown>)[key];
+      return value !== undefined && value !== null && value.toString().trim().length > 0;
+    });
+    if (normalizedMode === 'components' || (normalizedMode === '' && hasComponentFallback)) {
+      const year = this.coerceExpression((props as { year?: unknown }).year, '2024');
+      const month = this.coerceExpression((props as { month?: unknown }).month, '1');
+      const day = this.coerceExpression((props as { day?: unknown }).day, '1');
+      return `date(${year}, ${month}, ${day})`;
+    }
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, '2024-01-01T00:00:00Z');
+    return `date(${value})`;
+  }
+
+  private generateNowCode(_node: VisualDSLNode): string {
+    return 'now()';
+  }
+
+  private generateTodayCode(_node: VisualDSLNode): string {
+    return 'today()';
+  }
+
+  private generateDateAddCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'now()');
+    const interval = this.coerceIntervalArgument((props as { interval?: unknown }).interval, 'day');
+    const amount = this.coerceExpression((props as { amount?: unknown }).amount, '1');
+    return `dateAdd(${value}, ${interval}, ${amount})`;
+  }
+
+  private generateFormatDateCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'now()');
+    const formatRaw = (props as { format?: unknown }).format ?? '';
+    const formatText = formatRaw.toString().trim();
+    if (formatText.length === 0) {
+      return `formatDate(${value})`;
+    }
+    const format = this.coerceStringArgument(formatRaw, 'YYYY-MM-DD');
+    return `formatDate(${value}, ${format})`;
+  }
+
+  private generateEncryptCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const keyId = this.coerceStringArgument((props as { keyId?: unknown }).keyId, 'encKey');
+    const data = this.coerceStringArgument((props as { data?: unknown }).data, 'plaintextValue');
+    return `encrypt(${keyId}, ${data})`;
+  }
+
+  private generateDecryptCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const keyId = this.coerceStringArgument((props as { keyId?: unknown }).keyId, 'encKey');
+    const ciphertext = this.coerceStringArgument((props as { ciphertext?: unknown }).ciphertext, 'ciphertextBase64');
+    return `decrypt(${keyId}, ${ciphertext})`;
+  }
+
+  private generateHash256Code(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceStringArgument((props as { value?: unknown }).value, 'textValue');
+    return `hash256(${value})`;
+  }
+
+  private generateSignCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const keyId = this.coerceStringArgument((props as { keyId?: unknown }).keyId, 'encKey');
+    const data = this.coerceStringArgument((props as { data?: unknown }).data, 'message');
+    return `sign(${keyId}, ${data})`;
   }
 
   private generateExistsCode(node: VisualDSLNode): string {
@@ -1230,6 +1939,10 @@ export class ChariotCodeGenerator {
       'create transform': 'createTransform',
       'addMapping': 'addMapping',
       'add mapping': 'addMapping',
+      'addMappingWithTransform': 'addMappingWithTransform',
+      'addmappingwithtransform': 'addMappingWithTransform',
+      'add mapping transform': 'addMappingWithTransform',
+      'add mapping with transform': 'addMappingWithTransform',
       'addChild': 'addChild',
       'add child': 'addChild',
       'childCount': 'childCount',
@@ -1264,6 +1977,12 @@ export class ChariotCodeGenerator {
       'tree to yaml': 'treeToYAML',
       'treeToXML': 'treeToXML',
       'tree to xml': 'treeToXML',
+      'doETL': 'doETL',
+      'doetl': 'doETL',
+      'do etl': 'doETL',
+      'etlStatus': 'etlStatus',
+      'etlstatus': 'etlStatus',
+      'etl status': 'etlStatus',
       'treeGetMetadata': 'treeGetMetadata',
       'tree get metadata': 'treeGetMetadata',
       'getValue': 'getValue',
@@ -1697,6 +2416,42 @@ export class ChariotCodeGenerator {
       case 'Log Print':
       case 'logPrint':
         return null;
+      case 'Sleep':
+        return null; // sleep() doesn't return a value
+      case 'Exit':
+        return null; // exit() doesn't return a value
+      case 'Get Env':
+        return this.generateGetEnvCode(childNode); // getEnv() can be inlined
+      case 'Call Method':
+        return this.generateCallMethodCode(childNode); // callMethod() can be inlined
+      case 'Get Host Object':
+        return this.generateGetHostObjectCode(childNode); // getHostObject() can be inlined
+      case 'Host Object':
+        return this.generateHostObjectCode(childNode); // hostObject() can be inlined
+      case 'Apply':
+        return null; // apply() doesn't return a usable value for inline
+      case 'Clone':
+        return this.generateCloneCode(childNode); // clone() can be inlined
+      case 'Contains':
+        return this.generateContainsCode(childNode); // contains() returns boolean, can be inlined
+      case 'Get All Meta':
+        return this.generateGetAllMetaCode(childNode);
+      case 'Get At':
+        return this.generateGetAtCode(childNode);
+      case 'Get Attributes':
+        return this.generateGetAttributesCode(childNode);
+      case 'Get Meta':
+        return this.generateGetMetaCode(childNode);
+      case 'Get Property':
+        return this.generateGetPropCode(childNode);
+      case 'Index Of':
+        return this.generateIndexOfCode(childNode);
+      case 'and':
+        return this.generateAndCode(childNode);
+      case 'or':
+        return this.generateOrCode(childNode);
+      case 'not':
+        return this.generateNotCode(childNode);
       default: {
         const allowedCategories = new Set([
           'value',
@@ -1779,24 +2534,149 @@ export class ChariotCodeGenerator {
     const props = node.data.properties || {};
     const varName = (props.variableName ?? 'var').toString().trim() || 'var';
     const attributeName = (props.attributeName ?? 'attr').toString().trim() || 'attr';
-    const raw = (props.value ?? '').toString().trim();
+    const valueArg = this.formatSetterValue(props.value);
+    return `setAttribute(${varName}, '${attributeName}', ${valueArg})`;
+  }
+
+  private formatSetterValue(value: unknown): string {
+    const rawOriginal = value ?? '';
+    const raw = rawOriginal.toString().trim();
     if (raw === '') {
-      return `setAttribute(${varName}, '${attributeName}', '')`;
+      return `''`;
+    }
+    if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"'))) {
+      return raw;
     }
     if (/^func\s*\(/.test(raw)) {
-      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+      return raw;
     }
     if (raw === 'true' || raw === 'false') {
-      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+      return raw;
     }
     if (!isNaN(Number(raw)) && /^-?\d+(\.\d+)?$/.test(raw)) {
-      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+      return raw;
     }
     if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(raw) || /\)$/.test(raw)) {
-      return `setAttribute(${varName}, '${attributeName}', ${raw})`;
+      return raw;
     }
     const escaped = raw.replace(/'/g, "\\'");
-    return `setAttribute(${varName}, '${attributeName}', '${escaped}')`;
+    return `'${escaped}'`;
+  }
+
+  private normalizeExpressionList(raw: unknown): string[] {
+    if (Array.isArray(raw)) {
+      return raw
+        .map(entry => (entry ?? '').toString().trim())
+        .filter(entry => entry.length > 0);
+    }
+    if (raw === undefined || raw === null) {
+      return [];
+    }
+    const text = raw.toString().trim();
+    return text.length > 0 ? [text] : [];
+  }
+
+  private normalizeLogicOperands(raw: unknown, minLength: number, padValue: string): string[] {
+    const min = Math.max(minLength, 1);
+    const operands = this.normalizeExpressionList(raw);
+    if (operands.length === 0) {
+      return Array(min).fill(padValue);
+    }
+    const normalized = [...operands];
+    while (normalized.length < min) {
+      normalized.push(normalized[normalized.length - 1]);
+    }
+    return normalized;
+  }
+
+  private coerceExpression(value: unknown, fallback: string): string {
+    const text = (value ?? '').toString().trim();
+    return text.length > 0 ? text : fallback;
+  }
+
+  private coerceStringArgument(value: unknown, fallback: string): string {
+    const raw = (value ?? '').toString().trim();
+    const candidate = raw.length > 0 ? raw : fallback;
+    const hasWrappingQuotes =
+      (candidate.startsWith('"') && candidate.endsWith('"') && candidate.length >= 2) ||
+      (candidate.startsWith("'") && candidate.endsWith("'") && candidate.length >= 2);
+    if (hasWrappingQuotes) {
+      const inner = candidate.slice(1, -1).replace(/'/g, "\\'");
+      return `'${inner}'`;
+    }
+    if (this.isLikelyExpression(candidate)) {
+      return candidate;
+    }
+    const escaped = candidate.replace(/'/g, "\\'");
+    return `'${escaped}'`;
+  }
+
+  private coerceIntervalArgument(value: unknown, fallback: string): string {
+    const raw = (value ?? '').toString().trim();
+    const candidate = raw.length > 0 ? raw : fallback;
+    const hasWrappingQuotes =
+      (candidate.startsWith('"') && candidate.endsWith('"') && candidate.length >= 2) ||
+      (candidate.startsWith("'") && candidate.endsWith("'") && candidate.length >= 2);
+    const normalized = candidate.toLowerCase();
+    const knownIntervals = ['year', 'years', 'month', 'months', 'day', 'days', 'hour', 'hours', 'minute', 'minutes', 'second', 'seconds'];
+    if (hasWrappingQuotes) {
+      const inner = candidate.slice(1, -1).replace(/'/g, "\\'");
+      return `'${inner}'`;
+    }
+    if (knownIntervals.includes(normalized)) {
+      const escaped = candidate.replace(/'/g, "\\'");
+      return `'${escaped}'`;
+    }
+    if (this.isLikelyExpression(candidate)) {
+      return candidate;
+    }
+    const escaped = candidate.replace(/'/g, "\\'");
+    return `'${escaped}'`;
+  }
+
+  private isLikelyExpression(value: string): boolean {
+    if (!value) {
+      return false;
+    }
+    if (/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(value)) {
+      return true;
+    }
+    if (/^-?\d+(\.\d+)?$/.test(value)) {
+      return true;
+    }
+    if (value.includes('(') || value.includes('[') || value.includes('{')) {
+      return true;
+    }
+    if (value === 'DBNull') {
+      return true;
+    }
+    return false;
+  }
+
+  private resolveBinaryMathOperands(
+    props: Record<string, unknown>,
+    defaultLeft: string,
+    defaultRight: string
+  ): [string, string] {
+    const candidate = props as {
+      operands?: unknown;
+      leftOperand?: unknown;
+      rightOperand?: unknown;
+    };
+    const arrayOperands = Array.isArray(candidate.operands) ? candidate.operands : null;
+    const leftSource = arrayOperands && arrayOperands.length > 0 ? arrayOperands[0] : candidate.leftOperand;
+    const rightSource = arrayOperands && arrayOperands.length > 1 ? arrayOperands[1] : candidate.rightOperand;
+    const left = this.coerceExpression(leftSource, defaultLeft);
+    const right = this.coerceExpression(rightSource, defaultRight);
+    return [left, right];
+  }
+
+  private normalizeMathList(raw: unknown, fallbackValues: string[]): string[] {
+    const normalized = this.normalizeExpressionList(raw);
+    if (normalized.length === 0) {
+      return [...fallbackValues];
+    }
+    return normalized;
   }
 
   private generateSetAttributesCode(node: VisualDSLNode): string {

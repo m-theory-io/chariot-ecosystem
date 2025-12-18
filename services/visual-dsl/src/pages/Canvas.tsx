@@ -62,10 +62,67 @@ import { ChildCountNodePropertiesDialog, ChildCountNodeProperties } from "../com
 import { ClearNodePropertiesDialog, ClearNodeProperties } from "../components/dialogs/ClearNodeProperties";
 import { AddToNodePropertiesDialog, AddToNodeProperties } from "../components/dialogs/AddToNodeProperties";
 import LogPrintNodeProperties, { LogPrintNodeProperties as LogPrintProperties } from "../components/dialogs/LogPrintNodeProperties";
+import { SleepNodePropertiesDialog, SleepNodeProperties } from "../components/dialogs/SleepNodeProperties";
+import { GetEnvNodePropertiesDialog, GetEnvNodeProperties } from "../components/dialogs/GetEnvNodeProperties";
+import { ExitNodePropertiesDialog, ExitNodeProperties } from "../components/dialogs/ExitNodeProperties";
+import { AndNodePropertiesDialog, AndNodeProperties } from "../components/dialogs/AndNodeProperties";
+import { OrNodePropertiesDialog, OrNodeProperties } from "../components/dialogs/OrNodeProperties";
+import { NotNodePropertiesDialog, NotNodeProperties } from "../components/dialogs/NotNodeProperties";
+import { EqualNodePropertiesDialog, EqualNodeProperties } from "../components/dialogs/EqualNodeProperties";
+import { UnequalNodePropertiesDialog, UnequalNodeProperties } from "../components/dialogs/UnequalNodeProperties";
+import { BiggerNodePropertiesDialog, BiggerNodeProperties } from "../components/dialogs/BiggerNodeProperties";
+import { BiggerEqNodePropertiesDialog, BiggerEqNodeProperties } from "../components/dialogs/BiggerEqNodeProperties";
+import { SmallerNodePropertiesDialog, SmallerNodeProperties } from "../components/dialogs/SmallerNodeProperties";
+import { SmallerEqNodePropertiesDialog, SmallerEqNodeProperties } from "../components/dialogs/SmallerEqNodeProperties";
+import { AddNodePropertiesDialog, AddNodeProperties } from "../components/dialogs/AddNodeProperties";
+import { SubNodePropertiesDialog, SubNodeProperties } from "../components/dialogs/SubNodeProperties";
+import { MulNodePropertiesDialog, MulNodeProperties } from "../components/dialogs/MulNodeProperties";
+import { DivNodePropertiesDialog, DivNodeProperties } from "../components/dialogs/DivNodeProperties";
+import { AbsNodePropertiesDialog, AbsNodeProperties } from "../components/dialogs/AbsNodeProperties";
+import { MaxNodePropertiesDialog, MaxNodeProperties } from "../components/dialogs/MaxNodeProperties";
+import { MinNodePropertiesDialog, MinNodeProperties } from "../components/dialogs/MinNodeProperties";
+import { RoundNodePropertiesDialog, RoundNodeProperties } from "../components/dialogs/RoundNodeProperties";
+import { RandomNodePropertiesDialog, RandomNodeProperties } from "../components/dialogs/RandomNodeProperties";
+import { ConcatNodePropertiesDialog, ConcatNodeProperties } from "../components/dialogs/ConcatNodeProperties";
+import { SplitNodePropertiesDialog, SplitNodeProperties } from "../components/dialogs/SplitNodeProperties";
+import { ReplaceNodePropertiesDialog, ReplaceNodeProperties } from "../components/dialogs/ReplaceNodeProperties";
+import { SubstringNodePropertiesDialog, SubstringNodeProperties } from "../components/dialogs/SubstringNodeProperties";
+import { StringLengthNodePropertiesDialog, StringLengthNodeProperties } from "../components/dialogs/StringLengthNodeProperties";
+import { UpperNodePropertiesDialog, UpperNodeProperties } from "../components/dialogs/UpperNodeProperties";
+import { LowerNodePropertiesDialog, LowerNodeProperties } from "../components/dialogs/LowerNodeProperties";
+import { DateNodePropertiesDialog, DateNodeProperties } from "../components/dialogs/DateNodeProperties";
+import { NowNodePropertiesDialog, NowNodeProperties } from "../components/dialogs/NowNodeProperties";
+import { TodayNodePropertiesDialog, TodayNodeProperties } from "../components/dialogs/TodayNodeProperties";
+import { DateAddNodePropertiesDialog, DateAddNodeProperties } from "../components/dialogs/DateAddNodeProperties";
+import { FormatDateNodePropertiesDialog, FormatDateNodeProperties } from "../components/dialogs/FormatDateNodeProperties";
+import { EncryptNodePropertiesDialog, EncryptNodeProperties } from "../components/dialogs/EncryptNodeProperties";
+import { DecryptNodePropertiesDialog, DecryptNodeProperties } from "../components/dialogs/DecryptNodeProperties";
+import { Hash256NodePropertiesDialog, Hash256NodeProperties } from "../components/dialogs/Hash256NodeProperties";
+import { SignNodePropertiesDialog, SignNodeProperties } from "../components/dialogs/SignNodeProperties";
+import { CallMethodNodePropertiesDialog } from "../components/dialogs/CallMethodNodeProperties";
+import { GetHostObjectNodePropertiesDialog } from "../components/dialogs/GetHostObjectNodeProperties";
+import { HostObjectNodePropertiesDialog } from "../components/dialogs/HostObjectNodeProperties";
+import { ApplyNodePropertiesDialog } from "../components/dialogs/ApplyNodeProperties";
+import { CloneNodePropertiesDialog } from "../components/dialogs/CloneNodeProperties";
+import { ContainsNodePropertiesDialog } from "../components/dialogs/ContainsNodeProperties";
+import { GetAllMetaNodePropertiesDialog } from "../components/dialogs/GetAllMetaNodeProperties";
+import { GetAtNodePropertiesDialog } from "../components/dialogs/GetAtNodeProperties";
+import { GetAttributesNodePropertiesDialog } from "../components/dialogs/GetAttributesNodeProperties";
+import { GetMetaNodePropertiesDialog } from "../components/dialogs/GetMetaNodeProperties";
+import { GetPropNodePropertiesDialog } from "../components/dialogs/GetPropNodeProperties";
+import { IndexOfNodePropertiesDialog } from "../components/dialogs/IndexOfNodeProperties";
+import { SetMetaNodePropertiesDialog } from "../components/dialogs/SetMetaNodeProperties";
+import { SetPropNodePropertiesDialog } from "../components/dialogs/SetPropNodeProperties";
 import BreakNodePropertiesDialog, { BreakNodeProperties } from "../components/dialogs/BreakNodeProperties";
 import ContinueNodePropertiesDialog, { ContinueNodeProperties } from "../components/dialogs/ContinueNodeProperties";
 import CreateTransformNodeProperties, { CreateTransformNodeProperties as CreateTransformProperties } from "../components/dialogs/CreateTransformNodeProperties";
 import AddMappingNodeProperties, { AddMappingNodeProperties as AddMappingProperties } from "../components/dialogs/AddMappingNodeProperties";
+import AddMappingWithTransformNodeProperties, { AddMappingWithTransformNodeProperties as AddMappingWithTransformProperties } from "../components/dialogs/AddMappingWithTransformNodeProperties";
+import DoETLNodePropertiesDialog, { DoETLNodeProperties as DoETLProperties } from "../components/dialogs/DoETLNodeProperties";
+import ETLStatusNodePropertiesDialog, { ETLStatusNodeProperties as ETLStatusProperties } from "../components/dialogs/ETLStatusNodeProperties";
+import { GetTransformNodePropertiesDialog, GetTransformNodeProperties } from "../components/dialogs/GetTransformNodeProperties";
+import { ListTransformsNodePropertiesDialog, ListTransformsNodeProperties } from "../components/dialogs/ListTransformsNodeProperties";
+import { RegisterTransformNodePropertiesDialog, RegisterTransformNodeProperties } from "../components/dialogs/RegisterTransformNodeProperties";
 import { TreeSaveNodePropertiesDialog, TreeSaveNodeProperties } from "../components/dialogs/TreeSaveNodeProperties";
 import { TreeLoadNodePropertiesDialog, TreeLoadNodeProperties } from "../components/dialogs/TreeLoadNodeProperties";
 import { TreeFindNodePropertiesDialog, TreeFindNodeProperties } from "../components/dialogs/TreeFindNodeProperties";
@@ -119,6 +176,15 @@ interface DiagramData {
   groupCount: number;
   created: string;
   modified: string;
+}
+
+interface EtlTransformDefinition {
+  name: string;
+  description?: string;
+  dataType?: string;
+  category?: string;
+  program?: string[];
+  examples?: string[];
 }
 
 const initialNodes: Node[] = [
@@ -178,6 +244,95 @@ export default function VisualDSLPrototype() {
   const { nestingMode, selectedParentId, setSelectedParentId, nestingRelations, addNestingRelation, getChildrenOf, getParentOf, removeNestingRelation, setNestingMode, wrapGroupAsSubflow, unwrapSubflow, isSubflow, getSubflow, getAllSubflows, replaceAllSubflows } = useNesting();
   const [nodes, setNodes] = React.useState<Node[]>(initialNodes);
   const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
+  const [etlTransforms, setEtlTransforms] = React.useState<EtlTransformDefinition[]>([]);
+  const [etlTransformError, setEtlTransformError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let aborted = false;
+
+    const loadTransforms = async () => {
+      try {
+        setEtlTransformError(null);
+        const token = localStorage.getItem('chariot_auth_token') || '';
+        const headers: Record<string, string> = token ? { Authorization: token } : {};
+        const response = await fetch('/api/etl/transforms', {
+          credentials: 'include',
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const payload: { data?: unknown } = await response.json();
+        const rawList = Array.isArray(payload?.data) ? payload.data : [];
+        const sanitized = (rawList as unknown[])
+          .map((entry) => {
+            if (!entry || typeof entry !== 'object') {
+              return null;
+            }
+            const candidate = entry as Record<string, unknown>;
+            const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
+            if (!name) {
+              return null;
+            }
+            return {
+              name,
+              description: typeof candidate.description === 'string' ? candidate.description : undefined,
+              dataType: typeof candidate.dataType === 'string' ? candidate.dataType : undefined,
+              category: typeof candidate.category === 'string' ? candidate.category : undefined,
+              program: Array.isArray(candidate.program)
+                ? candidate.program.filter((line) => typeof line === 'string') as string[]
+                : undefined,
+              examples: Array.isArray(candidate.examples)
+                ? candidate.examples.filter((example) => typeof example === 'string') as string[]
+                : undefined,
+            } as EtlTransformDefinition;
+          })
+          .filter((item): item is EtlTransformDefinition => Boolean(item));
+
+        if (!aborted) {
+          setEtlTransforms(sanitized);
+        }
+      } catch (error) {
+        if (!aborted) {
+          console.error('Failed to load ETL transforms', error);
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          setEtlTransforms([]);
+          setEtlTransformError(
+            `Unable to load registered transforms: ${message}. You can still type a name manually.`,
+          );
+        }
+      }
+    };
+
+    loadTransforms();
+
+    return () => {
+      aborted = true;
+    };
+  }, []);
+  const transformNameOptions = React.useMemo(() => {
+    const names = new Set<string>();
+
+    etlTransforms.forEach((transform) => {
+      if (transform.name) {
+        names.add(transform.name.trim());
+      }
+    });
+
+    nodes.forEach((node) => {
+      const properties = node.data?.properties as Record<string, unknown> | undefined;
+      const maybeName = typeof properties?.transformName === 'string'
+        ? properties.transformName.trim()
+        : '';
+
+      if (maybeName) {
+        names.add(maybeName);
+      }
+    });
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [etlTransforms, nodes]);
   
   // Simple group counter - increment when nesting is created
   const [groupCount, setGroupCount] = React.useState(0);
@@ -633,6 +788,74 @@ export default function VisualDSLPrototype() {
         nodeType = 'if';
       } else if ((label === 'Iif' || label === 'IIf'|| label === 'iif') && category === 'comparison') {
         nodeType = 'iif';
+      } else if ((label === 'And' || label === 'and' || label === 'AND') && category === 'comparison') {
+        nodeType = 'and';
+      } else if ((label === 'Or' || label === 'or' || label === 'OR') && category === 'comparison') {
+        nodeType = 'or';
+      } else if ((label === 'Not' || label === 'not' || label === 'NOT') && category === 'comparison') {
+        nodeType = 'not';
+      } else if ((label === 'Equal' || label === 'equal') && category === 'comparison') {
+        nodeType = 'equal';
+      } else if ((label === 'Unequal' || label === 'unequal' || label === 'UNEQUAL') && category === 'comparison') {
+        nodeType = 'unequal';
+      } else if ((label === 'Bigger' || label === 'bigger' || label === 'BIGGER') && category === 'comparison') {
+        nodeType = 'bigger';
+      } else if ((label === 'BiggerEq' || label === 'biggerEq' || label === 'BIGGER_EQ') && category === 'comparison') {
+        nodeType = 'biggerEq';
+      } else if ((label === 'Smaller' || label === 'smaller' || label === 'SMALLER') && category === 'comparison') {
+        nodeType = 'smaller';
+      } else if ((label === 'SmallerEq' || label === 'smallerEq' || label === 'SMALLER_EQ') && category === 'comparison') {
+        nodeType = 'smallerEq';
+      } else if ((label === 'Add' || label === 'add' || label === 'ADD') && category === 'math') {
+        nodeType = 'add';
+      } else if ((label === 'Subtract' || label === 'sub' || label === 'Sub' || label === 'SUB') && category === 'math') {
+        nodeType = 'sub';
+      } else if ((label === 'Multiply' || label === 'mul' || label === 'Mul' || label === 'MUL') && category === 'math') {
+        nodeType = 'mul';
+      } else if ((label === 'Divide' || label === 'div' || label === 'Div' || label === 'DIV') && category === 'math') {
+        nodeType = 'div';
+      } else if ((label === 'Absolute' || label === 'absolute' || label === 'Abs' || label === 'abs' || label === 'ABS') && category === 'math') {
+        nodeType = 'abs';
+      } else if ((label === 'Maximum' || label === 'maximum' || label === 'Max' || label === 'max') && category === 'math') {
+        nodeType = 'max';
+      } else if ((label === 'Minimum' || label === 'minimum' || label === 'Min' || label === 'min') && category === 'math') {
+        nodeType = 'min';
+      } else if ((label === 'Round' || label === 'round' || label === 'ROUND') && category === 'math') {
+        nodeType = 'round';
+      } else if ((label === 'Random' || label === 'random' || label === 'RANDOM') && category === 'math') {
+        nodeType = 'random';
+      } else if ((label === 'Concat' || label === 'concat' || label === 'CONCAT') && category === 'string') {
+        nodeType = 'concat';
+      } else if ((label === 'Split' || label === 'split' || label === 'SPLIT') && category === 'string') {
+        nodeType = 'split';
+      } else if ((label === 'Replace' || label === 'replace' || label === 'REPLACE') && category === 'string') {
+        nodeType = 'replace';
+      } else if ((label === 'Substring' || label === 'substring' || label === 'SUBSTRING') && category === 'string') {
+        nodeType = 'substring';
+      } else if ((label === 'String Length' || label === 'string length' || label === 'stringLength' || label === 'STRING LENGTH' || label === 'strlen') && category === 'string') {
+        nodeType = 'strlen';
+      } else if ((label === 'Upper' || label === 'upper' || label === 'UPPER') && category === 'string') {
+        nodeType = 'upper';
+      } else if ((label === 'Lower' || label === 'lower' || label === 'LOWER') && category === 'string') {
+        nodeType = 'lower';
+      } else if ((label === 'Date' || label === 'date') && category === 'date') {
+        nodeType = 'date';
+      } else if ((label === 'Now' || label === 'now') && category === 'date') {
+        nodeType = 'now';
+      } else if ((label === 'Today' || label === 'today') && category === 'date') {
+        nodeType = 'today';
+      } else if ((label === 'Date Add' || label === 'dateAdd' || label === 'date add') && category === 'date') {
+        nodeType = 'dateAdd';
+      } else if ((label === 'Format Date' || label === 'formatDate' || label === 'format date') && category === 'date') {
+        nodeType = 'formatDate';
+      } else if ((label === 'Encrypt' || label === 'encrypt') && category === 'crypto') {
+        nodeType = 'encrypt';
+      } else if ((label === 'Decrypt' || label === 'decrypt') && category === 'crypto') {
+        nodeType = 'decrypt';
+      } else if ((label === 'Hash 256' || label === 'hash256' || label === 'hash 256') && category === 'crypto') {
+        nodeType = 'hash256';
+      } else if ((label === 'Sign' || label === 'sign') && category === 'crypto') {
+        nodeType = 'sign';
       } else if ((label === 'While' || label === 'while') && category === 'control') {
         nodeType = 'while';
       } else if ((label === 'Function' || label === 'func') && category === 'control') {
@@ -745,10 +968,56 @@ export default function VisualDSLPrototype() {
         nodeType = 'addTo';
       } else if ((label === 'Log Print' || label === 'LogPrint' || label === 'logPrint') && category === 'system') {
         nodeType = 'logPrint';
+      } else if ((label === 'Sleep' || label === 'sleep') && category === 'system') {
+        nodeType = 'sleep';
+      } else if ((label === 'Get Env' || label === 'GetEnv' || label === 'getEnv') && category === 'system') {
+        nodeType = 'getEnv';
+      } else if ((label === 'Exit' || label === 'exit') && category === 'system') {
+        nodeType = 'exit';
+      } else if ((label === 'Call Method' || label === 'callMethod') && category === 'host') {
+        nodeType = 'callMethod';
+      } else if ((label === 'Get Host Object' || label === 'getHostObject') && category === 'host') {
+        nodeType = 'getHostObject';
+      } else if ((label === 'Host Object' || label === 'hostObject') && category === 'host') {
+        nodeType = 'hostObject';
+      } else if ((label === 'Apply' || label === 'apply') && category === 'dispatcher') {
+        nodeType = 'apply';
+      } else if ((label === 'Clone' || label === 'clone') && category === 'dispatcher') {
+        nodeType = 'clone';
+      } else if ((label === 'Contains' || label === 'contains') && category === 'dispatcher') {
+        nodeType = 'contains';
+      } else if ((label === 'Get All Meta' || label === 'getAllMeta') && category === 'dispatcher') {
+        nodeType = 'getAllMeta';
+      } else if ((label === 'Get At' || label === 'getAt') && category === 'dispatcher') {
+        nodeType = 'getAt';
+      } else if ((label === 'Get Attributes' || label === 'getAttributes') && category === 'dispatcher') {
+        nodeType = 'getAttributes';
+      } else if ((label === 'Get Meta' || label === 'getMeta') && category === 'dispatcher') {
+        nodeType = 'getMeta';
+      } else if ((label === 'Get Property' || label === 'getProp') && category === 'dispatcher') {
+        nodeType = 'getProp';
+      } else if ((label === 'Set Meta' || label === 'setMeta') && category === 'dispatcher') {
+        nodeType = 'setMeta';
+      } else if ((label === 'Set Property' || label === 'setProp') && category === 'dispatcher') {
+        nodeType = 'setProp';
+      } else if ((label === 'Index Of' || label === 'indexOf') && category === 'dispatcher') {
+        nodeType = 'indexOf';
       } else if ((label === 'Create Transform' || label === 'CreateTransform' || label === 'createTransform') && category === 'etl') {
         nodeType = 'createTransform';
       } else if ((label === 'Add Mapping' || label === 'AddMapping' || label === 'addMapping') && category === 'etl') {
         nodeType = 'addMapping';
+      } else if ((label === 'Add Mapping Transform' || label === 'AddMappingWithTransform' || label === 'addMappingWithTransform') && category === 'etl') {
+        nodeType = 'addMappingWithTransform';
+      } else if ((label === 'Do ETL' || label === 'doETL') && category === 'etl') {
+        nodeType = 'doETL';
+      } else if ((label === 'ETL Status' || label === 'etlStatus') && category === 'etl') {
+        nodeType = 'etlStatus';
+      } else if ((label === 'Get Transform' || label === 'GetTransform' || label === 'getTransform') && category === 'etl') {
+        nodeType = 'getTransform';
+      } else if ((label === 'List Transforms' || label === 'ListTransforms' || label === 'listTransforms') && category === 'etl') {
+        nodeType = 'listTransforms';
+      } else if ((label === 'Register Transform' || label === 'RegisterTransform' || label === 'registerTransform') && category === 'etl') {
+        nodeType = 'registerTransform';
       } else if (label === 'New Tree' && category === 'tree') {
         nodeType = 'newTree';
       } else if (label === 'Create' && (category === 'node' || category === 'tree')) {
@@ -1799,6 +2068,100 @@ export default function VisualDSLPrototype() {
         jsonString: '{"key": "value"}',
         nodeName: 'root'
       };
+      } else if (logicon.label === 'And' || logicon.label === 'and' || logicon.label === 'AND') {
+        defaultProperties = {
+          operands: ['condA', 'condB']
+        } as AndNodeProperties;
+      } else if (logicon.label === 'Or' || logicon.label === 'or' || logicon.label === 'OR') {
+        defaultProperties = {
+          operands: ['condA', 'condB']
+        } as OrNodeProperties;
+      } else if (logicon.label === 'Not' || logicon.label === 'not' || logicon.label === 'NOT') {
+        defaultProperties = {
+          operands: ['flag']
+        } as NotNodeProperties;
+      } else if (logicon.label === 'Equal' || logicon.label === 'equal' || logicon.label === 'EQUAL') {
+        defaultProperties = {
+          operands: ['valueA', 'valueB']
+        } as EqualNodeProperties;
+      } else if (logicon.label === 'Unequal' || logicon.label === 'unequal' || logicon.label === 'UNEQUAL') {
+        defaultProperties = {
+          operands: ['valueA', 'valueB']
+        } as UnequalNodeProperties;
+      } else if (logicon.label === 'Bigger' || logicon.label === 'bigger' || logicon.label === 'BIGGER') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as BiggerNodeProperties;
+      } else if (logicon.label === 'BiggerEq' || logicon.label === 'biggerEq' || logicon.label === 'BIGGER_EQ') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as BiggerEqNodeProperties;
+      } else if (logicon.label === 'Smaller' || logicon.label === 'smaller' || logicon.label === 'SMALLER') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as SmallerNodeProperties;
+      } else if (logicon.label === 'SmallerEq' || logicon.label === 'smallerEq' || logicon.label === 'SMALLER_EQ') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as SmallerEqNodeProperties;
+      } else if (logicon.label === 'Add' || logicon.label === 'add' || logicon.label === 'ADD') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as AddNodeProperties;
+      } else if (logicon.label === 'Subtract' || logicon.label === 'sub' || logicon.label === 'Sub' || logicon.label === 'SUB') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as SubNodeProperties;
+      } else if (logicon.label === 'Multiply' || logicon.label === 'mul' || logicon.label === 'Mul' || logicon.label === 'MUL') {
+        defaultProperties = {
+          leftOperand: 'valueA',
+          rightOperand: 'valueB'
+        } as MulNodeProperties;
+      } else if (logicon.label === 'Divide' || logicon.label === 'div' || logicon.label === 'Div' || logicon.label === 'DIV') {
+        defaultProperties = {
+          leftOperand: 'numerator',
+          rightOperand: 'denominator'
+        } as DivNodeProperties;
+      } else if (logicon.label === 'Absolute' || logicon.label === 'absolute' || logicon.label === 'Abs' || logicon.label === 'abs' || logicon.label === 'ABS') {
+        defaultProperties = {
+          operand: 'value'
+        } as AbsNodeProperties;
+      } else if (logicon.label === 'Maximum' || logicon.label === 'maximum' || logicon.label === 'Max' || logicon.label === 'max') {
+        defaultProperties = {
+          operands: ['valueA', 'valueB']
+        } as MaxNodeProperties;
+      } else if (logicon.label === 'Minimum' || logicon.label === 'minimum' || logicon.label === 'Min' || logicon.label === 'min') {
+        defaultProperties = {
+          operands: ['valueA', 'valueB']
+        } as MinNodeProperties;
+      } else if (logicon.label === 'Round' || logicon.label === 'round' || logicon.label === 'ROUND') {
+        defaultProperties = {
+          value: 'value',
+          decimalPlaces: ''
+        } as RoundNodeProperties;
+      } else if (logicon.label === 'Random' || logicon.label === 'random' || logicon.label === 'RANDOM') {
+        defaultProperties = {
+          mode: 'unbounded',
+          operands: []
+        } as RandomNodeProperties;
+      } else if (logicon.label === 'String Length' || logicon.label === 'stringLength' || logicon.label === 'strlen') {
+        defaultProperties = {
+          value: 'textValue'
+        } as StringLengthNodeProperties;
+      } else if (logicon.label === 'Upper' || logicon.label === 'upper' || logicon.label === 'UPPER') {
+        defaultProperties = {
+          value: 'textValue'
+        } as UpperNodeProperties;
+      } else if (logicon.label === 'Lower' || logicon.label === 'lower' || logicon.label === 'LOWER') {
+        defaultProperties = {
+          value: 'textValue'
+        } as LowerNodeProperties;
     } else if (logicon.label === 'parseJSONSimple') {
       defaultProperties = {
         jsonString: '{"key": "value"}'
@@ -1860,6 +2223,88 @@ export default function VisualDSLPrototype() {
         hasElse: false,
         elseBody: ''
       };
+    } else if (logicon.label === 'And' || logicon.label === 'and' || logicon.label === 'AND') {
+      defaultProperties = {
+        operands: ['condA', 'condB']
+      } as AndNodeProperties;
+    } else if (logicon.label === 'Or' || logicon.label === 'or' || logicon.label === 'OR') {
+      defaultProperties = {
+        operands: ['condA', 'condB']
+      } as OrNodeProperties;
+    } else if (logicon.label === 'Not' || logicon.label === 'not' || logicon.label === 'NOT') {
+      defaultProperties = {
+        operands: ['flag']
+      } as NotNodeProperties;
+    } else if (logicon.label === 'Equal' || logicon.label === 'equal' || logicon.label === 'EQUAL') {
+      defaultProperties = {
+        operands: ['valueA', 'valueB']
+      } as EqualNodeProperties;
+    } else if (logicon.label === 'Unequal' || logicon.label === 'unequal' || logicon.label === 'UNEQUAL') {
+      defaultProperties = {
+        operands: ['valueA', 'valueB']
+      } as UnequalNodeProperties;
+    } else if (logicon.label === 'Bigger' || logicon.label === 'bigger' || logicon.label === 'BIGGER') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as BiggerNodeProperties;
+    } else if (logicon.label === 'BiggerEq' || logicon.label === 'biggerEq' || logicon.label === 'BIGGER_EQ') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as BiggerEqNodeProperties;
+    } else if (logicon.label === 'Smaller' || logicon.label === 'smaller' || logicon.label === 'SMALLER') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as SmallerNodeProperties;
+    } else if (logicon.label === 'SmallerEq' || logicon.label === 'smallerEq' || logicon.label === 'SMALLER_EQ') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as SmallerEqNodeProperties;
+    } else if (logicon.label === 'Add' || logicon.label === 'add' || logicon.label === 'ADD') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as AddNodeProperties;
+    } else if (logicon.label === 'Subtract' || logicon.label === 'sub' || logicon.label === 'Sub' || logicon.label === 'SUB') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as SubNodeProperties;
+    } else if (logicon.label === 'Multiply' || logicon.label === 'mul' || logicon.label === 'Mul' || logicon.label === 'MUL') {
+      defaultProperties = {
+        leftOperand: 'valueA',
+        rightOperand: 'valueB'
+      } as MulNodeProperties;
+    } else if (logicon.label === 'Divide' || logicon.label === 'div' || logicon.label === 'Div' || logicon.label === 'DIV') {
+      defaultProperties = {
+        leftOperand: 'numerator',
+        rightOperand: 'denominator'
+      } as DivNodeProperties;
+    } else if (logicon.label === 'Absolute' || logicon.label === 'absolute' || logicon.label === 'Abs' || logicon.label === 'abs' || logicon.label === 'ABS') {
+      defaultProperties = {
+        operand: 'value'
+      } as AbsNodeProperties;
+    } else if (logicon.label === 'Maximum' || logicon.label === 'maximum' || logicon.label === 'Max' || logicon.label === 'max') {
+      defaultProperties = {
+        operands: ['valueA', 'valueB']
+      } as MaxNodeProperties;
+    } else if (logicon.label === 'Minimum' || logicon.label === 'minimum' || logicon.label === 'Min' || logicon.label === 'min') {
+      defaultProperties = {
+        operands: ['valueA', 'valueB']
+      } as MinNodeProperties;
+    } else if (logicon.label === 'Round' || logicon.label === 'round' || logicon.label === 'ROUND') {
+      defaultProperties = {
+        value: 'value',
+        decimalPlaces: ''
+      } as RoundNodeProperties;
+    } else if (logicon.label === 'Random' || logicon.label === 'random' || logicon.label === 'RANDOM') {
+      defaultProperties = {
+        mode: 'unbounded',
+        operands: []
+      } as RandomNodeProperties;
     } else if (logicon.label === 'While') {
       defaultProperties = {
         condition: '',
@@ -1884,6 +2329,71 @@ export default function VisualDSLPrototype() {
         value: '',
         valueType: 'string'
       };
+    } else if (logicon.label === 'Get Transform') {
+      defaultProperties = {
+        transformName: ''
+      } as GetTransformNodeProperties;
+    } else if (logicon.label === 'List Transforms') {
+      defaultProperties = {} as ListTransformsNodeProperties;
+    } else if (logicon.label === 'Register Transform') {
+      defaultProperties = {
+        transformName: '',
+        description: '',
+        dataType: 'string',
+        category: '',
+        program: []
+      } as RegisterTransformNodeProperties;
+    } else if (logicon.label === 'String Length' || logicon.label === 'stringLength' || logicon.label === 'strlen') {
+      defaultProperties = {
+        value: 'textValue'
+      } as StringLengthNodeProperties;
+    } else if (logicon.label === 'Upper' || logicon.label === 'upper' || logicon.label === 'UPPER') {
+      defaultProperties = {
+        value: 'textValue'
+      } as UpperNodeProperties;
+    } else if (logicon.label === 'Lower' || logicon.label === 'lower' || logicon.label === 'LOWER') {
+      defaultProperties = {
+        value: 'textValue'
+      } as LowerNodeProperties;
+      } else if (logicon.label === 'Date' || logicon.label === 'date') {
+        defaultProperties = {
+          mode: 'parse',
+          value: '2024-01-01T00:00:00Z'
+        } as DateNodeProperties;
+      } else if (logicon.label === 'Now' || logicon.label === 'now') {
+        defaultProperties = {} as NowNodeProperties;
+      } else if (logicon.label === 'Today' || logicon.label === 'today') {
+        defaultProperties = {} as TodayNodeProperties;
+      } else if (logicon.label === 'Date Add' || logicon.label === 'dateAdd' || logicon.label === 'date add') {
+        defaultProperties = {
+          value: 'now()',
+          interval: 'day',
+          amount: '1'
+        } as DateAddNodeProperties;
+      } else if (logicon.label === 'Format Date' || logicon.label === 'formatDate' || logicon.label === 'format date') {
+        defaultProperties = {
+          value: 'now()',
+          format: 'YYYY-MM-DD'
+        } as FormatDateNodeProperties;
+      } else if (logicon.label === 'Encrypt' || logicon.label === 'encrypt') {
+        defaultProperties = {
+          keyId: 'encKey',
+          data: 'plaintextValue'
+        } as EncryptNodeProperties;
+      } else if (logicon.label === 'Decrypt' || logicon.label === 'decrypt') {
+        defaultProperties = {
+          keyId: 'encKey',
+          ciphertext: 'ciphertextBase64'
+        } as DecryptNodeProperties;
+      } else if (logicon.label === 'Hash 256' || logicon.label === 'hash256' || logicon.label === 'hash 256') {
+        defaultProperties = {
+          value: 'textValue'
+        } as Hash256NodeProperties;
+      } else if (logicon.label === 'Sign' || logicon.label === 'sign') {
+        defaultProperties = {
+          keyId: 'encKey',
+          data: 'message'
+        } as SignNodeProperties;
     }
     
     const newNode: Node = {
@@ -2150,6 +2660,20 @@ export default function VisualDSLPrototype() {
           value: '',
           valueType: 'string'
         };
+      } else if (logicon.label === 'Get Transform') {
+        defaultProperties = {
+          transformName: ''
+        } as GetTransformNodeProperties;
+      } else if (logicon.label === 'List Transforms') {
+        defaultProperties = {} as ListTransformsNodeProperties;
+      } else if (logicon.label === 'Register Transform') {
+        defaultProperties = {
+          transformName: '',
+          description: '',
+          dataType: 'string',
+          category: '',
+          program: []
+        } as RegisterTransformNodeProperties;
       }
       
       const newNode: Node = {
@@ -2415,6 +2939,71 @@ export default function VisualDSLPrototype() {
         value: '',
         valueType: 'string'
       };
+    } else if (logicon.label === 'Get Transform') {
+      defaultProperties = {
+        transformName: ''
+      } as GetTransformNodeProperties;
+    } else if (logicon.label === 'List Transforms') {
+      defaultProperties = {} as ListTransformsNodeProperties;
+    } else if (logicon.label === 'Register Transform') {
+      defaultProperties = {
+        transformName: '',
+        description: '',
+        dataType: 'string',
+        category: '',
+        program: []
+      } as RegisterTransformNodeProperties;
+    } else if (logicon.label === 'String Length' || logicon.label === 'stringLength' || logicon.label === 'strlen') {
+      defaultProperties = {
+        value: 'textValue'
+      } as StringLengthNodeProperties;
+    } else if (logicon.label === 'Upper' || logicon.label === 'upper' || logicon.label === 'UPPER') {
+      defaultProperties = {
+        value: 'textValue'
+      } as UpperNodeProperties;
+    } else if (logicon.label === 'Lower' || logicon.label === 'lower' || logicon.label === 'LOWER') {
+      defaultProperties = {
+        value: 'textValue'
+      } as LowerNodeProperties;
+    } else if (logicon.label === 'Date' || logicon.label === 'date') {
+      defaultProperties = {
+        mode: 'parse',
+        value: '2024-01-01T00:00:00Z'
+      } as DateNodeProperties;
+    } else if (logicon.label === 'Now' || logicon.label === 'now') {
+      defaultProperties = {} as NowNodeProperties;
+    } else if (logicon.label === 'Today' || logicon.label === 'today') {
+      defaultProperties = {} as TodayNodeProperties;
+    } else if (logicon.label === 'Date Add' || logicon.label === 'dateAdd' || logicon.label === 'date add') {
+      defaultProperties = {
+        value: 'now()',
+        interval: 'day',
+        amount: '1'
+      } as DateAddNodeProperties;
+    } else if (logicon.label === 'Format Date' || logicon.label === 'formatDate' || logicon.label === 'format date') {
+      defaultProperties = {
+        value: 'now()',
+        format: 'YYYY-MM-DD'
+      } as FormatDateNodeProperties;
+    } else if (logicon.label === 'Encrypt' || logicon.label === 'encrypt') {
+      defaultProperties = {
+        keyId: 'encKey',
+        data: 'plaintextValue'
+      } as EncryptNodeProperties;
+    } else if (logicon.label === 'Decrypt' || logicon.label === 'decrypt') {
+      defaultProperties = {
+        keyId: 'encKey',
+        ciphertext: 'ciphertextBase64'
+      } as DecryptNodeProperties;
+    } else if (logicon.label === 'Hash 256' || logicon.label === 'hash256' || logicon.label === 'hash 256') {
+      defaultProperties = {
+        value: 'textValue'
+      } as Hash256NodeProperties;
+    } else if (logicon.label === 'Sign' || logicon.label === 'sign') {
+      defaultProperties = {
+        keyId: 'encKey',
+        data: 'message'
+      } as SignNodeProperties;
     }
 
     const newNode: Node = {
@@ -4093,6 +4682,276 @@ export default function VisualDSLPrototype() {
             />
           )}
 
+          {propertiesDialog && propertiesDialog.nodeType === 'sleep' && (
+            <SleepNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SleepNodeProperties || { 
+                milliseconds: '1000'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getEnv' && (
+            <GetEnvNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as GetEnvNodeProperties || { 
+                varName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'exit' && (
+            <ExitNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ExitNodeProperties || { 
+                exitCode: '0'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'callMethod' && (
+            <CallMethodNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                objectName: '',
+                methodName: '',
+                args: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getHostObject' && (
+            <GetHostObjectNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                objectName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'hostObject' && (
+            <HostObjectNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                objectName: '',
+                wrappedObject: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'apply' && (
+            <ApplyNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                functionName: '',
+                collection: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'clone' && (
+            <CloneNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                object: '',
+                newName: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'contains' && (
+            <ContainsNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                object: '',
+                value: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getAllMeta' && (
+            <GetAllMetaNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                target: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getAt' && (
+            <GetAtNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                target: '',
+                index: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getAttributes' && (
+            <GetAttributesNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                target: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getMeta' && (
+            <GetMetaNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                target: '',
+                key: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'getProp' && (
+            <GetPropNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                target: '',
+                key: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setMeta' && (
+            <SetMetaNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || {
+                target: '',
+                key: '',
+                value: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'setProp' && (
+            <SetPropNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || {
+                target: '',
+                key: '',
+                value: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'indexOf' && (
+            <IndexOfNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties || { 
+                target: '',
+                value: '',
+                startIndex: ''
+              }}
+            />
+          )}
+
           {propertiesDialog && propertiesDialog.nodeType === 'break' && (
             <BreakNodePropertiesDialog
               isOpen={true}
@@ -4108,6 +4967,535 @@ export default function VisualDSLPrototype() {
               onClose={() => setPropertiesDialog(null)}
               onSave={(properties: ContinueNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
               initialProperties={propertiesDialog.properties as ContinueNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'and' && (
+            <AndNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: AndNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as AndNodeProperties || {
+                operands: ['condA', 'condB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'or' && (
+            <OrNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: OrNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as OrNodeProperties || {
+                operands: ['condA', 'condB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'not' && (
+            <NotNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: NotNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as NotNodeProperties || {
+                operands: ['flag']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'equal' && (
+            <EqualNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: EqualNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as EqualNodeProperties || {
+                operands: ['valueA', 'valueB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'unequal' && (
+            <UnequalNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: UnequalNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as UnequalNodeProperties || {
+                operands: ['valueA', 'valueB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'bigger' && (
+            <BiggerNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: BiggerNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as BiggerNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'biggerEq' && (
+            <BiggerEqNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: BiggerEqNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as BiggerEqNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'smaller' && (
+            <SmallerNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SmallerNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SmallerNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'smallerEq' && (
+            <SmallerEqNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SmallerEqNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SmallerEqNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'add' && (
+            <AddNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: AddNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as AddNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'sub' && (
+            <SubNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SubNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SubNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'mul' && (
+            <MulNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: MulNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as MulNodeProperties || {
+                leftOperand: 'valueA',
+                rightOperand: 'valueB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'div' && (
+            <DivNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: DivNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as DivNodeProperties || {
+                leftOperand: 'numerator',
+                rightOperand: 'denominator'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'abs' && (
+            <AbsNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: AbsNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as AbsNodeProperties || {
+                operand: 'value'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'max' && (
+            <MaxNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: MaxNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as MaxNodeProperties || {
+                operands: ['valueA', 'valueB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'min' && (
+            <MinNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: MinNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as MinNodeProperties || {
+                operands: ['valueA', 'valueB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'round' && (
+            <RoundNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: RoundNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RoundNodeProperties || {
+                value: 'value',
+                decimalPlaces: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'random' && (
+            <RandomNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: RandomNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RandomNodeProperties || {
+                mode: 'unbounded',
+                operands: []
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'concat' && (
+            <ConcatNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: ConcatNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ConcatNodeProperties || {
+                operands: ['valueA', 'valueB']
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'split' && (
+            <SplitNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SplitNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SplitNodeProperties || {
+                value: 'textValue',
+                delimiter: ','
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'replace' && (
+            <ReplaceNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: ReplaceNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as ReplaceNodeProperties || {
+                value: 'textValue',
+                searchValue: 'oldText',
+                replaceValue: 'newText',
+                count: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'substring' && (
+            <SubstringNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SubstringNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SubstringNodeProperties || {
+                value: 'textValue',
+                start: '0',
+                length: ''
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'strlen' && (
+            <StringLengthNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: StringLengthNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as StringLengthNodeProperties || {
+                value: 'textValue'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'upper' && (
+            <UpperNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: UpperNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as UpperNodeProperties || {
+                value: 'textValue'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'lower' && (
+            <LowerNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: LowerNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as LowerNodeProperties || {
+                value: 'textValue'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'date' && (
+            <DateNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: DateNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as DateNodeProperties || {
+                mode: 'parse',
+                value: '2024-01-01T00:00:00Z'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'now' && (
+            <NowNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: NowNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as NowNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'today' && (
+            <TodayNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: TodayNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TodayNodeProperties || {}}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'dateAdd' && (
+            <DateAddNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: DateAddNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as DateAddNodeProperties || {
+                value: 'now()',
+                interval: 'day',
+                amount: '1'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'formatDate' && (
+            <FormatDateNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: FormatDateNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as FormatDateNodeProperties || {
+                value: 'now()',
+                format: 'YYYY-MM-DD'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'encrypt' && (
+            <EncryptNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: EncryptNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as EncryptNodeProperties || {
+                keyId: 'encKey',
+                data: 'plaintextValue'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'decrypt' && (
+            <DecryptNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: DecryptNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as DecryptNodeProperties || {
+                keyId: 'encKey',
+                ciphertext: 'ciphertextBase64'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'hash256' && (
+            <Hash256NodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: Hash256NodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as Hash256NodeProperties || {
+                value: 'textValue'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'sign' && (
+            <SignNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SignNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SignNodeProperties || {
+                keyId: 'encKey',
+                data: 'message'
+              }}
             />
           )}
           
@@ -4137,6 +5525,102 @@ export default function VisualDSLPrototype() {
               }}
             />
           )}
+
+            {propertiesDialog && propertiesDialog.nodeType === 'addMappingWithTransform' && (
+              <AddMappingWithTransformNodeProperties
+                isOpen={true}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                availableTransformNames={transformNameOptions}
+                transformFetchError={etlTransformError || undefined}
+                initialProperties={propertiesDialog.properties as AddMappingWithTransformProperties || {
+                  transform: '',
+                  sourceField: '',
+                  targetColumn: '',
+                  transformName: '',
+                  dataType: 'string',
+                  required: false,
+                  defaultValue: ''
+                }}
+              />
+            )}
+
+            {propertiesDialog && propertiesDialog.nodeType === 'doETL' && (
+              <DoETLNodePropertiesDialog
+                isOpen={true}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties: DoETLProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                initialProperties={propertiesDialog.properties as DoETLProperties || {
+                  jobId: '',
+                  csvFile: '',
+                  transformConfig: '',
+                  targetConfig: '',
+                  options: ''
+                }}
+              />
+            )}
+
+            {propertiesDialog && propertiesDialog.nodeType === 'etlStatus' && (
+              <ETLStatusNodePropertiesDialog
+                isOpen={true}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties: ETLStatusProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                initialProperties={propertiesDialog.properties as ETLStatusProperties || {
+                  jobId: ''
+                }}
+              />
+            )}
+
+            {propertiesDialog && propertiesDialog.nodeType === 'getTransform' && (
+              <GetTransformNodePropertiesDialog
+                isOpen={true}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties: GetTransformNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                onDelete={() => {
+                  deleteNode(propertiesDialog.nodeId);
+                  setPropertiesDialog(null);
+                }}
+                initialProperties={propertiesDialog.properties as GetTransformNodeProperties || {
+                  transformName: ''
+                }}
+                availableTransformNames={transformNameOptions}
+                transformFetchError={etlTransformError || undefined}
+              />
+            )}
+
+            {propertiesDialog && propertiesDialog.nodeType === 'listTransforms' && (
+              <ListTransformsNodePropertiesDialog
+                isOpen={true}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties: ListTransformsNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                onDelete={() => {
+                  deleteNode(propertiesDialog.nodeId);
+                  setPropertiesDialog(null);
+                }}
+                initialProperties={propertiesDialog.properties as ListTransformsNodeProperties || {}}
+              />
+            )}
+
+            {propertiesDialog && propertiesDialog.nodeType === 'registerTransform' && (
+              <RegisterTransformNodePropertiesDialog
+                isOpen={true}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties: RegisterTransformNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                onDelete={() => {
+                  deleteNode(propertiesDialog.nodeId);
+                  setPropertiesDialog(null);
+                }}
+                initialProperties={propertiesDialog.properties as RegisterTransformNodeProperties || {
+                  transformName: '',
+                  description: '',
+                  dataType: 'string',
+                  category: '',
+                  program: []
+                }}
+                availableTransformNames={transformNameOptions}
+                transformFetchError={etlTransformError || undefined}
+              />
+            )}
           
           {/* Fallback for unknown node types */}
           {propertiesDialog && propertiesDialog.nodeType === 'unknown' && (

@@ -50,6 +50,7 @@ export const DefaultNodePropertiesDialog: React.FC<DefaultNodePropertiesDialogPr
     onClose();
   };
 
+
   const handleCancel = () => {
     onClose();
   };

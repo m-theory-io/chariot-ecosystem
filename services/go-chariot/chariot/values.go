@@ -23,6 +23,7 @@ const (
 	ValueXML                           // "X"
 	ValueVariableExpr                  // "V" (untyped variables from setq)
 	ValuePlan                          // "P" (Plan)
+	ValueETLTransform                  // "E" (ETL Transform)
 )
 
 // Basic value types
@@ -40,6 +41,90 @@ func NewOfferVariable(value Value, formatTag string) *OfferVariable {
 		Value:     value,
 		FormatTag: formatTag,
 	}
+}
+
+// ETLTransformValue wraps an ETLTransform so that it can participate in declare/type-check flows.
+type ETLTransformValue struct {
+	Transform *ETLTransform
+}
+
+// NewETLTransformValue creates a Value wrapper for the transform pointer.
+func NewETLTransformValue(transform *ETLTransform) *ETLTransformValue {
+	return &ETLTransformValue{Transform: transform}
+}
+
+func (v *ETLTransformValue) String() string {
+	if v == nil || v.Transform == nil {
+		return "ETLTransform(nil)"
+	}
+	return fmt.Sprintf("ETLTransform(%s)", v.Transform.Name)
+}
+
+// GetAttribute returns one of the ETL transform fields as a Value.
+func (v *ETLTransformValue) GetAttribute(name string) (Value, bool) {
+	if v == nil || v.Transform == nil {
+		return nil, false
+	}
+	attrs := v.GetAttributes()
+	key := strings.ToLower(name)
+	if val, ok := attrs[key]; ok {
+		return val, true
+	}
+	val, ok := attrs[name]
+	return val, ok
+}
+
+// SetAttribute allows limited mutation of transform metadata from scripts.
+func (v *ETLTransformValue) SetAttribute(name string, value Value) {
+	if v == nil || v.Transform == nil {
+		return
+	}
+	switch strings.ToLower(name) {
+	case "name":
+		if str, ok := value.(Str); ok {
+			v.Transform.Name = string(str)
+		}
+	case "description":
+		if str, ok := value.(Str); ok {
+			v.Transform.Description = string(str)
+		}
+	case "datatype":
+		if str, ok := value.(Str); ok {
+			v.Transform.DataType = string(str)
+		}
+	case "category":
+		if str, ok := value.(Str); ok {
+			v.Transform.Category = string(str)
+		}
+	case "program":
+		if arr, ok := value.(*ArrayValue); ok {
+			v.Transform.Program = arrayValueToStrings(arr)
+		}
+	case "examples":
+		if arr, ok := value.(*ArrayValue); ok {
+			v.Transform.Examples = arrayValueToStrings(arr)
+		}
+	}
+}
+
+// GetAttributes exposes a snapshot of transform fields for attribute-based access.
+func (v *ETLTransformValue) GetAttributes() map[string]Value {
+	result := make(map[string]Value)
+	if v == nil || v.Transform == nil {
+		return result
+	}
+	result["name"] = Str(v.Transform.Name)
+	result["description"] = Str(v.Transform.Description)
+	result["datatype"] = Str(v.Transform.DataType)
+	result["category"] = Str(v.Transform.Category)
+	result["program"] = stringsToArrayValue(v.Transform.Program)
+	result["examples"] = stringsToArrayValue(v.Transform.Examples)
+	return result
+}
+
+// ToNativeMap returns a JSON-friendly map representation of the transform.
+func (v *ETLTransformValue) ToNativeMap() map[string]interface{} {
+	return etlTransformToNativeMap(v.Transform)
 }
 
 // At the top of your values.go or similar file
@@ -136,6 +221,8 @@ func GetValueType(v Value) ValueType {
 		return ValueXML
 	case *Plan, Plan:
 		return ValuePlan
+	case *ETLTransformValue:
+		return ValueETLTransform
 	case TreeNode:
 		return ValueNode
 	case nil:
@@ -172,6 +259,8 @@ func GetValueTypeSpec(val Value) string {
 		return "T" // TreeNode
 	case Plan, *Plan:
 		return "P"
+	case *ETLTransformValue:
+		return "E"
 	case nil:
 		return "V" // Variable/untyped
 	default:
@@ -213,6 +302,8 @@ func isValidTypeSpec(typeSpec string) bool {
 	case 'V': // Variable/untyped
 		return true
 	case 'P': // Plan
+		return true
+	case 'E': // ETL Transform / expression alias
 		return true
 	default:
 		return false
@@ -323,6 +414,8 @@ func convertValueToUInt64(val Value) uint64 {
 // convertToNativeValue converts Chariot Value types to native Go types
 func convertValueToNative(val Value) interface{} {
 	switch v := val.(type) {
+	case *ETLTransformValue:
+		return v.ToNativeMap()
 
 	case *OfferVariable:
 		return map[string]interface{}{
@@ -588,6 +681,12 @@ func convertFromNativeValue(val interface{}) Value {
 			}
 		}
 
+		// Check if this is a serialized ETL transform
+		if valueType, ok := v["_value_type"]; ok && valueType == "etl_transform" {
+			transform := mapToETLTransform(v)
+			return NewETLTransformValue(transform)
+		}
+
 		// Check if this is a serialized Plan
 		if valueType, ok := v["_value_type"]; ok && valueType == "plan" {
 			p := &Plan{}
@@ -688,6 +787,86 @@ func convertFromNativeValue(val interface{}) Value {
 		}
 
 		return Str(fmt.Sprintf("%v", v))
+	}
+}
+
+func etlTransformToNativeMap(transform *ETLTransform) map[string]interface{} {
+	result := map[string]interface{}{
+		"_value_type": "etl_transform",
+	}
+	if transform == nil {
+		return result
+	}
+	result["name"] = transform.Name
+	result["description"] = transform.Description
+	result["datatype"] = transform.DataType
+	result["category"] = transform.Category
+	result["program"] = append([]string{}, transform.Program...)
+	result["examples"] = append([]string{}, transform.Examples...)
+	return result
+}
+
+func mapToETLTransform(data map[string]interface{}) *ETLTransform {
+	if data == nil {
+		return nil
+	}
+	transform := &ETLTransform{}
+	if name, ok := data["name"].(string); ok {
+		transform.Name = name
+	}
+	if desc, ok := data["description"].(string); ok {
+		transform.Description = desc
+	}
+	if dtype, ok := data["datatype"].(string); ok {
+		transform.DataType = dtype
+	}
+	if category, ok := data["category"].(string); ok {
+		transform.Category = category
+	}
+	if program := interfaceToStringSlice(data["program"]); len(program) > 0 {
+		transform.Program = program
+	}
+	if examples := interfaceToStringSlice(data["examples"]); len(examples) > 0 {
+		transform.Examples = examples
+	}
+	return transform
+}
+
+func stringsToArrayValue(items []string) *ArrayValue {
+	arr := NewArray()
+	for _, item := range items {
+		arr.Append(Str(item))
+	}
+	return arr
+}
+
+func arrayValueToStrings(arr *ArrayValue) []string {
+	if arr == nil {
+		return nil
+	}
+	result := make([]string, 0, arr.Length())
+	for i := 0; i < arr.Length(); i++ {
+		if str, ok := arr.Get(i).(Str); ok {
+			result = append(result, string(str))
+			continue
+		}
+		result = append(result, fmt.Sprintf("%v", arr.Get(i)))
+	}
+	return result
+}
+
+func interfaceToStringSlice(value interface{}) []string {
+	switch items := value.(type) {
+	case []string:
+		return append([]string{}, items...)
+	case []interface{}:
+		result := make([]string, 0, len(items))
+		for _, item := range items {
+			result = append(result, fmt.Sprintf("%v", item))
+		}
+		return result
+	default:
+		return nil
 	}
 }
 

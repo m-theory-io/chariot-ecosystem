@@ -69,6 +69,10 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	agents.POST("/:name/publish", h.PublishAgent)
 	agents.PUT("/:name/beliefs", h.PutBelief)
 
+	// ETL APIs
+	etl := api.Group("/etl")
+	etl.GET("/transforms", h.ListETLTransforms)
+
 	// Protected dashboard routes (require authentication)
 	dashboard := e.Group("/dashboard")
 	dashboard.Use(h.SessionAuth)
