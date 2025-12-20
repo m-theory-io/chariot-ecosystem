@@ -203,6 +203,12 @@ func (rt *Runtime) GetGlobalScope() *Scope {
 	return rt.globalScope
 }
 
+// ResetCurrentScope discards any variables from the previous execution while
+// preserving global/built-in symbols so each run starts with a clean slate.
+func (rt *Runtime) ResetCurrentScope() {
+	rt.currentScope = NewScope(rt.globalScope)
+}
+
 // ExecuteCodeWithScope parses and executes Chariot code with the given scope
 func (rt *Runtime) ExecuteCodeWithScope(code string, scope *Scope) (Value, error) {
 	// Parse code into AST
@@ -405,6 +411,10 @@ func (rt *Runtime) ExecProgramWithFilename(src string, filename string) (Value, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Ensure each execution starts with a fresh working scope so stale
+	// variables from earlier runs do not leak into new debugger sessions.
+	rt.ResetCurrentScope()
 
 	// Execute with a proper scope
 	return ast.Exec(rt)

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -20,7 +21,7 @@ type DebugBreakpointRequest struct {
 	File      string `json:"file"`
 	Line      int    `json:"line"`
 	Condition string `json:"condition,omitempty"`
-	Action    string `json:"action"` // "add", "remove", "enable", "disable"
+	Action    string `json:"action"` // "add", "remove", "enable", "disable", "clear"
 }
 
 // DebugStepRequest represents a step operation request
@@ -61,6 +62,7 @@ func (h *Handlers) DebugBreakpoint(c echo.Context) error {
 	}
 
 	debugger := session.Runtime.Debugger
+	fmt.Printf("DEBUG: Session %s breakpoint request action=%s target=%s:%d\n", sessionID, req.Action, req.File, req.Line)
 
 	switch req.Action {
 	case "add":
@@ -79,8 +81,13 @@ func (h *Handlers) DebugBreakpoint(c echo.Context) error {
 		debugger.EnableBreakpoint(req.File, req.Line, false)
 		return c.JSON(http.StatusOK, map[string]string{"status": "disabled"})
 
+	case "clear":
+		cleared := debugger.ClearBreakpoints(req.File)
+		fmt.Printf("DEBUG: Session %s cleared %d breakpoint(s) for %s\n", sessionID, cleared, req.File)
+		return c.JSON(http.StatusOK, map[string]int{"cleared": cleared})
+
 	default:
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid action: must be add, remove, enable, or disable"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid action: must be add, remove, enable, disable, or clear"})
 	}
 }
 
@@ -225,12 +232,14 @@ func (h *Handlers) DebugEvents(c echo.Context) error {
 	defer ws.Close()
 
 	debugger := session.Runtime.Debugger
-	eventChannel := debugger.GetEventChannel()
+	events, unsubscribe := debugger.SubscribeEvents()
+	defer unsubscribe()
 
 	// Send events to WebSocket client
-	for event := range eventChannel {
+	for event := range events {
 		if err := ws.WriteJSON(event); err != nil {
-			// Client disconnected or error writing
+			fmt.Printf("DEBUG: DebugEvents write error for session %s: %v (event=%s)\n", sessionID, err, event.Type)
+			debugger.RequeueEvent(event)
 			break
 		}
 	}

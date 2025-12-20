@@ -359,6 +359,7 @@ func (h *Handlers) Execute(c echo.Context) error {
 	if session.Runtime.Debugger == nil {
 		session.Runtime.Debugger = chariot.NewDebugger()
 	}
+	debugger := session.Runtime.Debugger
 
 	// Use provided filename or default to "main.ch"
 	filename := req.Filename
@@ -368,12 +369,12 @@ func (h *Handlers) Execute(c echo.Context) error {
 
 	// Log debugging info
 	fmt.Printf("\n========== EXECUTION START ==========\n")
-	fmt.Printf("DEBUG: Executing program with filename: %s\n", filename)
+	fmt.Printf("DEBUG: Session %s executing program with filename: %s\n", session.ID, filename)
 	fmt.Printf("DEBUG: Program length: %d characters\n", len(req.Program))
 	fmt.Printf("DEBUG: Program content:\n%s\n", req.Program)
 	fmt.Printf("DEBUG: --- END PROGRAM ---\n")
-	if session.Runtime.Debugger != nil {
-		breakpoints := session.Runtime.Debugger.GetBreakpoints()
+	if debugger != nil {
+		breakpoints := debugger.GetBreakpoints()
 		fmt.Printf("DEBUG: Active breakpoints: %d\n", len(breakpoints))
 		for _, bp := range breakpoints {
 			fmt.Printf("DEBUG:   - %s:%d\n", bp.File, bp.Line)
@@ -381,40 +382,60 @@ func (h *Handlers) Execute(c echo.Context) error {
 	}
 	fmt.Printf("=====================================\n\n")
 
+	// Normalized source is used for identifying special helper calls
+	normalizedProgram := strings.TrimSpace(req.Program)
+
 	// Check if debugging is active (has breakpoints)
 	hasBreakpoints := false
-	if session.Runtime.Debugger != nil {
-		breakpoints := session.Runtime.Debugger.GetBreakpoints()
+	if debugger != nil {
+		breakpoints := debugger.GetBreakpoints()
 		hasBreakpoints = len(breakpoints) > 0
 	}
 
 	// Don't use debug mode for system calls like inspectRuntime()
-	isSystemCall := req.Program == "inspectRuntime()" || req.Program == "listFunctions()"
+	isSystemCall := normalizedProgram == "inspectRuntime()" || normalizedProgram == "listFunctions()"
+
+	if debugger != nil && debugger.IsExecutionActive() && !isSystemCall {
+		currentFile, currentLine := debugger.GetCurrentPosition()
+		fmt.Printf("DEBUG: Session %s forced stop of existing debug run at %s:%d before executing %s\n", session.ID, currentFile, currentLine, filename)
+		debugger.ForceStop(fmt.Sprintf("Previous execution at %s:%d was aborted before starting %s", currentFile, currentLine, filename))
+	}
 
 	// If debugging is active and this is user code, run in background and return immediately
 	if hasBreakpoints && !isSystemCall {
+		if debugger != nil {
+			debugger.MarkRunning()
+		}
 		fmt.Printf("DEBUG: Running in background due to active breakpoints\n")
-		go func() {
+		go func(dbg *chariot.Debugger) {
+			if dbg != nil {
+				defer dbg.MarkStopped()
+			}
 			val, err := session.Runtime.ExecProgramWithFilename(req.Program, filename)
 			if err != nil {
 				fmt.Printf("DEBUG: Execution error: %v\n", err)
 				// Send error event
-				if session.Runtime.Debugger != nil {
-					session.Runtime.Debugger.SendEvent(chariot.DebugEvent{
+				if dbg != nil {
+					dbg.SendEvent(chariot.DebugEvent{
 						Type:    "error",
 						Message: err.Error(),
+					})
+					dbg.SendEvent(chariot.DebugEvent{
+						Type:    "stopped",
+						Message: "Execution halted after error",
 					})
 				}
 				return
 			}
 			fmt.Printf("DEBUG: Execution completed successfully: %v\n", val)
 			// Send completion event
-			if session.Runtime.Debugger != nil {
-				session.Runtime.Debugger.SendEvent(chariot.DebugEvent{
-					Type: "stopped",
+			if dbg != nil {
+				dbg.SendEvent(chariot.DebugEvent{
+					Type:    "stopped",
+					Message: "Execution finished",
 				})
 			}
-		}()
+		}(debugger)
 
 		return c.JSON(http.StatusOK, ResultJSON{
 			Result: "OK",

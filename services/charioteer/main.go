@@ -39,7 +39,8 @@ type ResultJSON struct {
 }
 
 type ExecRequestData struct {
-	Program string `json:"program"`
+	Program  string `json:"program"`
+	Filename string `json:"filename,omitempty"`
 }
 
 type contextKey string
@@ -145,6 +146,32 @@ func proxyToBackendJSON(w http.ResponseWriter, r *http.Request, method, path str
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		log.Printf("proxy error copying body: %v", err)
 	}
+}
+
+func appendQuery(path string, r *http.Request) string {
+	if raw := r.URL.RawQuery; raw != "" {
+		if strings.Contains(path, "?") {
+			return path + "&" + raw
+		}
+		return path + "?" + raw
+	}
+	return path
+}
+
+func proxyDebugRequest(w http.ResponseWriter, r *http.Request, method, backendPath string, forwardBody bool) {
+	var body []byte
+	if forwardBody {
+		if r.Body != nil {
+			data, err := io.ReadAll(r.Body)
+			if err != nil {
+				sendError(w, http.StatusBadRequest, "failed to read request body")
+				return
+			}
+			body = data
+		}
+	}
+
+	proxyToBackendJSON(w, r, method, appendQuery(backendPath, r), body)
 }
 
 func listenersListHandler(w http.ResponseWriter, r *http.Request) {
@@ -1599,6 +1626,10 @@ const editorTemplate = `<!DOCTYPE html>
         let logoutTimer = null;
         let sessionWarningShown = false;        
 
+        function getCurrentFilename() {
+            return (currentFileName && currentFileName.trim()) ? currentFileName.trim() : 'main.ch';
+        }
+
         // Toggle between runtime inspection and debugger panels
         function showDebuggerPanel() {
             const runtimePanel = document.getElementById('runtimePanel');
@@ -1629,12 +1660,33 @@ const editorTemplate = `<!DOCTYPE html>
         let currentDebugLine = null;
         let debugDecorations = [];
         let isExecuting = false; // Flag to prevent runtime inspection during execution
+        let debuggerSessionReady = false;
+        let debugSocketReconnectTimer = null;
+        let debugSocketShouldReconnect = false;
+        const DEBUG_SOCKET_RETRY_MS = 2000;
+        const DEBUG_SOCKET_READY_TIMEOUT_MS = 5000;
+        let debugSocketReadyResolvers = [];
 
         // Toggle debug section collapse
         function toggleDebugSection(header) {
             const content = header.nextElementSibling;
             header.classList.toggle('collapsed');
             content.classList.toggle('collapsed');
+        }
+
+        function expandDebugSection(contentId) {
+            const content = document.getElementById(contentId);
+            if (!content) return;
+            const header = content.previousElementSibling;
+            if (header) {
+                header.classList.remove('collapsed');
+            }
+            content.classList.remove('collapsed');
+        }
+
+        function ensureDebuggerDetailsVisible() {
+            expandDebugSection('callStackContent');
+            expandDebugSection('variablesContent');
         }
 
         // Update debug status UI
@@ -1685,11 +1737,12 @@ const editorTemplate = `<!DOCTYPE html>
             }
             
             let html = '';
+            const fileLabel = getCurrentFilename();
             breakpoints.forEach((bp, lineNum) => {
                 html += ` + "`" + `
                     <div class="breakpoint-item" data-line="${lineNum}">
                         <div>
-                            <div class="breakpoint-location">main.ch</div>
+                            <div class="breakpoint-location">${fileLabel}</div>
                             <div class="breakpoint-line">Line ${lineNum}</div>
                         </div>
                         <span class="breakpoint-remove" onclick="removeBreakpoint(${lineNum})">✖</span>
@@ -1744,6 +1797,17 @@ const editorTemplate = `<!DOCTYPE html>
             container.innerHTML = html;
         }
 
+        function resetDebuggerUI(reasonText, options) {
+            updateDebugStatus('stopped', reasonText || 'Stopped');
+            currentDebugLine = null;
+            updateEditorBreakpoints();
+            renderCallStack([]);
+            renderVariables({});
+            if (!options || !options.preservePanelState) {
+                showRuntimePanel();
+            }
+        }
+
         // Toggle breakpoint at line
         function toggleBreakpoint(line) {
             if (breakpoints.has(line)) {
@@ -1758,9 +1822,10 @@ const editorTemplate = `<!DOCTYPE html>
             console.log('Adding breakpoint at line:', line);
             breakpoints.set(line, { line: line, enabled: true });
             
-            // Sync with backend - always use "main.ch" as filename
+            // Sync with backend for the active file
             if (sessionId && authToken) {
-                console.log('Syncing breakpoint to backend: main.ch:', line);
+                const filename = getCurrentFilename();
+                console.log('Syncing breakpoint to backend:', filename, line);
                 try {
                     const response = await fetch(` + "`" + `/api/debug/breakpoint?session=${sessionId}` + "`" + `, {
                         method: 'POST',
@@ -1770,7 +1835,7 @@ const editorTemplate = `<!DOCTYPE html>
                         },
                         credentials: 'include',
                         body: JSON.stringify({
-                            file: "main.ch",
+                            file: filename,
                             line: line,
                             action: 'add'
                         })
@@ -1785,14 +1850,16 @@ const editorTemplate = `<!DOCTYPE html>
             
             renderBreakpoints();
             updateEditorBreakpoints();
+            ensureDebugSocketConnected();
         }
 
         // Remove breakpoint
         async function removeBreakpoint(line) {
             breakpoints.delete(line);
             
-            // Sync with backend - always use "main.ch" as filename
+            // Sync with backend for the active file
             if (sessionId && authToken) {
+                const filename = getCurrentFilename();
                 try {
                     await fetch(` + "`" + `/api/debug/breakpoint?session=${sessionId}` + "`" + `, {
                         method: 'POST',
@@ -1802,7 +1869,7 @@ const editorTemplate = `<!DOCTYPE html>
                         },
                         credentials: 'include',
                         body: JSON.stringify({
-                            file: "main.ch",
+                            file: filename,
                             line: line,
                             action: 'remove'
                         })
@@ -1814,6 +1881,135 @@ const editorTemplate = `<!DOCTYPE html>
             
             renderBreakpoints();
             updateEditorBreakpoints();
+            ensureDebugSocketConnected();
+        }
+
+        async function clearBreakpointsOnServer(targetFile, options) {
+            breakpoints.clear();
+            renderBreakpoints();
+            updateEditorBreakpoints();
+            ensureDebugSocketConnected();
+
+            if (!sessionId || !authToken) {
+                return;
+            }
+
+            const opts = options || {};
+            const clearAll = opts.clearAll === true;
+            const fileToClear = clearAll
+                ? ''
+                : (targetFile && targetFile.trim()
+                    ? targetFile.trim()
+                    : ((currentFileName && currentFileName.trim()) ? currentFileName.trim() : ''));
+
+            try {
+                const response = await fetch(getAPIPath('/api/debug/breakpoint?session=' + encodeURIComponent(sessionId)), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        file: fileToClear,
+                        action: 'clear'
+                    })
+                });
+
+                if (response.status === 404) {
+                    debuggerSessionReady = false;
+                    return;
+                }
+
+                if (!response.ok) {
+                    console.warn('Failed to clear breakpoints on server, status:', response.status);
+                }
+                debuggerSessionReady = true;
+            } catch (err) {
+                console.error('Failed to clear breakpoints on server:', err);
+            }
+        }
+
+        async function syncBreakpointsWithServer(targetFile) {
+            const filename = targetFile || getCurrentFilename();
+            if (!sessionId || !authToken) {
+                breakpoints.clear();
+                renderBreakpoints();
+                updateEditorBreakpoints();
+                debuggerSessionReady = false;
+                ensureDebugSocketConnected();
+                return;
+            }
+
+            try {
+                const res = await fetch(getAPIPath('/api/debug/state?session=' + encodeURIComponent(sessionId)), {
+                    headers: { 'Authorization': authToken },
+                    credentials: 'include'
+                });
+
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        console.warn('Debugger session not ready yet; skipping breakpoint sync until a session exists');
+                        debuggerSessionReady = false;
+                        ensureDebugSocketConnected();
+                        return;
+                    }
+                    console.warn('Failed to sync breakpoints, status:', res.status);
+                    breakpoints.clear();
+                    debuggerSessionReady = false;
+                } else {
+                    const state = await res.json();
+                    debuggerSessionReady = true;
+                    const allRemote = state.breakpoints || [];
+                    const targetBreakpoints = [];
+                    const staleBreakpoints = [];
+
+                    allRemote.forEach(bp => {
+                        const bpFile = bp.file || 'main.ch';
+                        if (bpFile === filename) {
+                            targetBreakpoints.push(bp);
+                        } else {
+                            staleBreakpoints.push(bp);
+                        }
+                    });
+
+                    if (staleBreakpoints.length > 0) {
+                        console.log('Removing stale breakpoints:', staleBreakpoints.map(bp => (bp.file || 'main.ch') + ':' + bp.line));
+                        for (const stale of staleBreakpoints) {
+                            try {
+                                await fetch(getAPIPath('/api/debug/breakpoint?session=' + encodeURIComponent(sessionId)), {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': authToken
+                                    },
+                                    credentials: 'include',
+                                    body: JSON.stringify({
+                                        file: stale.file || 'main.ch',
+                                        line: stale.line,
+                                        action: 'remove'
+                                    })
+                                });
+                            } catch (removeErr) {
+                                console.error('Failed to remove stale breakpoint:', removeErr);
+                            }
+                        }
+                    }
+
+                    breakpoints.clear();
+                    targetBreakpoints.forEach(bp => {
+                        breakpoints.set(bp.line, { line: bp.line, enabled: bp.enabled !== false });
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to sync breakpoints:', err);
+                breakpoints.clear();
+                debuggerSessionReady = false;
+            }
+
+            renderBreakpoints();
+            updateEditorBreakpoints();
+            ensureDebugSocketConnected();
         }
 
         // Update editor breakpoint decorations
@@ -1846,6 +2042,89 @@ const editorTemplate = `<!DOCTYPE html>
             }
             
             debugDecorations = editor.deltaDecorations(debugDecorations, decorations);
+        }
+
+        function revealEditorLine(line) {
+            if (!editor) return;
+            const targetLine = Number(line);
+            if (!Number.isFinite(targetLine) || targetLine < 1) {
+                return;
+            }
+            editor.revealLineInCenter(targetLine);
+        }
+
+        function shouldConnectDebugSocket() {
+            return !!(sessionId && authToken && breakpoints.size > 0);
+        }
+
+        function ensureDebugSocketConnected() {
+            if (shouldConnectDebugSocket()) {
+                connectDebugSocket();
+                return;
+            }
+
+            debugSocketShouldReconnect = false;
+            if (debugSocketReconnectTimer) {
+                clearTimeout(debugSocketReconnectTimer);
+                debugSocketReconnectTimer = null;
+            }
+            if (debugSocket) {
+                try {
+                    debugSocket.close();
+                } catch (err) {
+                    console.warn('Failed to close debug WebSocket:', err);
+                }
+                debugSocket = null;
+            }
+        }
+
+        function scheduleDebugSocketReconnect() {
+            if (debugSocketReconnectTimer || !shouldConnectDebugSocket()) {
+                return;
+            }
+            debugSocketReconnectTimer = setTimeout(() => {
+                debugSocketReconnectTimer = null;
+                if (shouldConnectDebugSocket()) {
+                    connectDebugSocket();
+                }
+            }, DEBUG_SOCKET_RETRY_MS);
+        }
+
+        function settleDebugSocketWaiters(err) {
+            if (!debugSocketReadyResolvers.length) {
+                return;
+            }
+            const waiters = debugSocketReadyResolvers;
+            debugSocketReadyResolvers = [];
+            waiters.forEach(({ resolve, reject, timer }) => {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+        }
+
+        function waitForDebugSocketReady() {
+            if (!shouldConnectDebugSocket()) {
+                return Promise.resolve();
+            }
+            if (debugSocket && debugSocket.readyState === WebSocket.OPEN) {
+                return Promise.resolve();
+            }
+
+            return new Promise((resolve, reject) => {
+                const waiter = { resolve, reject, timer: null };
+                waiter.timer = setTimeout(() => {
+                    debugSocketReadyResolvers = debugSocketReadyResolvers.filter(item => item !== waiter);
+                    reject(new Error('Timed out waiting for debugger connection'));
+                }, DEBUG_SOCKET_READY_TIMEOUT_MS);
+                debugSocketReadyResolvers.push(waiter);
+                connectDebugSocket();
+            });
         }
 
         // Debug control actions
@@ -1938,20 +2217,29 @@ const editorTemplate = `<!DOCTYPE html>
 
         // Connect to debug WebSocket (called when execution starts)
         function connectDebugSocket() {
-            if (!sessionId || !authToken) {
-                console.log('Cannot connect debug socket: no session or auth token');
-                return;
-            }
-            
-            // Only connect if we have breakpoints
-            if (breakpoints.size === 0) {
-                console.log('No breakpoints set, skipping debug WebSocket connection');
+            if (!shouldConnectDebugSocket()) {
+                console.log('Cannot connect debug socket: waiting for session/auth or breakpoints');
                 return;
             }
             
             if (debugSocket) {
-                debugSocket.close();
+                const state = debugSocket.readyState;
+                if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+                    console.log('Debug WebSocket already active (state ' + state + ')');
+                    return;
+                }
+                try {
+                    debugSocket.close();
+                } catch (err) {
+                    console.warn('Failed to close stale debug WebSocket:', err);
+                }
             }
+
+            if (debugSocketReconnectTimer) {
+                clearTimeout(debugSocketReconnectTimer);
+                debugSocketReconnectTimer = null;
+            }
+            debugSocketShouldReconnect = true;
             
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = ` + "`" + `${protocol}//${window.location.host}/api/debug/events?session=${sessionId}` + "`" + `;
@@ -1961,6 +2249,7 @@ const editorTemplate = `<!DOCTYPE html>
             
             debugSocket.onopen = () => {
                 console.log('Debug WebSocket connected');
+                settleDebugSocketWaiters();
             };
             
             debugSocket.onmessage = (event) => {
@@ -1974,11 +2263,26 @@ const editorTemplate = `<!DOCTYPE html>
             
             debugSocket.onerror = (err) => {
                 console.error('Debug WebSocket error:', err);
+                settleDebugSocketWaiters(err || new Error('Debug WebSocket error'));
+                if (debugSocketShouldReconnect) {
+                    scheduleDebugSocketReconnect();
+                }
             };
             
-            debugSocket.onclose = () => {
-                console.log('Debug WebSocket closed');
+            debugSocket.onclose = (event) => {
+                console.log('Debug WebSocket closed', event ? { code: event.code, reason: event.reason } : undefined);
+                settleDebugSocketWaiters(new Error('Debug WebSocket closed'));
                 debugSocket = null;
+                if (debugSocketShouldReconnect && shouldConnectDebugSocket()) {
+                    console.log('Scheduling debug WebSocket reconnect');
+                    scheduleDebugSocketReconnect();
+                    return;
+                }
+                if (debugState === 'paused' || debugState === 'stepping') {
+                    console.log('Debugger socket closed while paused/stepping; retaining current panel state');
+                    return;
+                }
+                resetDebuggerUI('Debugger disconnected');
             };
         }
 
@@ -1989,16 +2293,20 @@ const editorTemplate = `<!DOCTYPE html>
             switch (event.type) {
                 case 'breakpoint':
                     showDebuggerPanel(); // Switch to debugger view
+                    ensureDebuggerDetailsVisible();
                     updateDebugStatus('paused', ` + "`" + `Paused at ${event.file}:${event.line}` + "`" + `);
                     currentDebugLine = event.line;
                     updateEditorBreakpoints();
+                    revealEditorLine(event.line);
                     fetchDebugState();
                     break;
                     
                 case 'step':
                     showDebuggerPanel(); // Switch to debugger view
+                    ensureDebuggerDetailsVisible();
                     currentDebugLine = event.line;
                     updateEditorBreakpoints();
+                    revealEditorLine(event.line);
                     fetchDebugState();
                     break;
                     
@@ -2009,12 +2317,7 @@ const editorTemplate = `<!DOCTYPE html>
                     break;
                     
                 case 'stopped':
-                    updateDebugStatus('stopped', 'Stopped');
-                    currentDebugLine = null;
-                    updateEditorBreakpoints();
-                    renderCallStack([]);
-                    renderVariables({});
-                    showRuntimePanel(); // Return to runtime view
+				resetDebuggerUI(event.message || 'Stopped');
                     break;
             }
         }
@@ -2030,6 +2333,7 @@ const editorTemplate = `<!DOCTYPE html>
                 });
                 
                 if (res.ok) {
+                    debuggerSessionReady = true;
                     const state = await res.json();
                     renderCallStack(state.callStack || []);
                     renderVariables(state.variables || {});
@@ -2182,7 +2486,8 @@ const editorTemplate = `<!DOCTYPE html>
             return path;
         }
 
-        async function fetchSessionProfile() {
+        async function fetchSessionProfile(options) {
+            const opts = options || {};
             if (!authToken) {
                 return null;
             }
@@ -2203,15 +2508,19 @@ const editorTemplate = `<!DOCTYPE html>
                 const scopes = Array.isArray(data.sandbox_scopes)
                     ? data.sandbox_scopes.map(s => String(s || '').toLowerCase()).filter(Boolean)
                     : ['global', 'sandbox'];
+                const resolvedScope = String(data.sandbox_scope_default || 'global').toLowerCase();
                 sandboxProfile = {
                     enabled: data.sandbox_enabled !== undefined ? !!data.sandbox_enabled : true,
                     scopes: scopes.length ? Array.from(new Set(scopes)) : ['global', 'sandbox'],
-                    defaultScope: String(data.sandbox_scope_default || 'global').toLowerCase(),
-                    currentScope: String(data.sandbox_scope_default || 'global').toLowerCase()
+                    defaultScope: resolvedScope,
+                    currentScope: resolvedScope
                 };
                 currentFileScope = sandboxProfile.currentScope;
                 applyDiagramScopeUI();
                 applyFileScopeUI();
+                if (opts.syncFileScope) {
+                    await refreshFilesForCurrentScope();
+                }
                 return data;
             } catch (e) {
                 console.warn('Failed to load session profile', e);
@@ -2310,7 +2619,7 @@ const editorTemplate = `<!DOCTYPE html>
         }
         
         // Check for existing authentication
-        function checkExistingAuth() {
+        async function checkExistingAuth() {
             const savedToken = localStorage.getItem('chariot_token');
             const savedUser = localStorage.getItem('chariot_user');
             
@@ -2323,11 +2632,9 @@ const editorTemplate = `<!DOCTYPE html>
                 startSessionManagement();                
 
                 updateAuthUI(true);
-                fetchSessionProfile();
-                fetchUserFunctions().then(functionNames => {
-                    setChariotTokenizer(functionNames);
-                });
-                loadFileList();
+                await fetchSessionProfile({ syncFileScope: true });
+                const functionNames = await fetchUserFunctions();
+                setChariotTokenizer(functionNames);
             }
         }
         
@@ -2808,11 +3115,9 @@ const editorTemplate = `<!DOCTYPE html>
                     startSessionManagement();                    
                     
                     updateAuthUI(true);
-                    await fetchSessionProfile();
-                    await fetchUserFunctions().then(functionNames => {
-                        setChariotTokenizer(functionNames);
-                    });                    
-                    loadFileList();
+                    await fetchSessionProfile({ syncFileScope: true });
+                    const functionNames = await fetchUserFunctions();
+                    setChariotTokenizer(functionNames);
                     updateLeftPanel();
                     
                     // Clear password field
@@ -2832,6 +3137,8 @@ const editorTemplate = `<!DOCTYPE html>
         // Logout functionality
         function logout() {
             console.log('DEBUG: Logout function called');
+
+            clearBreakpointsOnServer(null, { clearAll: true });
             
             // Close debug WebSocket
             if (debugSocket) {
@@ -2847,6 +3154,7 @@ const editorTemplate = `<!DOCTYPE html>
             renderCallStack([]);
             renderVariables({});
             updateEditorBreakpoints();
+            ensureDebugSocketConnected();
             
             // Clear session timers
             clearSessionTimers();
@@ -2857,6 +3165,7 @@ const editorTemplate = `<!DOCTYPE html>
             authToken = null;
             sessionId = null;
             currentUser = null;
+            debuggerSessionReady = false;
             resetSandboxProfile();
             
             // Clear localStorage
@@ -3099,19 +3408,13 @@ const editorTemplate = `<!DOCTYPE html>
             const fileScopeSelect = document.getElementById('fileScopeSelect');
             if (fileScopeSelect) {
                 fileScopeSelect.addEventListener('change', async function() {
-                    currentFileScope = this.value || 'global';
+                    const nextScope = (this.value || 'global').toLowerCase();
+                    if (nextScope === currentFileScope) {
+                        return;
+                    }
+                    currentFileScope = nextScope;
                     console.log('DEBUG: File scope changed to', currentFileScope);
-                    // Clear current file and reload list
-                    currentFileName = '';
-                    if (editor) {
-                        editor.setValue('');
-                    }
-                    const fileSelect = document.getElementById('fileSelect');
-                    if (fileSelect) {
-                        fileSelect.value = '';
-                    }
-                    updateSaveButtonStates();
-                    await loadFileList();
+                    await refreshFilesForCurrentScope();
                 });
                 console.log('DEBUG: File scope select handler added');
             }
@@ -3941,8 +4244,9 @@ const editorTemplate = `<!DOCTYPE html>
 
         // Recursively render a JS object as a tree
         async function updateLeftPanel() {
-            // Skip runtime inspection during code execution or debug sessions
-            if (isExecuting || debugState === 'paused' || debugState === 'stepping') {
+            // Skip runtime inspection during active execution or when the debugger is paused/stepping with an open socket
+            const debuggerEngaged = !!debugSocket && (debugState === 'paused' || debugState === 'stepping');
+            if (isExecuting || debuggerEngaged) {
                 console.log('Skipping runtime inspection - execution in progress or debugger active');
                 return;
             }
@@ -4003,17 +4307,31 @@ const editorTemplate = `<!DOCTYPE html>
             console.log(code);
             console.log('DEBUG: --- END CODE ---');
             
+            const runButton = document.getElementById('runButton');
+
             // Connect debug WebSocket if breakpoints are set
             if (breakpoints.size > 0) {
-                console.log('Breakpoints detected (' + breakpoints.size + '), connecting debug WebSocket');
-                connectDebugSocket();
+                console.log('Breakpoints detected (' + breakpoints.size + '), ensuring debug WebSocket connectivity');
+                try {
+                    await waitForDebugSocketReady();
+                } catch (err) {
+                    console.error('Failed to establish debugger socket before execution:', err);
+                    showOutput('Debugger connection failed. Please retry after reconnecting.', 'error');
+                    if (runButton) {
+                        runButton.disabled = false;
+                        runButton.textContent = '▶ Run';
+                    }
+                    return;
+                }
             } else {
                 console.log('No breakpoints set, running without debugger');
+                ensureDebugSocketConnected();
             }
             
-            const runButton = document.getElementById('runButton');
-            runButton.disabled = true;
-            runButton.textContent = '⏳ Running...';
+            if (runButton) {
+                runButton.disabled = true;
+                runButton.textContent = '⏳ Running...';
+            }
             
             isExecuting = true; // Block runtime inspection during execution
             
@@ -4023,7 +4341,8 @@ const editorTemplate = `<!DOCTYPE html>
 
                 headers = getAuthHeadersWithJSON();  // Use the version with Content-Type
                 console.log('DEBUG: runCode headers', headers);
-                console.log('DEBUG: Executing with filename:', currentFileName || "main.ch");
+                const activeFilename = getCurrentFilename();
+                console.log('DEBUG: Executing with filename:', activeFilename);
                 console.log('DEBUG: Active breakpoints:', Array.from(breakpoints.keys()));
                 
                 const response = await fetch(getAPIPath('/api/execute'), {
@@ -4031,7 +4350,7 @@ const editorTemplate = `<!DOCTYPE html>
                     headers: headers,
                     body: JSON.stringify({ 
                         program: code,
-                        filename: "main.ch"
+                        filename: activeFilename
                     })
                 });
                 
@@ -4061,6 +4380,11 @@ const editorTemplate = `<!DOCTYPE html>
                 // But only if not in a debug session
                 if (debugState !== 'paused' && debugState !== 'stepping') {
                     updateLeftPanel();
+                }
+                if (!debugSocket && debugState !== 'stopped') {
+                    resetDebuggerUI('Ready');
+                } else if (debugState !== 'paused' && debugState !== 'stepping') {
+                    showRuntimePanel();
                 }
             }
         }
@@ -4097,7 +4421,10 @@ const editorTemplate = `<!DOCTYPE html>
                 const execResponse = await fetch(getAPIPath('/api/execute-async'), {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
-                    body: JSON.stringify({ program: code })
+                    body: JSON.stringify({
+                        program: code,
+                        filename: getCurrentFilename()
+                    })
                 });
                 
                 if (execResponse.status === 401) {
@@ -4658,6 +4985,8 @@ const editorTemplate = `<!DOCTYPE html>
                 }
                 
                 showOutput('New file created. Use "Save As..." to save with a filename.', 'info');
+
+                resetDebuggerUI('Ready', { preservePanelState: true });
             }
         }
 
@@ -4733,6 +5062,27 @@ const editorTemplate = `<!DOCTYPE html>
         }
 
         // Save button event listener        
+        async function refreshFilesForCurrentScope(options) {
+            const opts = options || {};
+            const fileSelect = document.getElementById('fileSelect');
+            if (fileSelect) {
+                fileSelect.innerHTML = '<option value="">Select a file...</option>';
+                fileSelect.value = '';
+            }
+            currentFileName = '';
+            fileEditorContent = '';
+            fileEditorFileName = '';
+            if (editor && !opts.preserveEditorContent) {
+                editor.setValue('');
+            }
+            updateSaveButtonStates();
+            updateRunButtonState();
+            if (!authToken || opts.skipLoadList) {
+                return;
+            }
+            await loadFileList();
+        }
+
         // Load list of files from the server
         async function loadFileList() {
             console.log('DEBUG: loadFileList called, authToken:', !!authToken, 'scope:', currentFileScope);
@@ -4830,6 +5180,8 @@ const editorTemplate = `<!DOCTYPE html>
         // Update the loadFile function to track original content
         async function loadFile(fileName) {
             if (!authToken) return;
+
+            const previousFileName = currentFileName;
             
             try {
                 const url = getAPIPath('/api/files/' + encodeURIComponent(fileName) + '?scope=' + encodeURIComponent(currentFileScope));
@@ -4856,6 +5208,9 @@ const editorTemplate = `<!DOCTYPE html>
                             fileEditorFileName = fileName;
                             updateSaveButtonStates();
                             updateRunButtonState(); // Update Run button state on file load
+                            await clearBreakpointsOnServer(previousFileName || fileName);
+                            await syncBreakpointsWithServer(fileName);
+                            resetDebuggerUI('Ready', { preservePanelState: true });
                         }
                     } else {
                         console.error('Failed to load file:', result.data);
@@ -7752,6 +8107,46 @@ func loadLibraryHandler(w http.ResponseWriter, r *http.Request) {
 	// Implementation here
 }
 
+func debugBreakpointHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	proxyDebugRequest(w, r, http.MethodPost, "/api/debug/breakpoint", true)
+}
+
+func debugStateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	proxyDebugRequest(w, r, http.MethodGet, "/api/debug/state", false)
+}
+
+func debugContinueHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	proxyDebugRequest(w, r, http.MethodPost, "/api/debug/continue", false)
+}
+
+func debugPauseHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	proxyDebugRequest(w, r, http.MethodPost, "/api/debug/pause", false)
+}
+
+func debugStepHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	proxyDebugRequest(w, r, http.MethodPost, "/api/debug/step", true)
+}
+
 // healthHandler provides a simple health check endpoint
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
@@ -7801,6 +8196,11 @@ func main() {
 	http.HandleFunc("/api/library/save", authMiddleware(saveLibraryHandler))
 	http.HandleFunc("/api/library/load", authMiddleware(loadLibraryHandler))
 	http.HandleFunc("/api/runtime/inspect", authMiddleware(runtimeInspectHandler))
+	http.HandleFunc("/api/debug/breakpoint", authMiddleware(debugBreakpointHandler))
+	http.HandleFunc("/api/debug/state", authMiddleware(debugStateHandler))
+	http.HandleFunc("/api/debug/continue", authMiddleware(debugContinueHandler))
+	http.HandleFunc("/api/debug/pause", authMiddleware(debugPauseHandler))
+	http.HandleFunc("/api/debug/step", authMiddleware(debugStepHandler))
 
 	// Prefixed API routes for proxy path support
 	http.HandleFunc("/charioteer/api/session/profile", authMiddleware(sessionProfileHandler))
@@ -7817,6 +8217,11 @@ func main() {
 	http.HandleFunc("/charioteer/api/library/save", authMiddleware(saveLibraryHandler))
 	http.HandleFunc("/charioteer/api/library/load", authMiddleware(loadLibraryHandler))
 	http.HandleFunc("/charioteer/api/runtime/inspect", authMiddleware(runtimeInspectHandler))
+	http.HandleFunc("/charioteer/api/debug/breakpoint", authMiddleware(debugBreakpointHandler))
+	http.HandleFunc("/charioteer/api/debug/state", authMiddleware(debugStateHandler))
+	http.HandleFunc("/charioteer/api/debug/continue", authMiddleware(debugContinueHandler))
+	http.HandleFunc("/charioteer/api/debug/pause", authMiddleware(debugPauseHandler))
+	http.HandleFunc("/charioteer/api/debug/step", authMiddleware(debugStepHandler))
 
 	// Public routes
 	http.HandleFunc("/charioteer/health", healthHandler)
