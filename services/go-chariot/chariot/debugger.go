@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+const maxPendingEvents = 200
+
 // DebugState represents the current state of the debugger
 type DebugState string
 
@@ -53,29 +55,32 @@ type DebugEvent struct {
 
 // Debugger manages debugging state and operations for a Chariot runtime
 type Debugger struct {
-	mu             sync.RWMutex
-	state          DebugState
-	stepMode       StepMode
-	breakpoints    map[string]*Breakpoint // key: "file:line"
-	callStack      []StackFrame
-	currentLine    int
-	currentFile    string
-	stepDepth      int // Tracks call depth for step over/out
-	eventChannel   chan DebugEvent
-	resumeChan     chan struct{} // Signal to resume execution
-	lastPausedFile string        // Track last paused position
-	lastPausedLine int           // Track last paused line
+	mu               sync.RWMutex
+	state            DebugState
+	stepMode         StepMode
+	breakpoints      map[string]*Breakpoint // key: "file:line"
+	callStack        []StackFrame
+	currentLine      int
+	currentFile      string
+	stepDepth        int // Tracks call depth for step over/out
+	eventSubscribers map[int]chan DebugEvent
+	pendingEvents    []DebugEvent
+	nextSubscriberID int
+	resumeChan       chan struct{} // Signal to resume execution
+	lastPausedFile   string        // Track last paused position
+	lastPausedLine   int           // Track last paused line
+	executionActive  bool          // Indicates whether a debug run is in-flight
 }
 
 // NewDebugger creates a new debugger instance
 func NewDebugger() *Debugger {
 	return &Debugger{
-		state:        DebugStateRunning,
-		stepMode:     StepModeNone,
-		breakpoints:  make(map[string]*Breakpoint),
-		callStack:    make([]StackFrame, 0),
-		eventChannel: make(chan DebugEvent, 100),
-		resumeChan:   make(chan struct{}),
+		state:            DebugStateRunning,
+		stepMode:         StepModeNone,
+		breakpoints:      make(map[string]*Breakpoint),
+		callStack:        make([]StackFrame, 0),
+		eventSubscribers: make(map[int]chan DebugEvent),
+		resumeChan:       make(chan struct{}),
 	}
 }
 
@@ -132,6 +137,28 @@ func (d *Debugger) GetBreakpoints() []*Breakpoint {
 		breakpoints = append(breakpoints, bp)
 	}
 	return breakpoints
+}
+
+// ClearBreakpoints removes all breakpoints or just those for a specific file
+func (d *Debugger) ClearBreakpoints(file string) int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Clear everything when no file specified
+	if file == "" {
+		removed := len(d.breakpoints)
+		d.breakpoints = make(map[string]*Breakpoint)
+		return removed
+	}
+
+	removed := 0
+	for key, bp := range d.breakpoints {
+		if bp.File == file {
+			delete(d.breakpoints, key)
+			removed++
+		}
+	}
+	return removed
 }
 
 // ShouldBreak checks if execution should pause at the current location
@@ -284,6 +311,33 @@ func (d *Debugger) GetState() DebugState {
 	return d.state
 }
 
+// IsExecutionActive reports whether a debug-enabled execution is currently running
+func (d *Debugger) IsExecutionActive() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.executionActive
+}
+
+// MarkRunning marks the debugger as actively executing code
+func (d *Debugger) MarkRunning() {
+	d.mu.Lock()
+	d.state = DebugStateRunning
+	d.stepMode = StepModeNone
+	d.lastPausedFile = ""
+	d.lastPausedLine = 0
+	d.executionActive = true
+	d.mu.Unlock()
+}
+
+// MarkStopped marks the debugger as idle after execution ends
+func (d *Debugger) MarkStopped() {
+	d.mu.Lock()
+	d.state = DebugStateStopped
+	d.executionActive = false
+	d.stepMode = StepModeNone
+	d.mu.Unlock()
+}
+
 // UpdatePosition updates the current execution position
 func (d *Debugger) UpdatePosition(file string, line int) {
 	d.mu.Lock()
@@ -329,17 +383,70 @@ func (d *Debugger) GetCurrentPosition() (string, int) {
 // SendEvent sends a debug event to listeners
 func (d *Debugger) SendEvent(event DebugEvent) {
 	fmt.Printf("DEBUG DEBUGGER: SendEvent called with type=%s, file=%s, line=%d\n", event.Type, event.File, event.Line)
-	select {
-	case d.eventChannel <- event:
-		fmt.Printf("DEBUG DEBUGGER: Event sent successfully to channel\n")
-	default:
-		fmt.Printf("DEBUG DEBUGGER: WARNING - Event channel full, event dropped!\n")
+	d.mu.Lock()
+	if len(d.eventSubscribers) == 0 {
+		if len(d.pendingEvents) >= maxPendingEvents {
+			d.pendingEvents = d.pendingEvents[1:]
+		}
+		d.pendingEvents = append(d.pendingEvents, event)
+		d.mu.Unlock()
+		fmt.Printf("DEBUG DEBUGGER: No subscribers, queued event (%d pending)\n", len(d.pendingEvents))
+		return
+	}
+	subs := make([]chan DebugEvent, 0, len(d.eventSubscribers))
+	for _, ch := range d.eventSubscribers {
+		subs = append(subs, ch)
+	}
+	d.mu.Unlock()
+	for _, ch := range subs {
+		select {
+		case ch <- event:
+		default:
+			fmt.Printf("DEBUG DEBUGGER: WARNING - Subscriber channel full, event dropped!\n")
+		}
 	}
 }
 
-// GetEventChannel returns the event channel for listening to debug events
-func (d *Debugger) GetEventChannel() <-chan DebugEvent {
-	return d.eventChannel
+// SubscribeEvents registers a listener for debug events and returns a channel plus an unsubscribe function
+func (d *Debugger) SubscribeEvents() (<-chan DebugEvent, func()) {
+	d.mu.Lock()
+	id := d.nextSubscriberID
+	d.nextSubscriberID++
+	ch := make(chan DebugEvent, 100)
+	if d.eventSubscribers == nil {
+		d.eventSubscribers = make(map[int]chan DebugEvent)
+	}
+	d.eventSubscribers[id] = ch
+	pending := make([]DebugEvent, len(d.pendingEvents))
+	copy(pending, d.pendingEvents)
+	d.pendingEvents = nil
+	unsubscribe := func() {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		if sub, ok := d.eventSubscribers[id]; ok {
+			delete(d.eventSubscribers, id)
+			close(sub)
+		}
+	}
+	d.mu.Unlock()
+	for _, evt := range pending {
+		select {
+		case ch <- evt:
+		default:
+			fmt.Printf("DEBUG DEBUGGER: WARNING - subscriber backlog full while replaying pending events\n")
+		}
+	}
+	return ch, unsubscribe
+}
+
+// RequeueEvent stores a debug event so that the next subscriber receives it immediately
+func (d *Debugger) RequeueEvent(event DebugEvent) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.pendingEvents) >= maxPendingEvents {
+		d.pendingEvents = d.pendingEvents[1:]
+	}
+	d.pendingEvents = append(d.pendingEvents, event)
 }
 
 // Stop stops the debugger and cleans up resources
@@ -347,5 +454,41 @@ func (d *Debugger) Stop() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.state = DebugStateStopped
-	close(d.eventChannel)
+	d.executionActive = false
+	for id, ch := range d.eventSubscribers {
+		close(ch)
+		delete(d.eventSubscribers, id)
+	}
+}
+
+// ForceStop aborts any in-progress execution, clears state, and emits a stopped event
+func (d *Debugger) ForceStop(reason string) {
+	if d == nil {
+		return
+	}
+	d.mu.Lock()
+	previousState := d.state
+	d.state = DebugStateStopped
+	d.stepMode = StepModeNone
+	d.callStack = d.callStack[:0]
+	d.currentFile = ""
+	d.currentLine = 0
+	d.stepDepth = 0
+	d.lastPausedFile = ""
+	d.lastPausedLine = 0
+	d.executionActive = false
+	d.mu.Unlock()
+
+	// Unblock any paused goroutines waiting on resume
+	select {
+	case d.resumeChan <- struct{}{}:
+	default:
+	}
+
+	if reason != "" && previousState != DebugStateStopped {
+		d.SendEvent(DebugEvent{
+			Type:    "stopped",
+			Message: reason,
+		})
+	}
 }
