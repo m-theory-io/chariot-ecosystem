@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
@@ -82,40 +83,35 @@ func TestLocalVariablesDoNotPersist(t *testing.T) {
 	rt := chariot.NewRuntime()
 	chariot.RegisterAll(rt)
 
-	// Test 1: Declare a local variable
-	t.Run("Declare local variable", func(t *testing.T) {
-		code := `declare(localVar, "S", "local value")`
+	// Test 1: Local variable is accessible within the same lexical scope
+	t.Run("Local variable accessible within program", func(t *testing.T) {
+		code := `
+declare(localVar, "S", "local value")
+localVar
+`
 		result, err := rt.ExecProgram(code)
 		if err != nil {
-			t.Fatalf("Failed to declare local variable: %v", err)
+			t.Fatalf("Failed to declare/reference local variable: %v", err)
 		}
 
 		expected := "local value"
 		if result.(chariot.Str) != chariot.Str(expected) {
 			t.Errorf("Expected %v, got %v", expected, result)
 		}
-	})
 
-	// Test 2: Local variable should NOT be in global scope
-	t.Run("Local variable not in globals", func(t *testing.T) {
-		globals := rt.ListGlobalVariables()
-
-		if _, exists := globals["localVar"]; exists {
-			t.Error("localVar should not appear in global variables")
+		if _, exists := rt.ListGlobalVariables()["localVar"]; exists {
+			t.Fatal("localVar should not be promoted to global scope")
 		}
 	})
 
-	// Test 3: Local variable should be in current scope
-	t.Run("Local variable in current scope", func(t *testing.T) {
-		code := `localVar`
-		result, err := rt.ExecProgram(code)
-		if err != nil {
-			t.Fatalf("Failed to reference local variable: %v", err)
+	// Test 2: Local variable is not available to subsequent ExecProgram calls
+	t.Run("Local variable unavailable after program", func(t *testing.T) {
+		_, err := rt.ExecProgram(`localVar`)
+		if err == nil {
+			t.Fatalf("Expected error when referencing out-of-scope local variable")
 		}
-
-		expected := "local value"
-		if result.(chariot.Str) != chariot.Str(expected) {
-			t.Errorf("Expected %v, got %v", expected, result)
+		if !strings.Contains(err.Error(), "variable 'localVar' not defined") {
+			t.Fatalf("Expected 'variable 'localVar' not defined' error, got %v", err)
 		}
 	})
 }
@@ -146,34 +142,30 @@ func TestScopeSearchOrder(t *testing.T) {
 		}
 	})
 
-	// Test 2: Local shadows global
-	t.Run("Local variable shadows global", func(t *testing.T) {
-		code := `declare(sharedName, "S", "local value")`
-		_, err := rt.ExecProgram(code)
-		if err != nil {
-			t.Fatalf("Failed to declare local variable: %v", err)
-		}
-
-		code = `sharedName`
+	// Test 2: Local shadows global only within the same program
+	t.Run("Local variable shadows global within program", func(t *testing.T) {
+		code := `
+declare(sharedName, "S", "local value")
+sharedName
+`
 		result, err := rt.ExecProgram(code)
 		if err != nil {
-			t.Fatalf("Failed to reference variable: %v", err)
+			t.Fatalf("Failed to run program with local shadow: %v", err)
 		}
 
-		// Should get local value, not global
 		if result.(chariot.Str) != "local value" {
 			t.Errorf("Expected 'local value' (shadowing), got %v", result)
 		}
 	})
 
-	// Test 3: Global still accessible after current scope
-	t.Run("Global still exists", func(t *testing.T) {
-		globals := rt.ListGlobalVariables()
-
-		if val, exists := globals["sharedName"]; !exists {
-			t.Error("sharedName not found in globals")
-		} else if val.(chariot.Str) != "global value" {
-			t.Errorf("Global value should still be 'global value', got %v", val)
+	// Test 3: After scope reset, global value is visible again
+	t.Run("Global value restored after scope reset", func(t *testing.T) {
+		result, err := rt.ExecProgram(`sharedName`)
+		if err != nil {
+			t.Fatalf("Failed to reference global variable: %v", err)
+		}
+		if result.(chariot.Str) != "global value" {
+			t.Errorf("Expected 'global value', got %v", result)
 		}
 	})
 }

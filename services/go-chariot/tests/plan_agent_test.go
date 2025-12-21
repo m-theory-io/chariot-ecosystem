@@ -94,7 +94,7 @@ func TestPlan_RunOnce_WithAgentBeliefs(t *testing.T) {
 		"declare(step,'F', func(){ logPrint('thermostat running'); True })",
 		"declare(steps,'A', array(step))",
 		"declare(drop,'F', func(){ False })",
-		"declare(p,'P', plan(name, params, trig, guard, steps, drop))",
+		"declareGlobal(p,'P', plan(name, params, trig, guard, steps, drop))",
 		"agentStartNamed('thermostat', p)",
 	}, "\n")
 	if _, err := rt.ExecProgram(setup); err != nil {
