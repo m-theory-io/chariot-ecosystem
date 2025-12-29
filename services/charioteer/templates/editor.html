@@ -3345,6 +3345,7 @@
                 await fetchSessionProfile({ syncFileScope: true });
                 const functionNames = await fetchUserFunctions();
                 setChariotTokenizer(functionNames);
+                await updateLeftPanel();
             }
         }
 
@@ -4404,6 +4405,7 @@
                 }
 
                 function showToolbar(selected) {
+                    const previousTab = currentTab;
                     // Hide all toolbars
                     fileToolbar.classList.remove('active');
                     functionsToolbar.classList.remove('active');
@@ -4421,7 +4423,7 @@
                         // Leaving dashboard: stop auto refresh
                         stopDashboardAutoRefresh();
                         // Leaving agents: stop WS and restore editor container
-                        if (currentTab === 'agents') {
+                        if (previousTab === 'agents') {
                             stopAgentsWS();
                             const editorContainer = document.getElementById('editorContainer');
                             if (editorContainer) {
@@ -4430,23 +4432,24 @@
                             }
                         }
                         // Save current function editor state
-                        if (currentTab === 'functions') {
+                        if (previousTab === 'functions') {
                             captureFunctionEditorStateFromActiveTab();
                         }
                         // Save current dashboard state
-                        if (currentTab === 'dashboard') {
+                        if (previousTab === 'dashboard') {
                             const editorContainer = document.getElementById('editorContainer');
                             if (editorContainer) {
                                 dashboardContent = editorContainer.innerHTML;
                             }
                         }
                         // Restore Monaco editor if coming from dashboard or agents
-                        if (currentTab === 'dashboard' || currentTab === 'agents') {
+                        if (previousTab === 'dashboard' || previousTab === 'agents') {
                             // Clear dashboard content and restore editor container
                             const editorContainer = document.getElementById('editorContainer');
                             editorContainer.innerHTML = '';
                             setupMonacoEditor();
                         }
+                        currentTab = 'files';
                         // Restore file editor state
                         fileToolbar.classList.add('active');
                         filesTab.classList.add('active');
@@ -4469,12 +4472,11 @@
                         }
                         updateSaveButtonStates();
                         updateRunButtonState();
-                        currentTab = 'files';
                     } else if (selected === 'functions') {
                         // Leaving dashboard: stop auto refresh
                         stopDashboardAutoRefresh();
                         // Leaving agents: stop WS and restore editor
-                        if (currentTab === 'agents') {
+                        if (previousTab === 'agents') {
                             stopAgentsWS();
                             const editorContainer = document.getElementById('editorContainer');
                             if (editorContainer) {
@@ -4483,23 +4485,24 @@
                             }
                         }
                         // Save current file editor state
-                        if (currentTab === 'files') {
+                        if (previousTab === 'files') {
                             persistActiveTabContent();
                         }
                         // Save current dashboard state
-                        if (currentTab === 'dashboard') {
+                        if (previousTab === 'dashboard') {
                             const editorContainer = document.getElementById('editorContainer');
                             if (editorContainer) {
                                 dashboardContent = editorContainer.innerHTML;
                             }
                         }
                         // Restore Monaco editor if coming from dashboard or agents
-                        if (currentTab === 'dashboard' || currentTab === 'agents') {
+                        if (previousTab === 'dashboard' || previousTab === 'agents') {
                             // Clear dashboard content and restore editor container
                             const editorContainer = document.getElementById('editorContainer');
                             editorContainer.innerHTML = '';
                             setupMonacoEditor();
                         }
+                        currentTab = 'functions';
                         // Restore function editor state
                         functionsToolbar.classList.add('active');
                         functionsTab.classList.add('active');
@@ -4526,17 +4529,17 @@
                         updateSaveButtonStates();
                         updateRunButtonState();
                         refreshFunctionToolbarButtons();
-                        currentTab = 'functions';
                     } else if (selected === 'dashboard') {
                         // Save current editor state
-                        if (currentTab === 'files') {
+                        if (previousTab === 'files') {
                             persistActiveTabContent();
-                        } else if (currentTab === 'functions') {
+                        } else if (previousTab === 'functions') {
                             captureFunctionEditorStateFromActiveTab();
-                        } else if (currentTab === 'agents') {
+                        } else if (previousTab === 'agents') {
                             // Ensure we fully stop the Agents WS loop when switching to dashboard
                             stopAgentsWS();
                         }
+                        currentTab = 'dashboard';
                         // Show dashboard toolbar
                         dashboardToolbar.classList.add('active');
                         dashboardTab.classList.add('active');
@@ -4567,18 +4570,17 @@
                         isFileModified = false;
                         updateSaveButtonStates();
                         updateRunButtonState();
-                        currentTab = 'dashboard';
                     } else if (selected === 'agents') {
                         // Ensure any dashboard auto-refresh/WS is stopped when entering Agents
                         stopDashboardAutoRefresh();
                         // Save current editor state when switching to Agents
-                        if (currentTab === 'files') {
+                        if (previousTab === 'files') {
                             persistActiveTabContent();
-                        } else if (currentTab === 'functions') {
+                        } else if (previousTab === 'functions') {
                             captureFunctionEditorStateFromActiveTab();
                         }
                         // If coming from dashboard, ensure Monaco editor is torn down (agents replaces editor area)
-                        if (currentTab === 'dashboard') {
+                        if (previousTab === 'dashboard') {
                             const editorContainer = document.getElementById('editorContainer');
                             if (editor) {
                                 editor.getModel()?.dispose();
@@ -4587,6 +4589,7 @@
                             }
                             editorContainer.innerHTML = '';
                         }
+                        currentTab = 'agents';
                         // Activate Agents toolbar/tab
                         agentsToolbar.classList.add('active');
                         agentsTab.classList.add('active');
@@ -4636,12 +4639,11 @@
                         isFileModified = false;
                         updateSaveButtonStates();
                         updateRunButtonState();
-                        currentTab = 'agents';
                     } else if (selected === 'diagrams') {
                         // Leaving dashboard: stop auto refresh
                         stopDashboardAutoRefresh();
                         // Leaving agents: stop WS and restore editor
-                        if (currentTab === 'agents') {
+                        if (previousTab === 'agents') {
                             stopAgentsWS();
                             const editorContainer = document.getElementById('editorContainer');
                             if (editor) {
@@ -4657,13 +4659,13 @@
                             }
                         }
                         // Save current editor states when switching away
-                        if (currentTab === 'files') {
+                        if (previousTab === 'files') {
                             persistActiveTabContent();
-                        } else if (currentTab === 'functions') {
+                        } else if (previousTab === 'functions') {
                             captureFunctionEditorStateFromActiveTab();
                         }
                         // Restore Monaco if coming from dashboard
-                        if (currentTab === 'dashboard') {
+                        if (previousTab === 'dashboard') {
                             const editorContainer = document.getElementById('editorContainer');
                             if (editor) {
                                 editor.getModel()?.dispose();
@@ -4673,13 +4675,13 @@
                             editorContainer.innerHTML = '';
                             setupMonacoEditor();
                         }
+                        currentTab = 'diagrams';
                         // Show diagrams toolbar and set active tab
                         diagramsToolbar.classList.add('active');
                         diagramsTab.classList.add('active');
                         // Ensure buttons reflect current editor state
                         updateSaveButtonStates();
                         updateRunButtonState();
-                        currentTab = 'diagrams';
                         // Load diagrams list on first enter or refresh as needed
                         try { loadDiagramsList(); } catch (e) { /* ignore */ }
                     }
