@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"go.uber.org/zap"
 )
 
 // RegisterValues registers all value-related functions
@@ -1101,6 +1102,7 @@ func FunctionValueToMap(fn *FunctionValue) map[string]interface{} {
 		"body":             fn.Body.ToMap(),
 		"source":           fn.SourceCode,      // Original formatted source
 		"formatted_source": fn.FormattedSource, // Add this field for editor formatting
+		"origin_file":      fn.OriginFile,
 	}
 }
 
@@ -1409,6 +1411,11 @@ func LoadFunctionsFromFile(filename string) (map[string]*FunctionValue, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := reparseFunctionValue(key, fn); err != nil {
+			if cfg.ChariotLogger != nil {
+				cfg.ChariotLogger.Warn("Failed to rehydrate function", zap.String("function", key), zap.String("file", fullPath), zap.Error(err))
+			}
+		}
 		functions[key] = fn
 	}
 	return functions, nil
@@ -1474,6 +1481,10 @@ func MapToFunctionValue(fnMap map[string]interface{}) (*FunctionValue, error) {
 		fn.Body = node
 	} else {
 		return nil, fmt.Errorf("function is missing 'body' field")
+	}
+
+	if origin, ok := fnMap["origin_file"].(string); ok {
+		fn.OriginFile = origin
 	}
 
 	// Optionally: set Scope to nil (cannot reconstruct closures from JSON)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
@@ -225,45 +226,44 @@ func RegisterSystem(rt *Runtime) {
 	})
 
 	rt.Register("listen", func(args ...Value) (Value, error) {
-		if len(args) < 1 {
-			return nil, errors.New("listen requires at least a port argument")
+		if len(args) < 2 {
+			return nil, errors.New("listen requires at least 2 arguments: port and handler")
 		}
 
-		// Unwrap arguments
 		for i, arg := range args {
-			if tvar, ok := arg.(ScopeEntry); ok {
-				args[i] = tvar.Value
+			if entry, ok := arg.(ScopeEntry); ok {
+				args[i] = entry.Value
 			}
 		}
 
-		port, ok := args[0].(Number)
-		if !ok {
-			return nil, errors.New("port must be a number")
+		port, err := parseListenerPort(args[0])
+		if err != nil {
+			return nil, err
 		}
-		onstart := ""
-		onexit := ""
-		if len(args) > 1 {
-			if s, ok := args[1].(Str); ok {
-				onstart = string(s)
+
+		handlerRef, err := resolveListenerHandler(args[1])
+		if err != nil {
+			return nil, err
+		}
+
+		opts := listenerOptions{
+			Port:        port,
+			HandlerName: handlerRef.name,
+			HandlerFn:   handlerRef.fn,
+		}
+
+		if len(args) >= 3 {
+			if err := applyListenerOptionValue(&opts, args[2]); err != nil {
+				return nil, err
 			}
 		}
-		if len(args) > 2 {
-			if s, ok := args[2].(Str); ok {
-				onexit = string(s)
-			}
+
+		listener, err := startRuntimeListener(rt, opts)
+		if err != nil {
+			return nil, err
 		}
-		go func() {
-			// Run onstart program
-			if onstart != "" {
-				_ = rt.RunProgram(onstart, int(port))
-			}
-			// Listen on port and handle requests...
-			// On shutdown, run onexit program
-			if onexit != "" {
-				_ = rt.RunProgram(onexit, int(port))
-			}
-		}()
-		return nil, nil
+
+		return buildListenerResult(listener.opts), nil
 	})
 
 }
@@ -300,4 +300,202 @@ func ChariotValueToZapFields(fields map[string]Value) []zap.Field {
 		zapFields = append(zapFields, zap.Any(k, fieldValue))
 	}
 	return zapFields
+}
+
+type listenerHandlerRef struct {
+	name string
+	fn   *FunctionValue
+}
+
+func parseListenerPort(value Value) (int, error) {
+	switch v := value.(type) {
+	case Number:
+		port := int(v)
+		if float64(port) != float64(v) {
+			return 0, errors.New("port must be a whole number")
+		}
+		if port <= 0 || port > 65535 {
+			return 0, fmt.Errorf("port must be between 1 and 65535")
+		}
+		return port, nil
+	case Str:
+		trimmed := strings.TrimSpace(string(v))
+		if trimmed == "" {
+			return 0, errors.New("port cannot be empty")
+		}
+		port, err := strconv.Atoi(trimmed)
+		if err != nil {
+			return 0, fmt.Errorf("invalid port '%s'", trimmed)
+		}
+		if port <= 0 || port > 65535 {
+			return 0, fmt.Errorf("port must be between 1 and 65535")
+		}
+		return port, nil
+	default:
+		return 0, fmt.Errorf("port must be a number or string, got %T", value)
+	}
+}
+
+func resolveListenerHandler(value Value) (listenerHandlerRef, error) {
+	switch v := value.(type) {
+	case Str:
+		name := strings.TrimSpace(string(v))
+		if name == "" {
+			return listenerHandlerRef{}, errors.New("handler name cannot be empty")
+		}
+		return listenerHandlerRef{name: name}, nil
+	case *FunctionValue:
+		return listenerHandlerRef{fn: v}, nil
+	default:
+		return listenerHandlerRef{}, fmt.Errorf("handler must be a function or name, got %T", value)
+	}
+}
+
+func applyListenerOptionValue(opts *listenerOptions, raw Value) error {
+	switch v := raw.(type) {
+	case Str:
+		opts.OnExitProgram = strings.TrimSpace(string(v))
+		return nil
+	case *MapValue, *JSONNode:
+		native := convertValueToNative(v)
+		data, ok := native.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("listen options must be an object, got %T", native)
+		}
+		return applyListenerOptionsMap(opts, data)
+	default:
+		return fmt.Errorf("unsupported listen options type %T", raw)
+	}
+}
+
+func applyListenerOptionsMap(opts *listenerOptions, data map[string]interface{}) error {
+	for key, value := range data {
+		switch strings.ToLower(key) {
+		case "handler":
+			if name, ok := value.(string); ok && strings.TrimSpace(name) != "" {
+				opts.HandlerName = strings.TrimSpace(name)
+				opts.HandlerFn = nil
+			}
+		case "onstart", "on_start":
+			if name, ok := value.(string); ok {
+				opts.OnStartProgram = strings.TrimSpace(name)
+			}
+		case "onexit", "on_exit":
+			if name, ok := value.(string); ok {
+				opts.OnExitProgram = strings.TrimSpace(name)
+			}
+		case "methods":
+			methods, err := parseStringSlice(value)
+			if err != nil {
+				return fmt.Errorf("invalid methods option: %w", err)
+			}
+			opts.AllowedMethods = normalizeMethodSet(methods)
+		case "basepath", "base_path":
+			if base, ok := value.(string); ok {
+				opts.BasePath = base
+			}
+		case "readtimeoutms", "read_timeout_ms":
+			if dur, ok := parseDurationMillis(value); ok {
+				opts.ReadTimeout = dur
+			}
+		case "writetimeoutms", "write_timeout_ms":
+			if dur, ok := parseDurationMillis(value); ok {
+				opts.WriteTimeout = dur
+			}
+		case "idletimeoutms", "idle_timeout_ms":
+			if dur, ok := parseDurationMillis(value); ok {
+				opts.IdleTimeout = dur
+			}
+		}
+	}
+	return nil
+}
+
+func parseStringSlice(source interface{}) ([]string, error) {
+	switch v := source.(type) {
+	case []interface{}:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			str := fmt.Sprintf("%v", item)
+			if strings.TrimSpace(str) == "" {
+				continue
+			}
+			out = append(out, str)
+		}
+		return out, nil
+	case []string:
+		return v, nil
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return nil, nil
+		}
+		return []string{v}, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("expected array of strings, got %T", source)
+	}
+}
+
+func parseDurationMillis(value interface{}) (time.Duration, bool) {
+	switch v := value.(type) {
+	case float64:
+		return time.Duration(int64(v)) * time.Millisecond, true
+	case int64:
+		return time.Duration(v) * time.Millisecond, true
+	case int:
+		return time.Duration(v) * time.Millisecond, true
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		ms, err := strconv.Atoi(trimmed)
+		if err != nil {
+			return 0, false
+		}
+		return time.Duration(ms) * time.Millisecond, true
+	default:
+		return 0, false
+	}
+}
+
+func normalizeMethodSet(methods []string) map[string]struct{} {
+	if len(methods) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(methods))
+	for _, method := range methods {
+		trimmed := strings.ToUpper(strings.TrimSpace(method))
+		if trimmed == "" {
+			continue
+		}
+		set[trimmed] = struct{}{}
+	}
+	return set
+}
+
+func buildListenerResult(opts listenerOptions) *MapValue {
+	values := map[string]Value{
+		"status": Str("listening"),
+		"port":   Number(float64(opts.Port)),
+	}
+	handler := opts.HandlerName
+	if handler == "" && opts.HandlerFn != nil {
+		handler = "<inline>"
+	}
+	if handler != "" {
+		values["handler"] = Str(handler)
+	}
+	if normalized := normalizeBasePath(opts.BasePath); normalized != "" {
+		values["basePath"] = Str(normalized)
+	}
+	if len(opts.AllowedMethods) > 0 {
+		arr := NewArray()
+		for method := range opts.AllowedMethods {
+			arr.Append(Str(strings.ToUpper(method)))
+		}
+		values["methods"] = arr
+	}
+	return NewMapWithValues(values)
 }

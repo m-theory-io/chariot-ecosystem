@@ -1,39 +1,103 @@
 # Containerizing a Chariot Agent
 
+Chariot agents can be published in two container flavors:
+
+- **Production** – minimal surface area; only the headless runtime and any listeners the agent configures are exposed.
+- **Debug** – the same headless runtime plus the Dev REST + debugger surface that Charioteer/Visual-DSL rely on.
+
+### Profiles at a Glance
+
+| Profile   | Primary Use Case                         | Ports to Expose                 | Key Env Overrides                                      | Notes |
+|-----------|------------------------------------------|---------------------------------|--------------------------------------------------------|-------|
+| Production| Deploy the agent as an API/microservice  | Listener port(s) declared via `listen()` (e.g., 8080) | `CHARIOT_HEADLESS=true`, `CHARIOT_DEV_REST_ENABLED=false` | Keeps attack surface small; no IDE endpoints. |
+| Debug     | Live-inspect plans via Charioteer/Visual-DSL | Listener port(s) **and** Dev REST port (default 8090) | `CHARIOT_HEADLESS=true`, `CHARIOT_DEV_REST_ENABLED=true`, optional `CHARIOT_PORT=8090` | Ideal for QA or building “publish container” previews. |
+
+Both images share the same agent artifacts; the entrypoint toggles the appropriate environment before launching `chariot-server`.
+
 ## 1. Container Structure
 
-**The container image should include:**
+**Both profiles ship the same artifacts:**
 - The Chariot Server binary (built for Linux, e.g., `/usr/local/bin/chariot-server`)
 - The agent file (e.g., `agent.json` or `agent.secure`)
 - An `onStart` Chariot script (either as a file or via env var)
 - A default entrypoint script (e.g., `/entrypoint.sh`)
 
-**Environment variables:**
-- `CHARIOT_HEADLESS=true`
-- `CHARIOT_ON_START` (or path to onStart script)
-- `CHARIOT_AGENT_FILE=agent.json` (or `agent.secure`)
+**Common environment variables:**
+- `CHARIOT_AGENT_FILE=/app/agent.json` (or `agent.secure`)
+- `CHARIOT_ON_START_FILE=/app/onstart.chariot` (or inline via `CHARIOT_ON_START`)
 - `CHARIOT_AGENT_NAME=MyAgent`
-- (Other config as needed, e.g., port, keys, etc.)
+- Any secrets, listener keys, or data roots the agent expects
 
-**Example Dockerfile:**
+**Profile-specific overrides:**
+
+| Profile | Required Flags | Typical Port Exposure |
+|---------|----------------|-----------------------|
+| Production | `CHARIOT_HEADLESS=true`, `CHARIOT_DEV_REST_ENABLED=false` | Only the listener(s) started via your `listen()` calls (e.g., 8080) |
+| Debug | `CHARIOT_HEADLESS=true`, `CHARIOT_DEV_REST_ENABLED=true`, optionally `CHARIOT_PORT=8090` for Dev REST/IDE traffic | Listener ports **plus** the Dev REST/debugger port (default 8090) |
+
+In debug images you usually keep the same listener port so QA can hit the API while simultaneously attaching Charioteer/Visual-DSL through the Dev REST surface.
+
+**Example Dockerfiles:** use the same build context but bake in the profile-specific defaults.
+
+`Dockerfile.prod`
 ```dockerfile
 FROM ubuntu:22.04
 
-# Copy Chariot server binary
 COPY chariot-server /usr/local/bin/chariot-server
-
-# Copy agent and scripts
 COPY agent.json /app/agent.json
 COPY onstart.chariot /app/onstart.chariot
+COPY entrypoint.sh /entrypoint.sh
 
-# Set environment variables
-ENV CHARIOT_HEADLESS=true
-ENV CHARIOT_AGENT_FILE=/app/agent.json
-ENV CHARIOT_ON_START_FILE=/app/onstart.chariot
+ENV CHARIOT_HEADLESS=true \
+    CHARIOT_DEV_REST_ENABLED=false \
+    CHARIOT_AGENT_FILE=/app/agent.json \
+    CHARIOT_ON_START_FILE=/app/onstart.chariot
 
-# Entrypoint
-ENTRYPOINT ["/usr/local/bin/chariot-server"]
+EXPOSE 8080
+ENTRYPOINT ["/entrypoint.sh"]
 ```
+
+`Dockerfile.debug`
+```dockerfile
+FROM ubuntu:22.04
+
+COPY chariot-server /usr/local/bin/chariot-server
+COPY agent.json /app/agent.json
+COPY onstart.chariot /app/onstart.chariot
+COPY entrypoint.sh /entrypoint.sh
+
+ENV CHARIOT_HEADLESS=true \
+    CHARIOT_DEV_REST_ENABLED=true \
+    CHARIOT_AGENT_FILE=/app/agent.json \
+    CHARIOT_ON_START_FILE=/app/onstart.chariot \
+    CHARIOT_PORT=8090
+
+EXPOSE 8080 8090
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+Both Dockerfiles call the same entrypoint so you can also collapse to a single file and switch via build args if preferred.
+
+**Entrypoint toggle example (`entrypoint.sh`):**
+```sh
+#!/usr/bin/env sh
+set -euo pipefail
+
+PROFILE=${CHARIOT_PROFILE:-production}
+
+case "${PROFILE}" in
+  debug)
+    export CHARIOT_DEV_REST_ENABLED=true
+    : "${CHARIOT_PORT:=8090}"
+    ;;
+  *)
+    export CHARIOT_DEV_REST_ENABLED=false
+    ;;
+esac
+
+exec /usr/local/bin/chariot-server "$@"
+```
+Set `CHARIOT_PROFILE=debug` at runtime (or bake it into the debug image) to enable the IDE/debugger surface while leaving production containers untouched.
 
 ---
 
@@ -108,23 +172,35 @@ function onDecisionRequest(req) {
   chariot-server
   agent.json
   onstart.chariot
-  Dockerfile
+  entrypoint.sh
+  Dockerfile.prod
+  Dockerfile.debug
 ```
 
 **Build and push:**
 ```sh
-docker build -t myorg/chariot-agent:latest .
-docker push myorg/chariot-agent:latest
+docker build -f Dockerfile.prod -t myorg/chariot-agent:prod .
+docker build -f Dockerfile.debug -t myorg/chariot-agent:debug .
+docker push myorg/chariot-agent:prod
+docker push myorg/chariot-agent:debug
 ```
 
 **Run (locally or in cloud):**
+
+Production profile:
 ```sh
 docker run -p 8080:8080 \
-  -e CHARIOT_HEADLESS=true \
-  -e CHARIOT_AGENT_FILE=/app/agent.json \
-  -e CHARIOT_ON_START_FILE=/app/onstart.chariot \
-  myorg/chariot-agent:latest
+  -e CHARIOT_PROFILE=production \
+  myorg/chariot-agent:prod
 ```
+
+Debug profile (listener + Dev REST/IDE):
+```sh
+docker run -p 8080:8080 -p 8090:8090 \
+  -e CHARIOT_PROFILE=debug \
+  myorg/chariot-agent:debug
+```
+The `CHARIOT_PROFILE` toggle feeds the entrypoint script shown earlier; if you baked the values directly into separate images, you can omit it.
 
 ---
 
@@ -134,15 +210,17 @@ docker run -p 8080:8080 \
 - **Secure Agent Loading:** Use `treeLoadSecure` if agent is encrypted.
 - **Health Checks:** Add a default `onHealthCheck` handler.
 - **Registry Integration:** Automate image build and push to Azure Container Registry or DockerHub.
+- **Publish CLI:** Wire a `chariot publish-container --profile prod|debug` helper (or CI workflow) so both images stay in sync with the same agent artifact bundle.
 - **API Gateway:** Optionally front with API gateway for auth/rate limiting.
 
 ---
 
 ## Summary
 
-- **Agent is containerized** with Chariot server, agent tree, and startup script.
-- **Handlers** are defined as functions in a `handlers` node, referenced by name.
-- **onStart** script loads the agent and sets up listeners.
-- **Requests** are routed to handler functions via Chariot’s `call`.
+- **Base image** bundles the Chariot server, agent tree, and startup script exactly once.
+- **Production profile** keeps only headless/listener surfaces alive; **debug profile** flips on the Dev REST + debugger stack so IDE tooling can attach.
+- **Handlers** still live under a `handlers` node and are dispatched from listener callbacks or Dev REST invocations.
+- **onStart** seeds listeners (and optional belief/bootstrap data) so both profiles behave identically once traffic arrives.
+- **Requests** are routed to handler functions via Chariot’s `call`, whether they originate from your published API, MCP tooling, or the debugger.
 
 ---

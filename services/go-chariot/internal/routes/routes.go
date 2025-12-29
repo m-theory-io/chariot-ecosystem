@@ -49,9 +49,16 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	listeners := api.Group("/listeners")
 	listeners.GET("", h.ListListeners)              // GET /api/listeners
 	listeners.POST("", h.CreateListener)            // POST /api/listeners
+	listeners.PUT("/:name", h.UpdateListener)       // PUT /api/listeners/:name
 	listeners.DELETE("/:name", h.DeleteListener)    // DELETE /api/listeners/:name
 	listeners.POST("/:name/start", h.StartListener) // POST /api/listeners/:name/start
 	listeners.POST("/:name/stop", h.StopListener)   // POST /api/listeners/:name/stop
+
+	listenerScripts := api.Group("/listener-scripts")
+	listenerScripts.GET("", h.ListListenerScripts)           // GET /api/listener-scripts
+	listenerScripts.GET("/:name", h.GetListenerScript)       // GET /api/listener-scripts/:name
+	listenerScripts.POST("", h.SaveListenerScript)           // POST /api/listener-scripts
+	listenerScripts.DELETE("/:name", h.DeleteListenerScript) // DELETE /api/listener-scripts/:name
 
 	// Agents APIs
 	agents := api.Group("/agents")

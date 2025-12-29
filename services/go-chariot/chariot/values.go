@@ -168,6 +168,7 @@ type FunctionValue struct {
 	FormattedSource string   // Formatted source code for display
 	IsParsed        bool     // Whether the function has been parsed
 	Scope           *Scope   // Captured scope (closure)
+	OriginFile      string   // Canonical filename for debugger mapping
 }
 
 // Implement Value interface methods

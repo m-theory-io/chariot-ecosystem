@@ -16,9 +16,10 @@ import (
 // Scripts are executed using a provided chariot.Runtime
 
 type Manager struct {
-	mu        sync.RWMutex
-	listeners map[string]*Listener
-	filePath  string
+	mu         sync.RWMutex
+	listeners  map[string]*Listener
+	filePath   string
+	scriptsDir string
 	// A shared runtime to execute onStart/onExit programs; optional, can defer to sessions
 	runtime *ch.Runtime
 }
@@ -34,7 +35,12 @@ func NewManager(runtime *ch.Runtime) *Manager {
 		base = "./data"
 	}
 	full := filepath.Join(base, file)
-	return &Manager{listeners: map[string]*Listener{}, filePath: full, runtime: runtime}
+	scriptsDir := cfg.ChariotConfig.ListenerScriptsDir
+	if scriptsDir == "" {
+		scriptsDir = filepath.Join(base, "listeners")
+	}
+	_ = os.MkdirAll(scriptsDir, 0o755)
+	return &Manager{listeners: map[string]*Listener{}, filePath: full, scriptsDir: scriptsDir, runtime: runtime}
 }
 
 func (m *Manager) Load() error {
@@ -89,18 +95,57 @@ func (m *Manager) List() []Listener {
 	return res
 }
 
-func (m *Manager) Create(name, script, onStart, onExit string, autoStart bool) (*Listener, error) {
+func (m *Manager) Get(name string) (*Listener, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if l, ok := m.listeners[name]; ok {
+		copy := *l
+		return &copy, nil
+	}
+	return nil, fmt.Errorf("listener '%s' not found", name)
+}
+
+func (m *Manager) Create(input Listener) (*Listener, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, exists := m.listeners[name]; exists {
-		return nil, fmt.Errorf("listener '%s' already exists", name)
+	if input.Name == "" {
+		return nil, fmt.Errorf("listener name is required")
 	}
-	l := &Listener{Name: name, Script: script, OnStart: onStart, OnExit: onExit, Status: "stopped", IsHealthy: false, AutoStart: autoStart}
-	m.listeners[name] = l
+	if _, exists := m.listeners[input.Name]; exists {
+		return nil, fmt.Errorf("listener '%s' already exists", input.Name)
+	}
+	l := input
+	l.Status = "stopped"
+	l.IsHealthy = false
+	l.StartTime = time.Time{}
+	l.LastActive = time.Time{}
+	m.listeners[input.Name] = &l
 	if err := m.saveLocked(); err != nil {
 		return nil, err
 	}
-	return l, nil
+	return &l, nil
+}
+
+func (m *Manager) Update(name string, updated Listener) (*Listener, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	existing, ok := m.listeners[name]
+	if !ok {
+		return nil, fmt.Errorf("listener '%s' not found", name)
+	}
+	if existing.Status == "running" {
+		return nil, fmt.Errorf("listener '%s' is running; stop it first", name)
+	}
+	updated.Name = name
+	updated.Status = existing.Status
+	updated.StartTime = existing.StartTime
+	updated.LastActive = existing.LastActive
+	updated.IsHealthy = existing.IsHealthy
+	m.listeners[name] = &updated
+	if err := m.saveLocked(); err != nil {
+		return nil, err
+	}
+	return &updated, nil
 }
 
 func (m *Manager) Delete(name string) error {

@@ -60,6 +60,8 @@ type Config struct {
 	Bootstrap   string `evar:"bootstrap"`    // Bootstrap script to run on startup
 	// Listeners registry persistence file (under data path)
 	ListenersFile string `evar:"listeners_file"`
+	// ListenerScriptsDir is the directory (under DataPath by default) that stores listener scripts
+	ListenerScriptsDir string `evar:"listener_scripts_dir"`
 	// MCP (Model Context Protocol) integration
 	MCPEnabled   bool   `evar:"mcp_enabled"`   // Enable MCP server
 	MCPTransport string `evar:"mcp_transport"` // stdio | ws (websocket)
@@ -203,6 +205,24 @@ func ExpandAndNormalizePaths() {
 	ChariotConfig.TreePath = normalize(ChariotConfig.TreePath)
 	ChariotConfig.DiagramPath = normalize(ChariotConfig.DiagramPath)
 	ChariotConfig.CertPath = normalize(ChariotConfig.CertPath)
+
+	// Listener scripts directory defaults to DataPath/listeners (absolute for safety)
+	listenerDir := strings.TrimSpace(ChariotConfig.ListenerScriptsDir)
+	if listenerDir == "" {
+		listenerDir = "listeners"
+	}
+	if filepath.IsAbs(listenerDir) {
+		ChariotConfig.ListenerScriptsDir = normalize(listenerDir)
+	} else {
+		base := ChariotConfig.DataPath
+		if base == "" {
+			base = normalize("./data")
+		}
+		ChariotConfig.ListenerScriptsDir = normalize(filepath.Join(base, listenerDir))
+	}
+	if ChariotConfig.ListenerScriptsDir != "" {
+		_ = os.MkdirAll(ChariotConfig.ListenerScriptsDir, 0o755)
+	}
 
 	// Default sandbox root to DataPath/sandboxes if not explicitly configured
 	if strings.TrimSpace(ChariotConfig.SandboxRoot) == "" && ChariotConfig.DataPath != "" {

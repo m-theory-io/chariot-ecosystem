@@ -3,8 +3,8 @@
 ## Prerequisites
 
 - Docker with buildx support
-- knapsack repo as sibling directory: `../knapsack/`
-- Pre-built libraries in `../knapsack/knapsack-library/lib/`
+- Vendored knapsack libraries checked into `services/go-chariot/knapsack-library/lib/`
+- Optional (only if you need to rebuild the CGO artifacts): the upstream knapsack repo as `../knapsack/` plus its `make build-all-platforms` target (see `docs/notes/KNAPSACK_INTEGRATION_COMPLETE.md`)
 
 ## Build Commands
 
@@ -96,21 +96,27 @@ docker push mtheorycontainerregistry.azurecr.io/go-chariot:v0.034-cuda
 
 ## Troubleshooting
 
-### "knapsack repo not found"
+### Vendored knapsack libraries missing
+The build script now expects the CGO artifacts inside this repository under `services/go-chariot/knapsack-library/lib/*`. If you see `Vendored CPU library not found` (or the CUDA equivalent), confirm the files exist:
+
 ```bash
-export KNAPSACK_REPO=/path/to/knapsack
-./scripts/build-azure-cross-platform.sh v0.034 go-chariot cpu
+ls -lh services/go-chariot/knapsack-library/lib/linux-cpu/
+ls -lh services/go-chariot/knapsack-library/lib/linux-cuda/
+ls -lh services/go-chariot/knapsack-library/lib/macos-cpu/
+ls -lh services/go-chariot/knapsack-library/lib/macos-metal/
 ```
 
-### "Pre-built library not found"
-```bash
-# Verify libraries exist
-ls -lh ../knapsack/knapsack-library/lib/linux-cpu/
-ls -lh ../knapsack/knapsack-library/lib/linux-cuda/
+Each folder should contain the platform-specific archive (`libknapsack_cpu.a`, `libknapsack_cuda.a`, `libknapsack_macos_cpu.a`, or `libknapsack_metal.a`), the matching header (for example `knapsack_cpu.h`), plus the RL helper artifacts (`librl_support.a`, `rl_api.h`, and on macOS the `.dylib`). If any of those files are missing, copy them from the canonical knapsack repo or rebuild them as described below.
 
-# Rebuild if needed
-cd ../knapsack && make build-all-platforms
+### Rebuild knapsack libraries
+When you modify the solver or refresh the binaries, rebuild them from the knapsack repo (see `services/go-chariot/knapsack-library/lib/README.md` and `docs/notes/KNAPSACK_INTEGRATION_COMPLETE.md`):
+
+```bash
+cd ../knapsack
+make build-all-platforms
 ```
+
+After the build completes, copy the resulting archives and headers into `services/go-chariot/knapsack-library/lib/<platform>/` so the go-chariot build can vendor them.
 
 ### Build takes too long
 - Pre-built libraries eliminate the need to compile knapsack in Docker
@@ -120,7 +126,6 @@ cd ../knapsack && make build-all-platforms
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KNAPSACK_REPO` | `../knapsack` | Path to knapsack repository |
 | `AZURE_REGISTRY` | `mtheorycontainerregistry` | Azure Container Registry name |
 | `CGO_ENABLED` | `1` | Enable CGO for knapsack linking |
 
@@ -131,6 +136,13 @@ cd ../knapsack && make build-all-platforms
 - `services/go-chariot/chariot/knapsack_cgo_linux_arm64_cuda.go` - ARM64 CUDA  
 - `services/go-chariot/chariot/knapsack_cgo_darwin_metal.go` - macOS Metal
 - `services/go-chariot/chariot/knapsack_stub.go` - Unsupported platforms
+
+### Vendored CGO Libraries
+- `services/go-chariot/knapsack-library/lib/linux-cpu/libknapsack_cpu.a`
+- `services/go-chariot/knapsack-library/lib/linux-cuda/libknapsack_cuda.a`
+- `services/go-chariot/knapsack-library/lib/macos-cpu/libknapsack_macos_cpu.a`
+- `services/go-chariot/knapsack-library/lib/macos-metal/libknapsack_metal.a`
+	- Each folder also provides the matching header (`knapsack_*.h`) plus RL helpers (`librl_support.a`, `rl_api.h`, and `.dylib` on macOS)
 
 ### Dockerfiles
 - `infrastructure/docker/go-chariot/Dockerfile.cpu` - CPU build

@@ -48,12 +48,15 @@ type SessionInfo struct {
 }
 
 type ListenerInfo struct {
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	StartTime  time.Time `json:"start_time"`
-	Script     string    `json:"script"`
-	LastActive time.Time `json:"last_active"`
-	IsHealthy  bool      `json:"is_healthy"`
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	StartTime   time.Time `json:"start_time"`
+	Script      string    `json:"script"`
+	ScriptFile  string    `json:"script_file"`
+	OnStartFile string    `json:"on_start_file"`
+	OnExitFile  string    `json:"on_exit_file"`
+	LastActive  time.Time `json:"last_active"`
+	IsHealthy   bool      `json:"is_healthy"`
 }
 
 type SystemMetrics struct {
@@ -204,22 +207,31 @@ func (h *Handlers) HandleDashboard(c echo.Context) error {
             document.getElementById('sessions').innerHTML = html;
         }
         
-        function updateListeners(listeners) {
-            if (!listeners || listeners.length === 0) {
-                document.getElementById('listeners').innerHTML = '<p style="color: #6b7280;">No listeners configured</p>';
-                return;
-            }
-            
-            let html = '<table><tr><th>Name</th><th>Status</th><th>Script</th><th>Health</th></tr>';
-            listeners.forEach(listener => {
-                const statusClass = listener.status === 'running' ? 'status-good' : 'status-error';
-                const healthClass = listener.is_healthy ? 'status-good' : 'status-error';
-                const healthIcon = listener.is_healthy ? '✅' : '❌';
-                html += ` + "`" + `<tr><td>${listener.name}</td><td class="${statusClass}">${listener.status}</td><td>${listener.script || 'N/A'}</td><td class="${healthClass}">${healthIcon}&#160;${listener.is_healthy ? 'Healthy' : 'Unhealthy'}</td></tr>` + "`" + `;
-            });
-            html += '</table>';
-            document.getElementById('listeners').innerHTML = html;
-        }
+		function updateListeners(listeners) {
+			if (!listeners || listeners.length === 0) {
+				document.getElementById('listeners').innerHTML = '<p style="color: #6b7280;">No listeners configured</p>';
+				return;
+			}
+			
+			let html = '<table><tr><th>Name</th><th>Status</th><th>Script</th><th>Hooks</th><th>Health</th></tr>';
+			listeners.forEach(listener => {
+				const statusClass = listener.status === 'running' ? 'status-good' : 'status-error';
+				const healthClass = listener.is_healthy ? 'status-good' : 'status-error';
+				const healthIcon = listener.is_healthy ? '✅' : '❌';
+				const scriptLabel = listener.script_file || listener.script || 'N/A';
+				const hookParts = [];
+				if (listener.on_start_file) {
+					hookParts.push('start: ' + listener.on_start_file);
+				}
+				if (listener.on_exit_file) {
+					hookParts.push('exit: ' + listener.on_exit_file);
+				}
+				const hookLabel = hookParts.length ? hookParts.join('<br/>') : '—';
+				html += ` + "`" + `<tr><td>${listener.name}</td><td class="${statusClass}">${listener.status}</td><td>${scriptLabel}</td><td>${hookLabel}</td><td class="${healthClass}">${healthIcon}&#160;${listener.is_healthy ? 'Healthy' : 'Unhealthy'}</td></tr>` + "`" + `;
+			});
+			html += '</table>';
+			document.getElementById('listeners').innerHTML = html;
+		}
         
         function updateMetrics(metrics) {
             document.getElementById('metrics').innerHTML = ` + "`" + `
@@ -386,12 +398,15 @@ func (h *Handlers) collectDashboardData() DashboardData {
 	if h.listenerManager != nil {
 		for _, l := range h.listenerManager.List() {
 			lInfos = append(lInfos, ListenerInfo{
-				Name:       l.Name,
-				Status:     l.Status,
-				StartTime:  l.StartTime,
-				Script:     l.Script,
-				LastActive: l.LastActive,
-				IsHealthy:  l.IsHealthy,
+				Name:        l.Name,
+				Status:      l.Status,
+				StartTime:   l.StartTime,
+				Script:      l.Script,
+				ScriptFile:  l.ScriptFile,
+				OnStartFile: l.OnStartFile,
+				OnExitFile:  l.OnExitFile,
+				LastActive:  l.LastActive,
+				IsHealthy:   l.IsHealthy,
 			})
 		}
 	}
