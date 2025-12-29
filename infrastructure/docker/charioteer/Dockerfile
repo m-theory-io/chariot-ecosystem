@@ -71,6 +71,7 @@ COPY --from=codegenbuilder /repo/packages/chariot-codegen/dist/index.global.js /
 
 # Copy application files
 COPY --chown=charioteer:charioteer services/charioteer/files/ /app/files/
+COPY --chown=charioteer:charioteer services/charioteer/templates/ /app/templates/
 
 # Copy entrypoint script
 COPY --chown=charioteer:charioteer services/charioteer/entrypoint.sh /app/

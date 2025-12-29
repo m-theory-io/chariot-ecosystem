@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -330,65 +331,100 @@ func (rt *Runtime) RegisterFunction(name string, fn *FunctionValue) {
 }
 
 // SaveFunction saves a user-defined function to the runtime
-func (rt *Runtime) SaveFunction(name string, code string, formatted_source string) error {
-	// 1. Transform pretty-printed format if needed
-	re := regexp.MustCompile(`(?s)^function\s+(\w+)\s*\(([^)]*)\)\s*\{(.*)\}$`)
-	if matches := re.FindStringSubmatch(code); len(matches) == 4 {
-		// matches[1] = function name, matches[2] = params, matches[3] = body
-		// Use the supplied name (not matches[1]) for overwrite safety
-		params := matches[2]
-		body := matches[3]
-		code = fmt.Sprintf("setq(%s, func(%s) {%s})", name, params, body)
-	}
 
-	// 2. Parse the code
-	ast, err := rt.Parser.ParseCode(code)
+var functionLiteralRegex = regexp.MustCompile(`(?s)^function\s+([a-zA-Z_][\w]*)\s*\(([^)]*)\)\s*\{(.*)\}$`)
+
+func (rt *Runtime) SaveFunction(name string, code string, formatted_source string) error {
+	normalized := normalizeFunctionSourceForParsing(name, code)
+	originFile := canonicalFunctionFilename(name)
+	parser := NewParserWithFilename(normalized, originFile)
+	ast, err := parser.parseProgram()
 	if err != nil {
 		return err
 	}
 
-	// 3. Extract FunctionDefNode and build FunctionValue
-	if block, ok := ast.(*Block); ok && len(block.Stmts) == 1 {
-		if setqCall, ok := block.Stmts[0].(*FuncCall); ok && setqCall.Name == "setq" && len(setqCall.Args) == 2 {
-			if fnDef, ok := setqCall.Args[1].(*FunctionDefNode); ok {
-				fn := &FunctionValue{
-					Parameters:      fnDef.Parameters,
-					Body:            fnDef.Body,
-					SourceCode:      code,
-					FormattedSource: formatted_source,
-					Scope:           nil,
-				}
-				rt.functions[name] = fn
-				return nil
-			}
-		}
-		// Fallback: direct FunctionDefNode as statement
-		if fnDef, ok := block.Stmts[0].(*FunctionDefNode); ok {
-			fn := &FunctionValue{
-				Parameters:      fnDef.Parameters,
-				Body:            fnDef.Body,
-				SourceCode:      code,
-				FormattedSource: formatted_source,
-				Scope:           nil,
-			}
-			rt.functions[name] = fn
-			return nil
-		}
+	fn := &FunctionValue{}
+	if err := assignFunctionValueFromAST(fn, ast, name, normalized, formatted_source, originFile); err != nil {
+		return err
 	}
-	// If the AST is directly a FunctionDefNode
-	if fnDef, ok := ast.(*FunctionDefNode); ok {
-		fn := &FunctionValue{
-			Parameters:      fnDef.Parameters,
-			Body:            fnDef.Body,
-			SourceCode:      code,
-			FormattedSource: formatted_source,
-			Scope:           nil,
+	rt.functions[name] = fn
+	return nil
+}
+
+func canonicalFunctionFilename(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		trimmed = "anonymous"
+	}
+	return fmt.Sprintf("function-library/%s.ch", trimmed)
+}
+
+func assignFunctionValueFromAST(target *FunctionValue, ast Node, name, source, formatted, origin string) error {
+	fnDef, err := extractFunctionDefFromAST(ast)
+	if err != nil {
+		return err
+	}
+	target.Parameters = fnDef.Parameters
+	target.Body = fnDef.Body
+	target.SourceCode = source
+	target.FormattedSource = formatted
+	target.Scope = nil
+	target.OriginFile = origin
+	return nil
+}
+
+func extractFunctionDefFromAST(ast Node) (*FunctionDefNode, error) {
+	switch node := ast.(type) {
+	case *Block:
+		if len(node.Stmts) == 0 {
+			break
 		}
-		rt.functions[name] = fn
+		switch first := node.Stmts[0].(type) {
+		case *FuncCall:
+			if first.Name == "setq" && len(first.Args) == 2 {
+				if fnDef, ok := first.Args[1].(*FunctionDefNode); ok {
+					return fnDef, nil
+				}
+			}
+		case *FunctionDefNode:
+			return first, nil
+		}
+	case *FunctionDefNode:
+		return node, nil
+	}
+	return nil, fmt.Errorf("provided code does not define a function")
+}
+
+func reparseFunctionValue(name string, fn *FunctionValue) error {
+	source := strings.TrimSpace(fn.SourceCode)
+	if source == "" {
+		source = strings.TrimSpace(fn.FormattedSource)
+	}
+	origin := strings.TrimSpace(fn.OriginFile)
+	if origin == "" {
+		origin = canonicalFunctionFilename(name)
+	}
+	fn.OriginFile = origin
+	if source == "" {
 		return nil
 	}
+	normalized := normalizeFunctionSourceForParsing(name, source)
+	parser := NewParserWithFilename(normalized, origin)
+	ast, err := parser.parseProgram()
+	if err != nil {
+		return err
+	}
+	return assignFunctionValueFromAST(fn, ast, name, normalized, fn.FormattedSource, origin)
+}
 
-	return fmt.Errorf("provided code does not define a function")
+func normalizeFunctionSourceForParsing(name, code string) string {
+	trimmed := strings.TrimSpace(code)
+	if matches := functionLiteralRegex.FindStringSubmatch(trimmed); len(matches) == 4 {
+		params := matches[2]
+		body := matches[3]
+		return fmt.Sprintf("setq(%s, func(%s) {%s})", name, params, body)
+	}
+	return trimmed
 }
 
 // SetCurrentPosition updates the runtime's position tracker

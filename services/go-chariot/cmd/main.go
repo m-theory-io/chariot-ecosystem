@@ -68,11 +68,13 @@ func init() {
 	cfg.ChariotConfig.StringVar("sandbox_root", &cfg.ChariotConfig.SandboxRoot, "")
 	cfg.ChariotConfig.StringVar("sandbox_default_scope", &cfg.ChariotConfig.SandboxDefaultScope, "sandbox")
 	// Function library
-	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stlib.json")
+	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stdlib.json")
 	// Bootstrap script
 	cfg.ChariotConfig.StringVar("bootstrap", &cfg.ChariotConfig.Bootstrap, "bootstrap.ch")
 	// Listeners registry file (under data path by default)
 	cfg.ChariotConfig.StringVar("listeners_file", &cfg.ChariotConfig.ListenersFile, "listeners.json")
+	// Directory for dedicated listener scripts
+	cfg.ChariotConfig.StringVar("listener_scripts_dir", &cfg.ChariotConfig.ListenerScriptsDir, "listeners")
 	// MCP configuration
 	cfg.ChariotConfig.BoolVar("mcp_enabled", &cfg.ChariotConfig.MCPEnabled, false)
 	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "ws")

@@ -14,31 +14,32 @@ A complete interactive debugger for the Chariot language with backend infrastruc
   - Stepping modes: over, into, out
   - Call stack tracking with depth management
   - Real-time event streaming via channels
-  - Pause/continue/stop operations
+  - Pause/continue/stop operations coordinated through a `resumeChan`
+  - Pending-event queue (max 200) so late WebSocket subscribers receive buffered events
+  - `executionActive` flag plus `MarkRunning/MarkStopped/ForceStop` helpers to keep UI in sync with runtime lifecycle
 - **State machine**: stopped → running → paused → stepping
 - **Thread safety**: All operations protected by sync.RWMutex
 
 #### 2. AST Position Tracking (`services/go-chariot/chariot/ast.go`)
-- **SourcePos struct**: Tracks File, Line, Col for all AST nodes
-- **Implementation**: Added GetPos() method to all 14 node types:
-  - Block, IfNode, ForNode, WhileNode
-  - AssignmentNode, ExprNode, CallNode, IndexNode
-  - UnaryNode, BinaryNode, LiteralNode, IdentifierNode
-  - ReturnNode, BreakNode
+- **SourcePos struct**: Tracks File, Line, Col for every AST node
+- **Implementation**: Each node implements `GetPos()` so the debugger can report precise file/line information from runtime callbacks
 
 #### 3. Runtime Integration (`services/go-chariot/chariot/runtime.go`)
-- **Debugger field**: *Debugger added to Runtime struct
+- **Debugger field**: *Debugger attached to each runtime session on demand
 - **Scope access**: GetCurrentScope(), GetGlobalScope() for variable inspection
-- **Execution hooks**: Block.Exec() checks ShouldBreak() before each statement
+- **Execution hooks**:
+  - `Block.Exec()` consults `Debugger.ShouldBreak()` before each statement
+  - Runtime surfaces `MarkRunning`, `MarkStopped`, and `ForceStop` so handlers can manage state transitions and unblock paused goroutines
 
 #### 4. Debug API (`services/go-chariot/internal/handlers/handlers_debug.go`)
+- **Access pattern**: Every request must include the authenticated `Authorization` header plus a `session={sessionId}` query parameter so the backend can route to the correct runtime.
 - **REST Endpoints**:
-  - `POST /api/debug/breakpoint`: Add/remove breakpoints
+  - `POST /api/debug/breakpoint`: Manage breakpoints (`action` supports add, remove, enable, disable, clear)
   - `POST /api/debug/step`: Step over/into/out
   - `POST /api/debug/continue`: Resume execution
   - `POST /api/debug/pause`: Pause execution
   - `GET /api/debug/state`: Get current debug state
-  - `GET /api/debug/variables`: List all variables in scope
+  - `GET /api/debug/variables`: List variables in the current scope (or ancestor scope via `level` query param)
 - **WebSocket**:
   - `WS /api/debug/events`: Real-time event streaming
   - Events: breakpoint, step, error, stopped
@@ -53,71 +54,45 @@ A complete interactive debugger for the Chariot language with backend infrastruc
 
 ### Frontend Components (Charioteer)
 
-#### 1. CSS Styling (`main.go` ~line 755-970)
-- **Debug panel styles**: `.debug-panel`, `.debug-section`, `.debug-controls`
-- **Button styles**: `.debug-button` with hover/active/disabled states
-- **Item styles**: `.breakpoint-item`, `.callstack-item`, `.variable-item`
-- **Status indicators**: Color-coded icons (running=green, paused=yellow, stepping=cyan, stopped=red)
-- **Monaco decorations**: `.breakpoint-line`, `.breakpoint-glyph`, `.debug-current-line`, `.debug-current-glyph`
+#### 1. CSS Styling (inline template in `services/charioteer/main.go`)
+- **Debug panel styles**: `.debug-panel`, `.debug-section`, `.debug-controls`, `.debug-status`
+- **Button styles**: `.debug-button` variants for play/pause/step with hover/disabled states
+- **Data lists**: `.breakpoint-item`, `.callstack-item`, `.variable-item` share monospace formatting for clarity
+- **Status indicators**: `.debug-status-icon` colors for running/paused/stepping/stopped plus `.breakpoint-remove` affordances
+- **Monaco decorations**: `.breakpoint-line`, `.breakpoint-glyph`, `.debug-current-line`, `.debug-current-glyph` highlight breakpoints and the active line
 
-#### 2. HTML Structure (`main.go` ~line 1178-1235)
-- **Status bar**: Debug icon + state text
+#### 2. HTML Structure (rendered from `main.go` template)
+- **Status bar**: Debug icon + state text that mirrors backend `DebugState`
 - **Control buttons**: Continue (▶), Pause (⏸), Step Over (⤵), Step Into (↓), Step Out (↑)
-- **Collapsible sections**:
-  - Breakpoints list with remove buttons
-  - Call stack with function names and locations
-  - Variables inspector with name/value pairs
+- **Collapsible sections**: Breakpoints, Call Stack, and Variables panels toggle independently via `.debug-section-header`
 
-#### 3. JavaScript Logic (`main.go` ~line 1495-1915)
+#### 3. JavaScript Logic (embedded `<script>` in `main.go`)
 - **State management**:
-  - `debugSocket`: WebSocket connection
-  - `debugState`: Current state (stopped/running/paused/stepping)
-  - `breakpoints`: Map of file:line → {file, line, enabled}
-  - `currentDebugLine`: Currently highlighted line
-  - `debugDecorations`: Monaco editor decorations
-
-- **UI rendering functions**:
-  - `updateDebugStatus()`: Update status bar and button states
-  - `renderBreakpoints()`: Display breakpoint list
-  - `renderCallStack()`: Display call stack frames
-  - `renderVariables()`: Display variable values
-  - `toggleDebugSection()`: Collapse/expand sections
-
+  - `debugSocket`, `debugState`, `currentDebugLine`, and `debugDecorations` mirror backend execution state
+  - `breakpoints`: `Map` keyed by line number for the currently loaded file; the backend keeps the canonical `file:line` map
+  - `debugSocketShouldReconnect`, `DEBUG_SOCKET_RETRY_MS`, `DEBUG_SOCKET_READY_TIMEOUT_MS`, and `debugSocketReadyResolvers` coordinate connection retries and waiters
+  - Session-aware globals (`sessionId`, `authToken`, `sandboxProfile`, etc.) inform breakpoint sync and scope filtering
+- **UI rendering functions**: `updateDebugStatus`, `renderBreakpoints`, `renderCallStack`, `renderVariables`, and `toggleDebugSection` keep the panel in sync with runtime events
 - **Breakpoint management**:
-  - `toggleBreakpoint(line)`: Add or remove breakpoint
-  - `addBreakpoint(line)`: Add breakpoint and sync to backend
-  - `removeBreakpoint(line)`: Remove breakpoint and sync to backend
-  - `updateEditorBreakpoints()`: Update Monaco decorations
-
-- **Debug control actions**:
-  - `debugContinue()`: Resume execution
-  - `debugPause()`: Pause execution
-  - `debugStepOver()`: Step to next line (same level)
-  - `debugStepInto()`: Step into function
-  - `debugStepOut()`: Step out of function
-
+  - `toggleBreakpoint`, `addBreakpoint`, `removeBreakpoint`, and `updateEditorBreakpoints` manage client-side state
+  - `clearBreakpointsOnServer` and `syncBreakpointsWithServer` keep the server authoritative, removing stale entries when scopes/files change
+- **Execution guard**: `runCode()` waits on `waitForDebugSocketReady()` whenever breakpoints exist so the first instruction cannot outrun the WebSocket subscription
+- **Debug control actions**: `debugContinue`, `debugPause`, `debugStepOver`, `debugStepInto`, and `debugStepOut` each issue authenticated `fetch` calls to the matching REST endpoints and optimistically update the status bar
 - **WebSocket integration**:
-  - `connectDebugSocket()`: Establish WebSocket connection
-  - `handleDebugEvent(event)`: Process debug events from backend
-  - `fetchDebugState()`: Get current call stack and variables
-
+  - `shouldConnectDebugSocket`, `ensureDebugSocketConnected`, `scheduleDebugSocketReconnect`, `connectDebugSocket`, and `settleDebugSocketWaiters` manage lifecycle and reconnection logic
+  - `handleDebugEvent` (plus `fetchDebugState` fallback) updates the call stack, variables, and highlighted line when events arrive
 - **Event binding**:
-  - `bindDebugHandlers()`: Wire up button clicks and keyboard shortcuts
-  - **Keyboard shortcuts**:
-    - F5: Continue
-    - F10: Step Over
-    - F11: Step Into
-    - Shift+F11: Step Out
+  - `bindDebugHandlers` wires toolbar buttons + keyboard shortcuts (F5/F10/F11/Shift+F11)
+  - Monaco’s glyph-margin click handler toggles breakpoints via these helpers
 
-#### 4. Monaco Integration (`main.go` ~line 2052-2060)
-- **Glyph margin enabled**: `glyphMargin: true`
-- **Click handler**: Toggle breakpoint on glyph margin click
-- **Decorations**: Breakpoints shown with red circle, current line with yellow arrow
+#### 4. Monaco Integration
+- **Glyph margin enabled**: `glyphMargin: true` plus a dedicated click handler to open/clear breakpoints
+- **Decorations**: Breakpoints render as red circles; the paused line renders as a yellow arrow via Monaco decorations
 
 #### 5. Lifecycle Integration
-- **Login**: `connectDebugSocket()` called after successful authentication (line 2214)
-- **Logout**: Close WebSocket and reset debug state (line 2617-2633)
-- **Initialization**: `bindDebugHandlers()` called in `initializeEventHandlers()` (line 2819)
+- **Login/bootstrap**: After authentication the client fetches session profile info, refreshes file lists for the selected scope, and (if breakpoints exist) calls `ensureDebugSocketConnected`
+- **Logout**: Shuts down the WebSocket, clears breakpoint/variable UI, and resets state to `stopped`
+- **Initialization**: `bindAuthHandlers`, `initializeEditor`, and `initializeEventHandlers` run once the DOM is ready so the debugger toolbar works before the first login
 
 ## Usage
 
@@ -159,8 +134,10 @@ Authorization: {authToken}
 {
   "file": "example.ch",
   "line": 10,
-  "action": "add" | "remove"
+  "action": "add" | "remove" | "enable" | "disable" | "clear"
 }
+
+// When action == "clear", omit "line" to clear every file or set "file" to limit the removal scope.
 ```
 
 #### Step
@@ -204,6 +181,14 @@ Response:
     "name": "test"
   }
 }
+```
+
+#### List Variables
+```
+GET /api/debug/variables?session={sessionId}&level={scopeLevel}
+Authorization: {authToken}
+
+// level is optional; 0 = current scope, 1 = parent, etc.
 ```
 
 ### WebSocket Events
@@ -269,6 +254,7 @@ WS /api/debug/events?session={sessionId}
 - Pausing during execution
 - WebSocket reconnection on connection loss
 - Session timeout handling
+- Switching file or scope selections should remove stale breakpoints on both the client and server
 
 ## Implementation Notes
 
@@ -280,13 +266,13 @@ JavaScript template literals (backticks) must be escaped in Go's raw string lite
 ```
 
 ### Thread Safety
-All debugger state modifications are protected by `sync.RWMutex` to ensure safe concurrent access from WebSocket handlers and runtime execution.
+All debugger state modifications are protected by `sync.RWMutex`, and the dedicated `resumeChan` ensures only one goroutine controls pause/continue semantics at a time.
 
 ### Event Streaming
-Debug events are sent via buffered channel (size 100) to prevent blocking runtime execution. WebSocket handler drains the channel and broadcasts to connected clients.
+Each subscriber receives a buffered channel (size 100) to avoid blocking runtime execution. When no subscribers are connected the debugger stores up to 200 `pendingEvents`, replaying them to the next WebSocket client before resuming live streaming.
 
 ### Breakpoint Resolution
-Breakpoints are indexed by `file:line` key to support multiple files and avoid line number conflicts.
+The backend indexes breakpoints by `file:line` to support multiple files and avoid collisions. The Charioteer UI keeps a per-file `Map` keyed only by line number and syncs it with the canonical backend list whenever the active file or scope changes.
 
 ## Future Enhancements
 - [ ] Conditional breakpoints (break if expression is true)

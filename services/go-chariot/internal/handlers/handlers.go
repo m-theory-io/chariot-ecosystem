@@ -18,6 +18,8 @@ import (
 )
 
 // Add this to your handlers.go or appropriate file
+const listenerFileScope = "listeners"
+
 type ResultJSON struct {
 	Result string      `json:"result"`
 	Data   interface{} `json:"data"`
@@ -40,6 +42,137 @@ type Handlers struct {
 	bootstrapLoaded  bool               // Indicates whether bootstrap script loaded successfully
 	listenerManager  *listeners.Manager // Manages configured listeners
 	execManager      *ExecutionManager  // Manages async script executions with log streaming
+}
+
+func ensureListenerScriptsDir() (string, error) {
+	dir := cfg.ChariotConfig.ListenerScriptsDir
+	if dir == "" {
+		base := cfg.ChariotConfig.DataPath
+		if base == "" {
+			base = "./data"
+		}
+		dir = filepath.Join(base, "listeners")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+func normalizeListenerScriptFilename(name string) (string, error) {
+	clean := strings.TrimSpace(name)
+	if clean == "" {
+		return "", fmt.Errorf("listener script name required")
+	}
+	if strings.ContainsAny(clean, "/\\") {
+		return "", fmt.Errorf("listener script name cannot contain path separators")
+	}
+	clean = filepath.Clean(clean)
+	if strings.Contains(clean, "..") {
+		return "", fmt.Errorf("listener script name may not include '..'")
+	}
+	if filepath.Ext(clean) == "" {
+		clean += ".ch"
+	}
+	if filepath.Ext(clean) != ".ch" {
+		return "", fmt.Errorf("listener scripts must use .ch extension")
+	}
+	return clean, nil
+}
+
+func listenerScriptFullPath(name string) (string, error) {
+	dir, err := ensureListenerScriptsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name), nil
+}
+
+func listenerFunctionNameFromFile(name string) string {
+	base := filepath.Base(name)
+	return strings.TrimSuffix(base, filepath.Ext(base))
+}
+
+func isListenerFileScope(scopeRaw string) bool {
+	return strings.EqualFold(strings.TrimSpace(scopeRaw), listenerFileScope)
+}
+
+func listListenerScriptFiles() ([]string, error) {
+	dir, err := ensureListenerScriptsDir()
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".ch") {
+			files = append(files, entry.Name())
+		}
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+func (h *Handlers) compileListenerScript(fileName string, pending map[string]*chariot.FunctionValue) (string, string, error) {
+	if fileName == "" {
+		return "", "", nil
+	}
+	normalized, err := normalizeListenerScriptFilename(fileName)
+	if err != nil {
+		return "", "", err
+	}
+	fullPath, err := listenerScriptFullPath(normalized)
+	if err != nil {
+		return "", "", err
+	}
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read script '%s': %w", normalized, err)
+	}
+	funcName := listenerFunctionNameFromFile(normalized)
+	if err := h.bootstrapRuntime.SaveFunction(funcName, string(content), ""); err != nil {
+		return "", "", fmt.Errorf("parse function '%s': %w", funcName, err)
+	}
+	fn, ok := h.bootstrapRuntime.GetFunction(funcName)
+	if !ok {
+		return "", "", fmt.Errorf("function not found after save: %s", funcName)
+	}
+	if pending != nil {
+		pending[funcName] = fn
+	}
+	return funcName, normalized, nil
+}
+
+func (h *Handlers) persistListenerFunctions(funcs map[string]*chariot.FunctionValue) error {
+	if len(funcs) == 0 {
+		return nil
+	}
+	if cfg.ChariotConfig.FunctionLib != "" {
+		merged := make(map[string]*chariot.FunctionValue)
+		if existing, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
+			for k, v := range existing {
+				merged[k] = v
+			}
+		}
+		for k, v := range funcs {
+			merged[k] = v
+		}
+		if err := chariot.SaveFunctionsToFile(merged, cfg.ChariotConfig.FunctionLib); err != nil {
+			return err
+		}
+	} else {
+		cfg.ChariotLogger.Warn("function_lib not configured; listener scripts will not persist across restarts")
+	}
+	for name, fn := range funcs {
+		h.bootstrapRuntime.RegisterFunction(name, fn)
+	}
+	return nil
 }
 
 // NewHandlers creates a new Handlers instance with dependencies
@@ -97,11 +230,69 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 
 // Listener APIs
 type listenerCreateReq struct {
-	Name      string `json:"name"`
-	Script    string `json:"script"`
-	OnStart   string `json:"on_start"`
-	OnExit    string `json:"on_exit"`
-	AutoStart bool   `json:"auto_start"`
+	Name        string `json:"name"`
+	Script      string `json:"script"`
+	ScriptFile  string `json:"script_file"`
+	OnStart     string `json:"on_start"`
+	OnStartFile string `json:"on_start_file"`
+	OnExit      string `json:"on_exit"`
+	OnExitFile  string `json:"on_exit_file"`
+	AutoStart   bool   `json:"auto_start"`
+}
+
+func (h *Handlers) parseListenerRequest(req listenerCreateReq, forcedName string) (listeners.Listener, map[string]*chariot.FunctionValue, error) {
+	pending := make(map[string]*chariot.FunctionValue)
+	name := strings.TrimSpace(req.Name)
+	if forcedName != "" {
+		name = forcedName
+	}
+	if name == "" {
+		return listeners.Listener{}, nil, fmt.Errorf("name is required")
+	}
+	scriptLabel := strings.TrimSpace(req.Script)
+	scriptFile := strings.TrimSpace(req.ScriptFile)
+	if scriptFile == "" {
+		return listeners.Listener{}, nil, fmt.Errorf("script_file is required")
+	}
+	cleanScript, err := normalizeListenerScriptFilename(scriptFile)
+	if err != nil {
+		return listeners.Listener{}, nil, fmt.Errorf("script_file: %v", err)
+	}
+	scriptFile = cleanScript
+	if scriptLabel == "" {
+		scriptLabel = scriptFile
+	}
+	onStartName := strings.TrimSpace(req.OnStart)
+	onStartFile := strings.TrimSpace(req.OnStartFile)
+	if onStartFile != "" {
+		compiledName, cleanFile, err := h.compileListenerScript(onStartFile, pending)
+		if err != nil {
+			return listeners.Listener{}, nil, fmt.Errorf("on_start_file: %v", err)
+		}
+		onStartName = compiledName
+		onStartFile = cleanFile
+	}
+	onExitName := strings.TrimSpace(req.OnExit)
+	onExitFile := strings.TrimSpace(req.OnExitFile)
+	if onExitFile != "" {
+		compiledName, cleanFile, err := h.compileListenerScript(onExitFile, pending)
+		if err != nil {
+			return listeners.Listener{}, nil, fmt.Errorf("on_exit_file: %v", err)
+		}
+		onExitName = compiledName
+		onExitFile = cleanFile
+	}
+	listener := listeners.Listener{
+		Name:        name,
+		Script:      scriptLabel,
+		ScriptFile:  scriptFile,
+		OnStart:     onStartName,
+		OnStartFile: onStartFile,
+		OnExit:      onExitName,
+		OnExitFile:  onExitFile,
+		AutoStart:   req.AutoStart,
+	}
+	return listener, pending, nil
 }
 
 func (h *Handlers) ListListeners(c echo.Context) error {
@@ -111,75 +302,134 @@ func (h *Handlers) ListListeners(c echo.Context) error {
 
 func (h *Handlers) CreateListener(c echo.Context) error {
 	var req listenerCreateReq
-	if err := c.Bind(&req); err != nil || req.Name == "" {
+	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
 	}
-
-	// Convert selected files to stdlib functions and set hook names
-	toAdd := make(map[string]*chariot.FunctionValue)
-	processFile := func(fname string) (string, error) {
-		if fname == "" {
-			return "", nil
-		}
-		base := filepath.Base(fname)
-		name := strings.TrimSuffix(base, filepath.Ext(base))
-		// Files are under data/files; secure resolve
-		fullRel := filepath.Join("files", fname)
-		fullPath, err := chariot.GetSecureFilePath(fullRel, "data")
-		if err != nil {
-			return "", fmt.Errorf("resolve file: %w", err)
-		}
-		content, err := os.ReadFile(fullPath)
-		if err != nil {
-			return "", fmt.Errorf("read file: %w", err)
-		}
-		if err := h.bootstrapRuntime.SaveFunction(name, string(content), ""); err != nil {
-			return "", fmt.Errorf("parse function: %w", err)
-		}
-		if fn, ok := h.bootstrapRuntime.GetFunction(name); ok {
-			toAdd[name] = fn
-		} else {
-			return "", fmt.Errorf("function not found after save: %s", name)
-		}
-		return name, nil
+	listener, pending, err := h.parseListenerRequest(req, "")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-
-	if newName, err := processFile(req.OnStart); err != nil {
-		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("on_start: %v", err)})
-	} else if newName != "" {
-		req.OnStart = newName
+	if err := h.persistListenerFunctions(pending); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("save stdlib: %v", err)})
 	}
-	if newName, err := processFile(req.OnExit); err != nil {
-		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("on_exit: %v", err)})
-	} else if newName != "" {
-		req.OnExit = newName
-	}
-
-	if len(toAdd) > 0 {
-		funcs := make(map[string]*chariot.FunctionValue)
-		if cfg.ChariotConfig.FunctionLib != "" {
-			if existing, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
-				for k, v := range existing {
-					funcs[k] = v
-				}
-			}
-			for k, v := range toAdd {
-				funcs[k] = v
-			}
-			if err := chariot.SaveFunctionsToFile(funcs, cfg.ChariotConfig.FunctionLib); err != nil {
-				return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("save stdlib: %v", err)})
-			}
-			for name, fn := range toAdd {
-				h.bootstrapRuntime.RegisterFunction(name, fn)
-			}
-		}
-	}
-
-	l, err := h.listenerManager.Create(req.Name, req.Script, req.OnStart, req.OnExit, req.AutoStart)
+	l, err := h.listenerManager.Create(listener)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
 	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: l})
+}
+
+func (h *Handlers) UpdateListener(c echo.Context) error {
+	name := strings.TrimSpace(c.Param("name"))
+	if name == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
+	}
+	existing, err := h.listenerManager.Get(name)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	var req listenerCreateReq
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
+	}
+	listener, pending, err := h.parseListenerRequest(req, name)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	listener.Status = existing.Status
+	listener.StartTime = existing.StartTime
+	listener.LastActive = existing.LastActive
+	listener.IsHealthy = existing.IsHealthy
+	if err := h.persistListenerFunctions(pending); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("save stdlib: %v", err)})
+	}
+	updated, err := h.listenerManager.Update(name, listener)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: updated})
+}
+
+func (h *Handlers) ListListenerScripts(c echo.Context) error {
+	dir, err := ensureListenerScriptsDir()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	var scripts []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != ".ch" {
+			continue
+		}
+		scripts = append(scripts, entry.Name())
+	}
+	sort.Strings(scripts)
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: scripts})
+}
+
+func (h *Handlers) GetListenerScript(c echo.Context) error {
+	name, err := normalizeListenerScriptFilename(c.Param("name"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	fullPath, err := listenerScriptFullPath(name)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "script not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: string(content)})
+}
+
+func (h *Handlers) SaveListenerScript(c echo.Context) error {
+	var req struct {
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
+	}
+	name, err := normalizeListenerScriptFilename(req.Name)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	fullPath, err := listenerScriptFullPath(name)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	if err := os.WriteFile(fullPath, []byte(req.Content), 0o644); err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]string{"name": name}})
+}
+
+func (h *Handlers) DeleteListenerScript(c echo.Context) error {
+	name, err := normalizeListenerScriptFilename(c.Param("name"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	fullPath, err := listenerScriptFullPath(name)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	if err := os.Remove(fullPath); err != nil {
+		if os.IsNotExist(err) {
+			return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "script not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]string{"deleted": name}})
 }
 
 // SaveFunctionLibraryHandler saves multiple functions into the shared stdlib file
@@ -766,12 +1016,13 @@ func (h *Handlers) SessionProfile(c echo.Context) error {
 			cfg.ChariotLogger.Warn("Failed to ensure sandbox directories", zap.String("username", username), zap.Error(err))
 		}
 	}
+	scopes := []string{string(cfg.StorageScopeSandbox), string(cfg.StorageScopeGlobal), listenerFileScope}
 	profile := map[string]interface{}{
 		"user_id":               sess.UserID,
 		"username":              username,
 		"sandbox_enabled":       cfg.ChariotConfig.SandboxEnabled,
 		"sandbox_scope_default": string(cfg.DefaultStorageScope()),
-		"sandbox_scopes":        []cfg.StorageScope{cfg.StorageScopeSandbox, cfg.StorageScopeGlobal},
+		"sandbox_scopes":        scopes,
 		"sandbox_key":           cfg.SanitizeSandboxKey(username),
 	}
 	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: profile})
@@ -1001,6 +1252,14 @@ func (h *Handlers) ListFiles(c echo.Context) error {
 
 	// Parse scope from query param, default to user's default scope
 	scopeRaw := c.QueryParam("scope")
+	if isListenerFileScope(scopeRaw) {
+		files, err := listListenerScriptFiles()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", listenerFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: files})
+	}
 	scope := cfg.ResolveStorageScope(scopeRaw)
 
 	cfg.ChariotLogger.Info("ListFiles request",
@@ -1059,6 +1318,25 @@ func (h *Handlers) GetFile(c echo.Context) error {
 	}
 
 	scopeRaw := c.QueryParam("scope")
+	if isListenerFileScope(scopeRaw) {
+		normalized, err := normalizeListenerScriptFilename(fileName)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		filePath, err := listenerScriptFullPath(normalized)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "file not found"})
+			}
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", listenerFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: string(content)})
+	}
 	scope := cfg.ResolveStorageScope(scopeRaw)
 
 	baseDir, err := cfg.EnsureStorageBase(cfg.StorageKindData, scope, username)
@@ -1099,6 +1377,21 @@ func (h *Handlers) SaveFile(c echo.Context) error {
 	}
 
 	scopeRaw := c.QueryParam("scope")
+	if isListenerFileScope(scopeRaw) {
+		normalized, err := normalizeListenerScriptFilename(req.Name)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		filePath, err := listenerScriptFullPath(normalized)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		if err := os.WriteFile(filePath, []byte(req.Content), 0o644); err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", listenerFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: "file saved"})
+	}
 	scope := cfg.ResolveStorageScope(scopeRaw)
 
 	cfg.ChariotLogger.Info("SaveFile request",
@@ -1152,6 +1445,24 @@ func (h *Handlers) DeleteFile(c echo.Context) error {
 	}
 
 	scopeRaw := c.QueryParam("scope")
+	if isListenerFileScope(scopeRaw) {
+		normalized, err := normalizeListenerScriptFilename(fileName)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		filePath, err := listenerScriptFullPath(normalized)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		if err := os.Remove(filePath); err != nil {
+			if os.IsNotExist(err) {
+				return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "file not found"})
+			}
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", listenerFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: "file deleted"})
+	}
 	scope := cfg.ResolveStorageScope(scopeRaw)
 
 	baseDir, err := cfg.EnsureStorageBase(cfg.StorageKindData, scope, username)
