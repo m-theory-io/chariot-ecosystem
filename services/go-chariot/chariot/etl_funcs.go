@@ -1,17 +1,15 @@
 package chariot
 
 import (
-	"crypto/rand"
 	"encoding/csv"
 	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/google/uuid"
+	"github.com/m-theory-io/idgen"
 	"go.uber.org/zap"
 )
 
@@ -1385,32 +1383,9 @@ func generateDocId(prefix string, format string, sqlRow map[string]interface{}) 
 		}
 	}
 
-	// Clean the prefix (remove spaces, convert to lowercase)
-	typePrefix = strings.ToLower(strings.ReplaceAll(typePrefix, " ", "_"))
+	newID := idgen.DocID(typePrefix, format)
 
-	// Check if there's a preference for ID format (could be set in metadata or config)
-	// For now, default to the shorter format, but make it configurable
-	useShortFormat := (format == "short") // This could come from configuration
-
-	if useShortFormat {
-		return fmt.Sprintf("%s:%s", typePrefix, generateShortId())
-	} else {
-		return fmt.Sprintf("%s:%s", typePrefix, uuid.New().String())
-	}
-}
-
-// Generate a random 10-character alphanumeric string
-func generateShortId() string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	const length = 10
-
-	result := make([]byte, length)
-	for i := range result {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		result[i] = charset[num.Int64()]
-	}
-
-	return string(result)
+	return newID
 }
 
 // Enhanced version that can be configured via metadata
@@ -1425,19 +1400,9 @@ func generateDocIdWithConfig(sqlRow map[string]interface{}, targetNode TreeNode)
 	} else if entityType, exists := sqlRow["type"]; exists {
 		typePrefix = fmt.Sprintf("%v", entityType)
 	}
+	newID := idgen.DocID(typePrefix, idFormat)
 
-	// Clean the prefix
-	typePrefix = strings.ToLower(strings.ReplaceAll(typePrefix, " ", "_"))
-
-	// Generate ID based on format preference
-	switch idFormat {
-	case "uuid":
-		return fmt.Sprintf("%s:%s", typePrefix, uuid.New().String())
-	case "timestamp":
-		return fmt.Sprintf("%s:%d", typePrefix, time.Now().UnixNano())
-	default: // "short"
-		return fmt.Sprintf("%s:%s", typePrefix, generateShortId())
-	}
+	return newID
 }
 
 // Generate CREATE TABLE SQL statement from CSV headers

@@ -1153,4 +1153,81 @@ func RegisterMath(rt *Runtime) {
 		}
 		return Number(balance), nil
 	})
+
+	// Linear algebra
+	rt.Register("transpose", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("transpose requires 1 argument: matrix")
+		}
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		return matrixToArrayValue(matrixTranspose(matrix)), nil
+	})
+
+	rt.Register("matmul", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("matmul requires 2 arguments: leftMatrix and rightMatrix")
+		}
+		left, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		right, err := valueToMatrix(args[1])
+		if err != nil {
+			return nil, err
+		}
+		product, err := matrixMultiply(left, right)
+		if err != nil {
+			return nil, err
+		}
+		return matrixToArrayValue(product), nil
+	})
+
+	rt.Register("solveLinear", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("solveLinear requires 2 arguments: matrix and vector")
+		}
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		vector, err := valueToVector(args[1])
+		if err != nil {
+			return nil, err
+		}
+		solution, err := solveLinearSystem(matrix, vector)
+		if err != nil {
+			return nil, err
+		}
+		return floatsToArrayValue(solution), nil
+	})
+
+	rt.Register("lsp", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("lsp requires 2 arguments: matrix and vector")
+		}
+
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		vector, err := valueToVector(args[1])
+		if err != nil {
+			return nil, err
+		}
+
+		coeffs, projection, residual, residualNorm, err := leastSquaresProjection(matrix, vector)
+		if err != nil {
+			return nil, err
+		}
+
+		result := NewMap()
+		result.Set("coefficients", floatsToArrayValue(coeffs))
+		result.Set("projection", floatsToArrayValue(projection))
+		result.Set("residual", floatsToArrayValue(residual))
+		result.Set("residualNorm", Number(residualNorm))
+		return result, nil
+	})
 }

@@ -159,10 +159,102 @@ const testUsersAgentGeneration = () => {
   }
 };
 
+const testMatrixMathGeneration = () => {
+  const sampleDiagram = {
+    name: 'matrixMath',
+    nodes: [
+      {
+        id: 'start',
+        type: 'logicon',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'Start',
+          icon: '🚀',
+          category: 'control'
+        }
+      },
+      {
+        id: 'transpose-1',
+        type: 'logicon',
+        position: { x: 200, y: 0 },
+        data: {
+          label: 'Transpose',
+          icon: '🔁',
+          category: 'math',
+          properties: {
+            matrix: 'matrixA'
+          }
+        }
+      },
+      {
+        id: 'matmul-2',
+        type: 'logicon',
+        position: { x: 400, y: 0 },
+        data: {
+          label: 'Matmul',
+          icon: '🧮',
+          category: 'math',
+          properties: {
+            leftMatrix: 'matrixA',
+            rightMatrix: 'matrixB'
+          }
+        }
+      },
+      {
+        id: 'solveLinear-3',
+        type: 'logicon',
+        position: { x: 600, y: 0 },
+        data: {
+          label: 'Solve Linear',
+          icon: '📐',
+          category: 'math',
+          properties: {
+            matrix: 'matrixA',
+            vector: 'vectorB'
+          }
+        }
+      },
+      {
+        id: 'lsp-4',
+        type: 'logicon',
+        position: { x: 800, y: 0 },
+        data: {
+          label: 'Least Squares',
+          icon: '📊',
+          category: 'math',
+          properties: {
+            matrix: 'matrixA',
+            vector: 'vectorB'
+          }
+        }
+      }
+    ],
+    edges: [
+      { id: 'start-transpose', source: 'start', target: 'transpose-1' },
+      { id: 'transpose-matmul', source: 'transpose-1', target: 'matmul-2' },
+      { id: 'matmul-solve', source: 'matmul-2', target: 'solveLinear-3' },
+      { id: 'solve-lsp', source: 'solveLinear-3', target: 'lsp-4' }
+    ],
+    nestingRelations: []
+  };
+
+  try {
+    const diagramJson = JSON.stringify(sampleDiagram);
+    const generatedCode = generateChariotCodeFromDiagram(diagramJson);
+    console.log('Matrix math nodes code:');
+    console.log(generatedCode);
+    return generatedCode;
+  } catch (error) {
+    console.error('Matrix math code generation failed:', error);
+    return null;
+  }
+};
+
 // Run the test in browser environment
 if (typeof window !== 'undefined') {
   console.log('Testing Chariot Code Generator...');
   testUsersAgentGeneration();
+  testMatrixMathGeneration();
 }
 
-export { testUsersAgentGeneration };
+export { testUsersAgentGeneration, testMatrixMathGeneration };

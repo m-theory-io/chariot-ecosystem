@@ -995,6 +995,13 @@ export const logiconDefinitions: LogiconData[] = [
     description: 'Digital signature',
     category: 'crypto'
   },
+  {
+    id: 'cryptoRandomString',
+    label: 'Crypto Random String',
+    icon: '🛡️',
+    description: 'Cryptographically secure random string',
+    category: 'crypto'
+  },
 
   // Math Functions
   {
@@ -1058,6 +1065,41 @@ export const logiconDefinitions: LogiconData[] = [
     label: 'Random',
     icon: '🎲',
     description: 'Random number',
+    category: 'math'
+  },
+  {
+    id: 'randomString',
+    label: 'Random String',
+    icon: '🔤',
+    description: 'Pseudo-random alphanumeric string',
+    category: 'math'
+  },
+  {
+    id: 'transpose',
+    label: 'Transpose',
+    icon: '🔁',
+    description: 'Transpose a matrix',
+    category: 'math'
+  },
+  {
+    id: 'matmul',
+    label: 'Matmul',
+    icon: '🧮',
+    description: 'Matrix multiplication',
+    category: 'math'
+  },
+  {
+    id: 'solveLinear',
+    label: 'Solve Linear',
+    icon: '📐',
+    description: 'Solve A·x = b systems',
+    category: 'math'
+  },
+  {
+    id: 'lsp',
+    label: 'Least Squares',
+    icon: '📊',
+    description: 'Least-squares projection',
     category: 'math'
   },
 
