@@ -521,8 +521,10 @@ func RegisterCouchbaseFunctions(rt *Runtime) {
 		if tvar, ok := args[0].(Str); ok {
 			prefix = string(tvar)
 		}
-		if tvar, ok := args[1].(Str); ok {
-			format = string(tvar)
+		if len(args) >= 2 {
+			if tvar, ok := args[1].(Str); ok {
+				format = string(tvar)
+			}
 		}
 
 		result := generateDocId(prefix, format, rowSQL)

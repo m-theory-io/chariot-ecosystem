@@ -30,6 +30,10 @@ Chariot provides a comprehensive set of mathematical and financial functions, in
 | `ceiling(x)` / `ceil(x)` | Ceiling (smallest integer ≥ x)        |
 | `round(x [, places])` | Round to nearest integer or decimal places|
 | `int(x)`           | Truncate to integer                         |
+| `transpose(matrix)` | Matrix transpose                            |
+| `matmul(left, right)` | Matrix multiplication (dimension-aware)   |
+| `solveLinear(matrix, vector)` | Solve square system A·x = b        |
+| `lsp(matrix, vector)` | Least-squares projection summary          |
 
 ---
 
@@ -132,6 +136,14 @@ ceiling(3.1)      // 4
 ceil(3.1)         // 4
 round(3.14159, 2) // 3.14
 int(3.99)         // 3
+transpose([[1, 2, 3], [4, 5, 6]])
+// [[1, 4], [2, 5], [3, 6]]
+matmul([[1, 2], [3, 4]], [[2, 0], [1, 2]])
+// [[4, 4], [10, 8]]
+solveLinear([[2, 1], [1, 1]], [5, 3])
+// [2, 1]
+lsp([[1, 0], [0, 1], [1, 1]], [1, 2, 2])
+// {coefficients: [0.667, 1.667], projection: [0.667, 1.667, 2.333], residual: [0.333, 0.333, -0.333], residualNorm: 0.577}
 ```
 
 #### Logarithmic

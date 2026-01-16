@@ -81,8 +81,13 @@ import { DivNodePropertiesDialog, DivNodeProperties } from "../components/dialog
 import { AbsNodePropertiesDialog, AbsNodeProperties } from "../components/dialogs/AbsNodeProperties";
 import { MaxNodePropertiesDialog, MaxNodeProperties } from "../components/dialogs/MaxNodeProperties";
 import { MinNodePropertiesDialog, MinNodeProperties } from "../components/dialogs/MinNodeProperties";
+import { TransposeNodePropertiesDialog, TransposeNodeProperties } from "../components/dialogs/TransposeNodeProperties";
+import { MatmulNodePropertiesDialog, MatmulNodeProperties } from "../components/dialogs/MatmulNodeProperties";
+import { SolveLinearNodePropertiesDialog, SolveLinearNodeProperties } from "../components/dialogs/SolveLinearNodeProperties";
+import { LspNodePropertiesDialog, LspNodeProperties } from "../components/dialogs/LspNodeProperties";
 import { RoundNodePropertiesDialog, RoundNodeProperties } from "../components/dialogs/RoundNodeProperties";
 import { RandomNodePropertiesDialog, RandomNodeProperties } from "../components/dialogs/RandomNodeProperties";
+import { RandomStringNodePropertiesDialog, RandomStringNodeProperties } from "../components/dialogs/RandomStringNodeProperties";
 import { ConcatNodePropertiesDialog, ConcatNodeProperties } from "../components/dialogs/ConcatNodeProperties";
 import { SplitNodePropertiesDialog, SplitNodeProperties } from "../components/dialogs/SplitNodeProperties";
 import { ReplaceNodePropertiesDialog, ReplaceNodeProperties } from "../components/dialogs/ReplaceNodeProperties";
@@ -99,6 +104,7 @@ import { EncryptNodePropertiesDialog, EncryptNodeProperties } from "../component
 import { DecryptNodePropertiesDialog, DecryptNodeProperties } from "../components/dialogs/DecryptNodeProperties";
 import { Hash256NodePropertiesDialog, Hash256NodeProperties } from "../components/dialogs/Hash256NodeProperties";
 import { SignNodePropertiesDialog, SignNodeProperties } from "../components/dialogs/SignNodeProperties";
+import { CryptoRandomStringNodePropertiesDialog, CryptoRandomStringNodeProperties } from "../components/dialogs/CryptoRandomStringNodeProperties";
 import { CallMethodNodePropertiesDialog } from "../components/dialogs/CallMethodNodeProperties";
 import { GetHostObjectNodePropertiesDialog } from "../components/dialogs/GetHostObjectNodeProperties";
 import { HostObjectNodePropertiesDialog } from "../components/dialogs/HostObjectNodeProperties";
@@ -824,6 +830,16 @@ export default function VisualDSLPrototype() {
         nodeType = 'round';
       } else if ((label === 'Random' || label === 'random' || label === 'RANDOM') && category === 'math') {
         nodeType = 'random';
+      } else if ((label === 'Random String' || label === 'randomString') && category === 'math') {
+        nodeType = 'randomString';
+      } else if ((label === 'Transpose' || label === 'transpose') && category === 'math') {
+        nodeType = 'transpose';
+      } else if ((label === 'Matmul' || label === 'matmul' || label === 'Matrix Multiply') && category === 'math') {
+        nodeType = 'matmul';
+      } else if ((label === 'Solve Linear' || label === 'solveLinear' || label === 'Solve linear') && category === 'math') {
+        nodeType = 'solveLinear';
+      } else if ((label === 'Least Squares' || label === 'least squares' || label === 'lsp' || label === 'LSP') && category === 'math') {
+        nodeType = 'lsp';
       } else if ((label === 'Concat' || label === 'concat' || label === 'CONCAT') && category === 'string') {
         nodeType = 'concat';
       } else if ((label === 'Split' || label === 'split' || label === 'SPLIT') && category === 'string') {
@@ -856,6 +872,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'hash256';
       } else if ((label === 'Sign' || label === 'sign') && category === 'crypto') {
         nodeType = 'sign';
+      } else if ((label === 'Crypto Random String' || label === 'cryptoRandomString') && category === 'crypto') {
+        nodeType = 'cryptoRandomString';
       } else if ((label === 'While' || label === 'while') && category === 'control') {
         nodeType = 'while';
       } else if ((label === 'Function' || label === 'func') && category === 'control') {
@@ -2150,6 +2168,29 @@ export default function VisualDSLPrototype() {
           mode: 'unbounded',
           operands: []
         } as RandomNodeProperties;
+      } else if (logicon.label === 'Random String' || logicon.label === 'randomString') {
+        defaultProperties = {
+          length: 'length'
+        } as RandomStringNodeProperties;
+      } else if (logicon.label === 'Transpose' || logicon.label === 'transpose') {
+        defaultProperties = {
+          matrix: 'matrixA'
+        } as TransposeNodeProperties;
+      } else if (logicon.label === 'Matmul' || logicon.label === 'matmul' || logicon.label === 'Matrix Multiply') {
+        defaultProperties = {
+          leftMatrix: 'matrixA',
+          rightMatrix: 'matrixB'
+        } as MatmulNodeProperties;
+      } else if (logicon.label === 'Solve Linear' || logicon.label === 'solveLinear' || logicon.label === 'Solve linear') {
+        defaultProperties = {
+          matrix: 'matrixA',
+          vector: 'vectorB'
+        } as SolveLinearNodeProperties;
+      } else if (logicon.label === 'Least Squares' || logicon.label === 'least squares' || logicon.label === 'lsp' || logicon.label === 'LSP') {
+        defaultProperties = {
+          matrix: 'matrixA',
+          vector: 'vectorB'
+        } as LspNodeProperties;
       } else if (logicon.label === 'String Length' || logicon.label === 'stringLength' || logicon.label === 'strlen') {
         defaultProperties = {
           value: 'textValue'
@@ -2305,6 +2346,29 @@ export default function VisualDSLPrototype() {
         mode: 'unbounded',
         operands: []
       } as RandomNodeProperties;
+    } else if (logicon.label === 'Random String' || logicon.label === 'randomString') {
+      defaultProperties = {
+        length: 'length'
+      } as RandomStringNodeProperties;
+    } else if (logicon.label === 'Transpose' || logicon.label === 'transpose') {
+      defaultProperties = {
+        matrix: 'matrixA'
+      } as TransposeNodeProperties;
+    } else if (logicon.label === 'Matmul' || logicon.label === 'matmul' || logicon.label === 'Matrix Multiply') {
+      defaultProperties = {
+        leftMatrix: 'matrixA',
+        rightMatrix: 'matrixB'
+      } as MatmulNodeProperties;
+    } else if (logicon.label === 'Solve Linear' || logicon.label === 'solveLinear' || logicon.label === 'Solve linear') {
+      defaultProperties = {
+        matrix: 'matrixA',
+        vector: 'vectorB'
+      } as SolveLinearNodeProperties;
+    } else if (logicon.label === 'Least Squares' || logicon.label === 'least squares' || logicon.label === 'lsp' || logicon.label === 'LSP') {
+      defaultProperties = {
+        matrix: 'matrixA',
+        vector: 'vectorB'
+      } as LspNodeProperties;
     } else if (logicon.label === 'While') {
       defaultProperties = {
         condition: '',
@@ -2394,6 +2458,10 @@ export default function VisualDSLPrototype() {
           keyId: 'encKey',
           data: 'message'
         } as SignNodeProperties;
+      } else if (logicon.label === 'Crypto Random String' || logicon.label === 'cryptoRandomString') {
+        defaultProperties = {
+          length: 'length'
+        } as CryptoRandomStringNodeProperties;
     }
     
     const newNode: Node = {
@@ -2965,6 +3033,29 @@ export default function VisualDSLPrototype() {
       defaultProperties = {
         value: 'textValue'
       } as LowerNodeProperties;
+    } else if (logicon.label === 'Random String' || logicon.label === 'randomString') {
+      defaultProperties = {
+        length: 'length'
+      } as RandomStringNodeProperties;
+    } else if (logicon.label === 'Transpose' || logicon.label === 'transpose') {
+      defaultProperties = {
+        matrix: 'matrixA'
+      } as TransposeNodeProperties;
+    } else if (logicon.label === 'Matmul' || logicon.label === 'matmul' || logicon.label === 'Matrix Multiply') {
+      defaultProperties = {
+        leftMatrix: 'matrixA',
+        rightMatrix: 'matrixB'
+      } as MatmulNodeProperties;
+    } else if (logicon.label === 'Solve Linear' || logicon.label === 'solveLinear' || logicon.label === 'Solve linear') {
+      defaultProperties = {
+        matrix: 'matrixA',
+        vector: 'vectorB'
+      } as SolveLinearNodeProperties;
+    } else if (logicon.label === 'Least Squares' || logicon.label === 'least squares' || logicon.label === 'lsp' || logicon.label === 'LSP') {
+      defaultProperties = {
+        matrix: 'matrixA',
+        vector: 'vectorB'
+      } as LspNodeProperties;
     } else if (logicon.label === 'Date' || logicon.label === 'date') {
       defaultProperties = {
         mode: 'parse',
@@ -3004,6 +3095,10 @@ export default function VisualDSLPrototype() {
         keyId: 'encKey',
         data: 'message'
       } as SignNodeProperties;
+    } else if (logicon.label === 'Crypto Random String' || logicon.label === 'cryptoRandomString') {
+      defaultProperties = {
+        length: 'length'
+      } as CryptoRandomStringNodeProperties;
     }
 
     const newNode: Node = {
@@ -5173,6 +5268,69 @@ export default function VisualDSLPrototype() {
             />
           )}
 
+          {propertiesDialog && propertiesDialog.nodeType === 'transpose' && (
+            <TransposeNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: TransposeNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as TransposeNodeProperties || {
+                matrix: 'matrixA'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'matmul' && (
+            <MatmulNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: MatmulNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as MatmulNodeProperties || {
+                leftMatrix: 'matrixA',
+                rightMatrix: 'matrixB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'solveLinear' && (
+            <SolveLinearNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: SolveLinearNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as SolveLinearNodeProperties || {
+                matrix: 'matrixA',
+                vector: 'vectorB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'lsp' && (
+            <LspNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: LspNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as LspNodeProperties || {
+                matrix: 'matrixA',
+                vector: 'vectorB'
+              }}
+            />
+          )}
+
           {propertiesDialog && propertiesDialog.nodeType === 'abs' && (
             <AbsNodePropertiesDialog
               isOpen={true}
@@ -5246,6 +5404,21 @@ export default function VisualDSLPrototype() {
               initialProperties={propertiesDialog.properties as RandomNodeProperties || {
                 mode: 'unbounded',
                 operands: []
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'randomString' && (
+            <RandomStringNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: RandomStringNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as RandomStringNodeProperties || {
+                length: 'length'
               }}
             />
           )}
@@ -5495,6 +5668,21 @@ export default function VisualDSLPrototype() {
               initialProperties={propertiesDialog.properties as SignNodeProperties || {
                 keyId: 'encKey',
                 data: 'message'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'cryptoRandomString' && (
+            <CryptoRandomStringNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: CryptoRandomStringNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as CryptoRandomStringNodeProperties || {
+                length: 'length'
               }}
             />
           )}

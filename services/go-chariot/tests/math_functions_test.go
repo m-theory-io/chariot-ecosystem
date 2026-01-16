@@ -191,3 +191,98 @@ func TestMathErrorHandling(t *testing.T) {
 
 	RunTestCases(t, tests)
 }
+
+func TestLeastSquaresClosure(t *testing.T) {
+	tests := []TestCase{
+		{
+			Name: "LSP First Coefficient",
+			Script: []string{
+				`setq(A, array(array(1, 0), array(0, 1), array(1, 1)))`,
+				`setq(b, array(1, 2, 2))`,
+				`setq(result, lsp(A, b))`,
+				`setq(coeffs, getAttribute(result, 'coefficients'))`,
+				`getAt(coeffs, 0)`,
+			},
+			ExpectedValue: chariot.Number(2.0 / 3.0),
+		},
+		{
+			Name: "LSP Projection Third Entry",
+			Script: []string{
+				`setq(A, array(array(1, 0), array(0, 1), array(1, 1)))`,
+				`setq(b, array(1, 2, 2))`,
+				`setq(result, lsp(A, b))`,
+				`setq(projection, getAttribute(result, 'projection'))`,
+				`getAt(projection, 2)`,
+			},
+			ExpectedValue: chariot.Number(7.0 / 3.0),
+		},
+		{
+			Name: "LSP Residual Norm",
+			Script: []string{
+				`setq(A, array(array(1, 0), array(0, 1), array(1, 1)))`,
+				`setq(b, array(1, 2, 2))`,
+				`setq(result, lsp(A, b))`,
+				`getAttribute(result, 'residualNorm')`,
+			},
+			ExpectedValue: chariot.Number(0.5773502691896258),
+		},
+		{
+			Name: "LSP Dimension Mismatch Error",
+			Script: []string{
+				`setq(A, array(array(1, 0), array(0, 1)))`,
+				`setq(b, array(1, 2, 3))`,
+				`lsp(A, b)`,
+			},
+			ExpectedError: true,
+		},
+	}
+
+	RunTestCases(t, tests)
+}
+
+func TestLinearAlgebraClosures(t *testing.T) {
+	tests := []TestCase{
+		{
+			Name: "Matrix Multiply Entry",
+			Script: []string{
+				`setq(A, array(array(1, 2), array(3, 4)))`,
+				`setq(B, array(array(2, 0), array(1, 2)))`,
+				`setq(C, matmul(A, B))`,
+				`setq(row0, getAt(C, 0))`,
+				`getAt(row0, 1)`,
+			},
+			ExpectedValue: chariot.Number(4),
+		},
+		{
+			Name: "Transpose Retrieves Column",
+			Script: []string{
+				`setq(A, array(array(1, 2, 3), array(4, 5, 6)))`,
+				`setq(T, transpose(A))`,
+				`setq(col, getAt(T, 1))`,
+				`getAt(col, 0)`,
+			},
+			ExpectedValue: chariot.Number(2),
+		},
+		{
+			Name: "Solve Linear System",
+			Script: []string{
+				`setq(A, array(array(2, 1), array(1, 1)))`,
+				`setq(b, array(5, 3))`,
+				`setq(solution, solveLinear(A, b))`,
+				`getAt(solution, 0)`,
+			},
+			ExpectedValue: chariot.Number(2),
+		},
+		{
+			Name: "Solve Linear Dimension Error",
+			Script: []string{
+				`setq(A, array(array(1, 0), array(0, 1), array(1, 1)))`,
+				`setq(b, array(1, 2))`,
+				`solveLinear(A, b)`,
+			},
+			ExpectedError: true,
+		},
+	}
+
+	RunTestCases(t, tests)
+}

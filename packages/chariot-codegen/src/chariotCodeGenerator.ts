@@ -117,6 +117,10 @@ export class ChariotCodeGenerator {
       'minimum': 'min',
       'round': 'round',
       'random': 'random',
+      'random string': 'randomString',
+      'randomstring': 'randomString',
+      'crypto random string': 'cryptoRandomString',
+      'cryptorandomstring': 'cryptoRandomString',
       'concat': 'concat',
       'concatenate': 'concat',
       'split': 'split',
@@ -143,6 +147,13 @@ export class ChariotCodeGenerator {
       'hash256': 'hash256',
       'hash-256': 'hash256',
       'sign': 'sign',
+      'transpose': 'transpose',
+      'matmul': 'matmul',
+      'matrix multiply': 'matmul',
+      'solve linear': 'solveLinear',
+      'solvelinear': 'solveLinear',
+      'least squares': 'lsp',
+      'lsp': 'lsp',
     };
     return aliasMap[lowerKey] || normalized;
   }
@@ -415,6 +426,8 @@ export class ChariotCodeGenerator {
         return this.generateHash256Code(node);
       case 'sign':
         return this.generateSignCode(node);
+      case 'cryptoRandomString':
+        return this.generateCryptoRandomStringCode(node);
       case 'LogPrint':
       case 'Log Print':
       case 'logPrint':
@@ -499,6 +512,14 @@ export class ChariotCodeGenerator {
         return this.generateMulCode(node);
       case 'div':
         return this.generateDivCode(node);
+      case 'transpose':
+        return this.generateTransposeCode(node);
+      case 'matmul':
+        return this.generateMatmulCode(node);
+      case 'solveLinear':
+        return this.generateSolveLinearCode(node);
+      case 'lsp':
+        return this.generateLspCode(node);
       case 'abs':
         return this.generateAbsCode(node);
       case 'max':
@@ -509,6 +530,8 @@ export class ChariotCodeGenerator {
         return this.generateRoundCode(node);
       case 'random':
         return this.generateRandomCode(node);
+      case 'randomString':
+        return this.generateRandomStringCode(node);
       case 'Exists':
       case 'exists':
         return this.generateExistsCode(node);
@@ -1563,6 +1586,43 @@ export class ChariotCodeGenerator {
     return `div(${left}, ${right})`;
   }
 
+  private generateTransposeCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const matrixSource = (props as { matrix?: unknown }).matrix ?? (props as { operand?: unknown }).operand;
+    const matrix = this.coerceExpression(matrixSource, 'matrixA');
+    return `transpose(${matrix})`;
+  }
+
+  private generateMatmulCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const leftSource = operands[0] ?? (props as { leftMatrix?: unknown; leftOperand?: unknown }).leftMatrix ?? (props as { leftOperand?: unknown }).leftOperand;
+    const rightSource = operands[1] ?? (props as { rightMatrix?: unknown; rightOperand?: unknown }).rightMatrix ?? (props as { rightOperand?: unknown }).rightOperand;
+    const left = this.coerceExpression(leftSource, 'matrixA');
+    const right = this.coerceExpression(rightSource, 'matrixB');
+    return `matmul(${left}, ${right})`;
+  }
+
+  private generateSolveLinearCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const matrixSource = operands[0] ?? (props as { matrix?: unknown; leftOperand?: unknown }).matrix ?? (props as { leftOperand?: unknown }).leftOperand;
+    const vectorSource = operands[1] ?? (props as { vector?: unknown; rightOperand?: unknown }).vector ?? (props as { rightOperand?: unknown }).rightOperand;
+    const matrix = this.coerceExpression(matrixSource, 'matrixA');
+    const vector = this.coerceExpression(vectorSource, 'vectorB');
+    return `solveLinear(${matrix}, ${vector})`;
+  }
+
+  private generateLspCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const matrixSource = operands[0] ?? (props as { matrix?: unknown; leftOperand?: unknown }).matrix ?? (props as { leftOperand?: unknown }).leftOperand;
+    const vectorSource = operands[1] ?? (props as { vector?: unknown; rightOperand?: unknown }).vector ?? (props as { rightOperand?: unknown }).rightOperand;
+    const matrix = this.coerceExpression(matrixSource, 'matrixA');
+    const vector = this.coerceExpression(vectorSource, 'vectorB');
+    return `lsp(${matrix}, ${vector})`;
+  }
+
   private generateAbsCode(node: VisualDSLNode): string {
     const props = node.data.properties || {};
     const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
@@ -1607,6 +1667,18 @@ export class ChariotCodeGenerator {
       return `random(${operands[0]})`;
     }
     return `random(${operands[0]}, ${operands[1]})`;
+  }
+
+  private generateRandomStringCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const length = this.coerceExpression((props as { length?: unknown }).length, 'length');
+    return `randomString(${length})`;
+  }
+
+  private generateCryptoRandomStringCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const length = this.coerceExpression((props as { length?: unknown }).length, 'length');
+    return `cryptoRandomString(${length})`;
   }
 
   private generateConcatCode(node: VisualDSLNode): string {

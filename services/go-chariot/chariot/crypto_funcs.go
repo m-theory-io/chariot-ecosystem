@@ -1,12 +1,15 @@
 package chariot
 
 import (
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
 )
+
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 // Registration function for the runtime
 func RegisterCryptoFunctions(rt *Runtime) {
@@ -236,6 +239,50 @@ func (cm *CryptoManager) RegisterCryptoFunctions(rt *Runtime) {
 		result["publicKey"] = Str(string(publicKeyPEM))
 
 		return result, nil
+	})
+
+	// cryptoRandomString(n int) - generates a cryptographically secure random string of length n
+	rt.Register("cryptoRandomString", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("randomBytes requires: size")
+		}
+
+		// Unwrap scope entries
+		if tvar, ok := args[0].(ScopeEntry); ok {
+			args[0] = tvar.Value
+		}
+
+		n := int(args[0].(Number))
+
+		if n <= 0 {
+			return "", fmt.Errorf("length must be positive")
+		}
+
+		out := make([]byte, n)
+
+		// To avoid modulo bias, only accept random bytes < 62*4 = 248.
+		// 248 is the largest multiple of 62 less than 256.
+		const max = byte(248)
+
+		i := 0
+		buf := make([]byte, n*2) // amortize syscalls; ok to overshoot a bit
+		for i < n {
+			if _, err := rand.Read(buf); err != nil {
+				return "", err
+			}
+			for _, b := range buf {
+				if b >= max {
+					continue
+				}
+				out[i] = charset[b%62]
+				i++
+				if i == n {
+					break
+				}
+			}
+		}
+
+		return string(out), nil
 	})
 
 	// randomBytes(size) - generates random bytes and returns base64 encoded
