@@ -143,6 +143,36 @@ func TestSolveLinearSystem(t *testing.T) {
 	}
 }
 
+func TestVectorScaleHelper(t *testing.T) {
+	original := []float64{1, -2, 3}
+	vec := make([]float64, len(original))
+	copy(vec, original)
+	scaled := vectorScale(&vec, 2.5)
+	expected := []float64{2.5, -5, 7.5}
+	if len(scaled) != len(expected) {
+		t.Fatalf("expected %d entries, got %d", len(expected), len(scaled))
+	}
+	for i := range expected {
+		if math.Abs(scaled[i]-expected[i]) > 1e-9 {
+			t.Fatalf("scaled mismatch at %d: got %.9f want %.9f", i, scaled[i], expected[i])
+		}
+		if vec[i] != original[i] {
+			t.Fatalf("vectorScale mutated input slice at %d: got %.9f", i, vec[i])
+		}
+	}
+}
+
+func TestVectorScaleZeroScalar(t *testing.T) {
+	vec := []float64{10, -4.5}
+	scaled := vectorScale(&vec, 0)
+	expected := []float64{0, 0}
+	for i := range expected {
+		if math.Abs(scaled[i]-expected[i]) > 1e-9 {
+			t.Fatalf("zero scalar mismatch at %d: got %.9f", i, scaled[i])
+		}
+	}
+}
+
 func arrayFromNumbers(vals ...float64) *ArrayValue {
 	arr := &ArrayValue{}
 	for _, v := range vals {
