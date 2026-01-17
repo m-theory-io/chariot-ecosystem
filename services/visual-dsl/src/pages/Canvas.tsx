@@ -85,6 +85,7 @@ import { TransposeNodePropertiesDialog, TransposeNodeProperties } from "../compo
 import { MatmulNodePropertiesDialog, MatmulNodeProperties } from "../components/dialogs/MatmulNodeProperties";
 import { SolveLinearNodePropertiesDialog, SolveLinearNodeProperties } from "../components/dialogs/SolveLinearNodeProperties";
 import { LspNodePropertiesDialog, LspNodeProperties } from "../components/dialogs/LspNodeProperties";
+import { VectorScaleNodePropertiesDialog, VectorScaleNodeProperties } from "../components/dialogs/VectorScaleNodeProperties";
 import { RoundNodePropertiesDialog, RoundNodeProperties } from "../components/dialogs/RoundNodeProperties";
 import { RandomNodePropertiesDialog, RandomNodeProperties } from "../components/dialogs/RandomNodeProperties";
 import { RandomStringNodePropertiesDialog, RandomStringNodeProperties } from "../components/dialogs/RandomStringNodeProperties";
@@ -840,6 +841,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'solveLinear';
       } else if ((label === 'Least Squares' || label === 'least squares' || label === 'lsp' || label === 'LSP') && category === 'math') {
         nodeType = 'lsp';
+      } else if ((label === 'Vector Scale' || label === 'vectorScale' || label === 'vector scale' || label === 'Vector scale') && category === 'math') {
+        nodeType = 'vectorScale';
       } else if ((label === 'Concat' || label === 'concat' || label === 'CONCAT') && category === 'string') {
         nodeType = 'concat';
       } else if ((label === 'Split' || label === 'split' || label === 'SPLIT') && category === 'string') {
@@ -2191,6 +2194,11 @@ export default function VisualDSLPrototype() {
           matrix: 'matrixA',
           vector: 'vectorB'
         } as LspNodeProperties;
+      } else if (logicon.label === 'Vector Scale' || logicon.label === 'vectorScale' || logicon.label === 'vector scale' || logicon.label === 'Vector scale') {
+        defaultProperties = {
+          vector: 'vectorA',
+          scalar: 'scalarValue'
+        } as VectorScaleNodeProperties;
       } else if (logicon.label === 'String Length' || logicon.label === 'stringLength' || logicon.label === 'strlen') {
         defaultProperties = {
           value: 'textValue'
@@ -2369,6 +2377,11 @@ export default function VisualDSLPrototype() {
         matrix: 'matrixA',
         vector: 'vectorB'
       } as LspNodeProperties;
+    } else if (logicon.label === 'Vector Scale' || logicon.label === 'vectorScale' || logicon.label === 'vector scale' || logicon.label === 'Vector scale') {
+      defaultProperties = {
+        vector: 'vectorA',
+        scalar: 'scalarValue'
+      } as VectorScaleNodeProperties;
     } else if (logicon.label === 'While') {
       defaultProperties = {
         condition: '',
@@ -3056,6 +3069,11 @@ export default function VisualDSLPrototype() {
         matrix: 'matrixA',
         vector: 'vectorB'
       } as LspNodeProperties;
+    } else if (logicon.label === 'Vector Scale' || logicon.label === 'vectorScale' || logicon.label === 'vector scale' || logicon.label === 'Vector scale') {
+      defaultProperties = {
+        vector: 'vectorA',
+        scalar: 'scalarValue'
+      } as VectorScaleNodeProperties;
     } else if (logicon.label === 'Date' || logicon.label === 'date') {
       defaultProperties = {
         mode: 'parse',
@@ -5327,6 +5345,22 @@ export default function VisualDSLPrototype() {
               initialProperties={propertiesDialog.properties as LspNodeProperties || {
                 matrix: 'matrixA',
                 vector: 'vectorB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'vectorScale' && (
+            <VectorScaleNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: VectorScaleNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as VectorScaleNodeProperties || {
+                vector: 'vectorA',
+                scalar: 'scalarValue'
               }}
             />
           )}

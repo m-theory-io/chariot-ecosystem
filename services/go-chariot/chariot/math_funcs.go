@@ -1159,6 +1159,12 @@ func RegisterMath(rt *Runtime) {
 		if len(args) != 1 {
 			return nil, errors.New("transpose requires 1 argument: matrix")
 		}
+		// Unwrap the arguments as needed
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
 		matrix, err := valueToMatrix(args[0])
 		if err != nil {
 			return nil, err
@@ -1169,6 +1175,12 @@ func RegisterMath(rt *Runtime) {
 	rt.Register("matmul", func(args ...Value) (Value, error) {
 		if len(args) != 2 {
 			return nil, errors.New("matmul requires 2 arguments: leftMatrix and rightMatrix")
+		}
+		// Unwrap the arguments as needed
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
 		}
 		left, err := valueToMatrix(args[0])
 		if err != nil {
@@ -1189,6 +1201,12 @@ func RegisterMath(rt *Runtime) {
 		if len(args) != 2 {
 			return nil, errors.New("solveLinear requires 2 arguments: matrix and vector")
 		}
+		// Unwrap the arguments as needed
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
 		matrix, err := valueToMatrix(args[0])
 		if err != nil {
 			return nil, err
@@ -1202,6 +1220,28 @@ func RegisterMath(rt *Runtime) {
 			return nil, err
 		}
 		return floatsToArrayValue(solution), nil
+	})
+
+	rt.Register("vectorScale", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("vectorScale requires 2 arguments: vector and scalar")
+		}
+		// Unwrap the arguments as needed
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+		vector, err := valueToVector(args[0])
+		if err != nil {
+			return nil, err
+		}
+		scalar, ok := args[1].(Number)
+		if !ok {
+			return nil, fmt.Errorf("vectorScale requires a number for scalar")
+		}
+		scaled := vectorScale(&vector, float64(scalar))
+		return floatsToArrayValue(scaled), nil
 	})
 
 	rt.Register("lsp", func(args ...Value) (Value, error) {
