@@ -348,3 +348,12 @@ func solveLinearSystem(matrix [][]float64, vector []float64) ([]float64, error) 
 	}
 	return gaussianSolve(matrix, vector)
 }
+
+// vectorScale scales a vector by a scalar value.
+func vectorScale(vector *[]float64, scalar float64) []float64 {
+	result := make([]float64, len(*vector))
+	for i, v := range *vector {
+		result[i] = v * scalar
+	}
+	return result
+}

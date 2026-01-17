@@ -1102,6 +1102,13 @@ export const logiconDefinitions: LogiconData[] = [
     description: 'Least-squares projection',
     category: 'math'
   },
+  {
+    id: 'vectorScale',
+    label: 'Vector Scale',
+    icon: '📐',
+    description: 'Scale a vector by a scalar',
+    category: 'math'
+  },
 
   // String Functions
   {

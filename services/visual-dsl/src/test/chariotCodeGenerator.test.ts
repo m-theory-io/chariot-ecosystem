@@ -227,13 +227,28 @@ const testMatrixMathGeneration = () => {
             vector: 'vectorB'
           }
         }
+      },
+      {
+        id: 'vectorScale-5',
+        type: 'logicon',
+        position: { x: 1000, y: 0 },
+        data: {
+          label: 'Vector Scale',
+          icon: '📐',
+          category: 'math',
+          properties: {
+            vector: 'vectorB',
+            scalar: '0.5'
+          }
+        }
       }
     ],
     edges: [
       { id: 'start-transpose', source: 'start', target: 'transpose-1' },
       { id: 'transpose-matmul', source: 'transpose-1', target: 'matmul-2' },
       { id: 'matmul-solve', source: 'matmul-2', target: 'solveLinear-3' },
-      { id: 'solve-lsp', source: 'solveLinear-3', target: 'lsp-4' }
+      { id: 'solve-lsp', source: 'solveLinear-3', target: 'lsp-4' },
+      { id: 'lsp-vectorScale', source: 'lsp-4', target: 'vectorScale-5' }
     ],
     nestingRelations: []
   };

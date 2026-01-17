@@ -154,6 +154,8 @@ export class ChariotCodeGenerator {
       'solvelinear': 'solveLinear',
       'least squares': 'lsp',
       'lsp': 'lsp',
+      'vector scale': 'vectorScale',
+      'vectorscale': 'vectorScale',
     };
     return aliasMap[lowerKey] || normalized;
   }
@@ -520,6 +522,8 @@ export class ChariotCodeGenerator {
         return this.generateSolveLinearCode(node);
       case 'lsp':
         return this.generateLspCode(node);
+      case 'vectorScale':
+        return this.generateVectorScaleCode(node);
       case 'abs':
         return this.generateAbsCode(node);
       case 'max':
@@ -1621,6 +1625,16 @@ export class ChariotCodeGenerator {
     const matrix = this.coerceExpression(matrixSource, 'matrixA');
     const vector = this.coerceExpression(vectorSource, 'vectorB');
     return `lsp(${matrix}, ${vector})`;
+  }
+
+  private generateVectorScaleCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const vectorSource = operands[0] ?? (props as { vector?: unknown; leftOperand?: unknown }).vector ?? (props as { leftOperand?: unknown }).leftOperand;
+    const scalarSource = operands[1] ?? (props as { scalar?: unknown; rightOperand?: unknown }).scalar ?? (props as { rightOperand?: unknown }).rightOperand;
+    const vector = this.coerceExpression(vectorSource, 'vectorA');
+    const scalar = this.coerceExpression(scalarSource, 'scalarValue');
+    return `vectorScale(${vector}, ${scalar})`;
   }
 
   private generateAbsCode(node: VisualDSLNode): string {

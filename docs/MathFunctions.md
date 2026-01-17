@@ -34,6 +34,7 @@ Chariot provides a comprehensive set of mathematical and financial functions, in
 | `matmul(left, right)` | Matrix multiplication (dimension-aware)   |
 | `solveLinear(matrix, vector)` | Solve square system A·x = b        |
 | `lsp(matrix, vector)` | Least-squares projection summary          |
+| `vectorScale(vector, scalar)` | Scale a vector by a scalar factor  |
 
 ---
 
@@ -144,6 +145,8 @@ solveLinear([[2, 1], [1, 1]], [5, 3])
 // [2, 1]
 lsp([[1, 0], [0, 1], [1, 1]], [1, 2, 2])
 // {coefficients: [0.667, 1.667], projection: [0.667, 1.667, 2.333], residual: [0.333, 0.333, -0.333], residualNorm: 0.577}
+vectorScale([1, 2, 3], 0.5)
+// [0.5, 1, 1.5]
 ```
 
 #### Logarithmic
