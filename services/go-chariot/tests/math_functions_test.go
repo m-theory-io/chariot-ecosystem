@@ -282,6 +282,22 @@ func TestLinearAlgebraClosures(t *testing.T) {
 			},
 			ExpectedError: true,
 		},
+		{
+			Name: "Vector Scale Entry",
+			Script: []string{
+				`setq(v, array(1, 2, 3))`,
+				`setq(result, vectorScale(v, 0.5))`,
+				`getAt(result, 2)`,
+			},
+			ExpectedValue: chariot.Number(1.5),
+		},
+		{
+			Name: "Vector Scale Invalid Scalar",
+			Script: []string{
+				`vectorScale(array(1, 2, 3), 'oops')`,
+			},
+			ExpectedError: true,
+		},
 	}
 
 	RunTestCases(t, tests)
