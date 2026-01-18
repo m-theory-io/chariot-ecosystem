@@ -16,6 +16,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.0.1-0.20251020185824-cfa7a515a9bc
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.41.0
+	gonum.org/v1/gonum v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

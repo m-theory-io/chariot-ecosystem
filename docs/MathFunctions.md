@@ -35,6 +35,10 @@ Chariot provides a comprehensive set of mathematical and financial functions, in
 | `solveLinear(matrix, vector)` | Solve square system A·x = b        |
 | `lsp(matrix, vector)` | Least-squares projection summary          |
 | `vectorScale(vector, scalar)` | Scale a vector by a scalar factor  |
+| `eigenSymmetric(matrix)` | Eigenvalues/vectors for real symmetric matrices |
+| `eigen(matrix)` | Full eigen decomposition (real + imaginary parts) |
+| `dominantEigen(matrix [, tolerance [, maxIterations]])` | Power-iteration dominant eigenpair |
+| `schur(matrix)` | Real Schur form (orthogonal Q, quasi-triangular T) |
 
 ---
 
@@ -147,6 +151,22 @@ lsp([[1, 0], [0, 1], [1, 1]], [1, 2, 2])
 // {coefficients: [0.667, 1.667], projection: [0.667, 1.667, 2.333], residual: [0.333, 0.333, -0.333], residualNorm: 0.577}
 vectorScale([1, 2, 3], 0.5)
 // [0.5, 1, 1.5]
+eigenSymmetric([[2, 1], [1, 2]])
+// {values: [1, 3], vectors: [[-0.707, 0.707], [0.707, 0.707]]}
+eigen([[0, -1], [1, 0]])
+// {valuesReal: [0, 0], valuesImag: [1, -1], vectorsReal: [[0.707, 0.707], [0.707, -0.707]], vectorsImag: [[0.707, -0.707], [-0.707, -0.707]]}
+dominantEigen([[4, 1], [0, 2]], 1e-6, 200)
+// {value: 4, vector: [0.999, 0.04]}
+schur([[0, -1], [1, 0]])
+// {T: [[0, 1], [-1, 0]], Q: [[0.707, -0.707], [0.707, 0.707]], valuesReal: [0, 0], valuesImag: [1, -1], blockSizes: [2]}
+
+`eigenSymmetric` returns orthonormal eigenvectors as columns in the `vectors` matrix. The general `eigen` closure exposes separate real/imaginary matrices so you can rebuild complex eigenvectors or keep just the real portions when the spectrum is real. `dominantEigen` uses power iteration; the optional tolerance/maxIterations allow you to trade accuracy for speed.
+`schur` returns the real Schur form where `Q` is orthogonal and `T` is quasi-triangular with 1×1 or 2×2 diagonal blocks—`blockSizes` tells you which is which while `valuesReal/valuesImag` expose the corresponding eigenvalues.
+
+> **LAPACK dependency:** The `schur` closure delegates to Gonum's LAPACK implementation (`Dgehrd → Dorghr → Dhseqr`). That means:
+> - `gonum.org/v1/gonum/lapack/gonum` is now a required module—`go mod tidy` must run before building or testing go-chariot.
+> - Each decomposition allocates ~3·n² float64 slots for intermediate matrices and workspace; large inputs can consume several megabytes and take O(n³) time.
+> - The default backend is pure Go, so `CGO_ENABLED=0` builds continue to work, but the routine is slower than hardware-accelerated BLAS/LAPACK. If you configure Gonum to use a cgo-backed BLAS, ensure the host toolchain (Accelerate/OpenBLAS/MKL) is present.
 ```
 
 #### Logarithmic

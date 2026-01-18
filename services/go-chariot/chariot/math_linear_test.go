@@ -2,6 +2,7 @@ package chariot
 
 import (
 	"math"
+	"math/cmplx"
 	"testing"
 )
 
@@ -173,6 +174,88 @@ func TestVectorScaleZeroScalar(t *testing.T) {
 	}
 }
 
+func TestEigenSymmetricDecomposition(t *testing.T) {
+	matrix := [][]float64{{2, 1}, {1, 2}}
+	values, vectors, err := eigenSymmetricDecomposition(matrix)
+	if err != nil {
+		t.Fatalf("eigenSymmetricDecomposition returned error: %v", err)
+	}
+	if len(values) != 2 || len(vectors) != 2 {
+		t.Fatalf("unexpected eigen dimensions")
+	}
+	assertApprox(t, values[0], 1, 1e-9)
+	assertApprox(t, values[1], 3, 1e-9)
+	col0 := []float64{vectors[0][0], vectors[1][0]}
+	col1 := []float64{vectors[0][1], vectors[1][1]}
+	verifyEigenRelation(t, matrix, values[0], col0)
+	verifyEigenRelation(t, matrix, values[1], col1)
+}
+
+func TestEigenGeneralDecompositionComplex(t *testing.T) {
+	matrix := [][]float64{{0, -1}, {1, 0}}
+	realVals, imagVals, realVecs, imagVecs, err := eigenGeneralDecomposition(matrix)
+	if err != nil {
+		t.Fatalf("eigenGeneralDecomposition returned error: %v", err)
+	}
+	if len(realVals) != 2 || len(imagVals) != 2 {
+		t.Fatalf("expected two eigenvalues")
+	}
+	pairs := make([]complex128, len(realVals))
+	for i := range realVals {
+		pairs[i] = complex(realVals[i], imagVals[i])
+	}
+	if !containsComplexPair(pairs, complex(0, 1)) || !containsComplexPair(pairs, complex(0, -1)) {
+		t.Fatalf("missing expected complex eigenvalues: %v", pairs)
+	}
+	for idx := range realVals {
+		vector := make([]complex128, len(realVecs))
+		for row := range realVecs {
+			vector[row] = complex(realVecs[row][idx], imagVecs[row][idx])
+		}
+		if normComplex(matrixVectorDiff(matrix, pairs[idx], vector)) > 1e-6 {
+			t.Fatalf("eigenvector %d does not satisfy Av=lambda v", idx)
+		}
+	}
+}
+
+func TestDominantEigenPair(t *testing.T) {
+	matrix := [][]float64{{4, 1}, {0, 2}}
+	value, vector, err := dominantEigenPair(matrix, 1e-9, 500)
+	if err != nil {
+		t.Fatalf("dominantEigenPair returned error: %v", err)
+	}
+	assertApprox(t, value, 4, 1e-6)
+	if len(vector) != 2 {
+		t.Fatalf("unexpected vector length: %d", len(vector))
+	}
+	if math.Abs(vector[1]) > 1e-3 {
+		t.Fatalf("expected vector aligned with first axis, got %v", vector)
+	}
+}
+
+func TestRealSchurDecomposition(t *testing.T) {
+	matrix := [][]float64{{0, -1}, {1, 0}}
+	T, Q, realVals, imagVals, blocks, err := realSchurDecomposition(matrix)
+	if err != nil {
+		t.Fatalf("realSchurDecomposition returned error: %v", err)
+	}
+	if len(blocks) != 1 || blocks[0] != 2 {
+		t.Fatalf("expected single 2x2 block, got %v", blocks)
+	}
+	if !containsComplexPair(combineComplexPairs(realVals, imagVals), complex(0, 1)) {
+		t.Fatalf("missing expected eigen pair")
+	}
+	qt, err := matrixMultiply(Q, T)
+	if err != nil {
+		t.Fatalf("matrixMultiply failed: %v", err)
+	}
+	reconstruct, err := matrixMultiply(qt, matrixTranspose(Q))
+	if err != nil {
+		t.Fatalf("matrixMultiply failed: %v", err)
+	}
+	assertMatrixApprox(t, reconstruct, matrix, 1e-9)
+}
+
 func arrayFromNumbers(vals ...float64) *ArrayValue {
 	arr := &ArrayValue{}
 	for _, v := range vals {
@@ -212,4 +295,86 @@ func assertFloatSliceApprox(t *testing.T, actual, expected []float64, tol float6
 			t.Fatalf("slice mismatch at %d: got %.9f want %.9f", i, actual[i], expected[i])
 		}
 	}
+}
+
+func assertApprox(t *testing.T, actual, expected, tol float64) {
+	t.Helper()
+	if math.Abs(actual-expected) > tol {
+		t.Fatalf("value mismatch: got %.9f want %.9f", actual, expected)
+	}
+}
+
+func verifyEigenRelation(t *testing.T, matrix [][]float64, eigenvalue float64, vector []float64) {
+	t.Helper()
+	if len(matrix) != len(vector) {
+		t.Fatalf("dimension mismatch")
+	}
+	residual := 0.0
+	for i := 0; i < len(matrix); i++ {
+		sum := 0.0
+		for j := 0; j < len(matrix); j++ {
+			sum += matrix[i][j] * vector[j]
+		}
+		residual += math.Pow(sum-eigenvalue*vector[i], 2)
+	}
+	if math.Sqrt(residual) > 1e-6 {
+		t.Fatalf("vector does not satisfy eigen relation: residual %.9f", math.Sqrt(residual))
+	}
+}
+
+func containsComplexPair(values []complex128, target complex128) bool {
+	for _, v := range values {
+		if cmplx.Abs(v-target) < 1e-6 {
+			return true
+		}
+	}
+	return false
+}
+
+func matrixVectorDiff(matrix [][]float64, eigenvalue complex128, vector []complex128) []complex128 {
+	result := make([]complex128, len(vector))
+	for i := 0; i < len(matrix); i++ {
+		sum := complex(0, 0)
+		for j := 0; j < len(matrix); j++ {
+			sum += complex(matrix[i][j], 0) * vector[j]
+		}
+		result[i] = sum - eigenvalue*vector[i]
+	}
+	return result
+}
+
+func normComplex(vec []complex128) float64 {
+	sum := 0.0
+	for _, v := range vec {
+		sum += real(v)*real(v) + imag(v)*imag(v)
+	}
+	return math.Sqrt(sum)
+}
+
+func assertMatrixApprox(t *testing.T, actual, expected [][]float64, tol float64) {
+	t.Helper()
+	if len(actual) != len(expected) {
+		t.Fatalf("row mismatch: got %d want %d", len(actual), len(expected))
+	}
+	for i := range actual {
+		if len(actual[i]) != len(expected[i]) {
+			t.Fatalf("column mismatch in row %d", i)
+		}
+		for j := range actual[i] {
+			if math.Abs(actual[i][j]-expected[i][j]) > tol {
+				t.Fatalf("matrix mismatch at (%d,%d): got %.9f want %.9f", i, j, actual[i][j], expected[i][j])
+			}
+		}
+	}
+}
+
+func combineComplexPairs(realVals, imagVals []float64) []complex128 {
+	if len(realVals) != len(imagVals) {
+		return nil
+	}
+	result := make([]complex128, len(realVals))
+	for i := range realVals {
+		result[i] = complex(realVals[i], imagVals[i])
+	}
+	return result
 }
