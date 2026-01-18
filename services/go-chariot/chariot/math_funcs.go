@@ -1270,4 +1270,118 @@ func RegisterMath(rt *Runtime) {
 		result.Set("residualNorm", Number(residualNorm))
 		return result, nil
 	})
+
+	rt.Register("eigenSymmetric", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("eigenSymmetric requires 1 argument: matrix")
+		}
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		values, vectors, err := eigenSymmetricDecomposition(matrix)
+		if err != nil {
+			return nil, err
+		}
+		result := NewMap()
+		result.Set("values", floatsToArrayValue(values))
+		result.Set("vectors", matrixToArrayValue(vectors))
+		return result, nil
+	})
+
+	rt.Register("eigen", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("eigen requires 1 argument: matrix")
+		}
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		realVals, imagVals, realVecs, imagVecs, err := eigenGeneralDecomposition(matrix)
+		if err != nil {
+			return nil, err
+		}
+		result := NewMap()
+		result.Set("valuesReal", floatsToArrayValue(realVals))
+		result.Set("valuesImag", floatsToArrayValue(imagVals))
+		result.Set("vectorsReal", matrixToArrayValue(realVecs))
+		result.Set("vectorsImag", matrixToArrayValue(imagVecs))
+		return result, nil
+	})
+
+	rt.Register("dominantEigen", func(args ...Value) (Value, error) {
+		if len(args) == 0 || len(args) > 3 {
+			return nil, errors.New("dominantEigen requires matrix plus optional tolerance and maxIterations")
+		}
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		tolerance := 1e-9
+		maxIterations := 1000
+		if len(args) >= 2 {
+			tolNum, ok := args[1].(Number)
+			if !ok {
+				return nil, errors.New("tolerance must be numeric")
+			}
+			tolerance = float64(tolNum)
+		}
+		if len(args) == 3 {
+			iterNum, ok := args[2].(Number)
+			if !ok {
+				return nil, errors.New("maxIterations must be numeric")
+			}
+			maxIterations = int(iterNum)
+		}
+		value, vector, err := dominantEigenPair(matrix, tolerance, maxIterations)
+		if err != nil {
+			return nil, err
+		}
+		result := NewMap()
+		result.Set("value", Number(value))
+		result.Set("vector", floatsToArrayValue(vector))
+		return result, nil
+	})
+
+	rt.Register("schur", func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("schur requires 1 argument: matrix")
+		}
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+		matrix, err := valueToMatrix(args[0])
+		if err != nil {
+			return nil, err
+		}
+		T, Q, realVals, imagVals, blocks, err := realSchurDecomposition(matrix)
+		if err != nil {
+			return nil, err
+		}
+		result := NewMap()
+		result.Set("T", matrixToArrayValue(T))
+		result.Set("Q", matrixToArrayValue(Q))
+		result.Set("valuesReal", floatsToArrayValue(realVals))
+		result.Set("valuesImag", floatsToArrayValue(imagVals))
+		result.Set("blockSizes", intsToArrayValue(blocks))
+		return result, nil
+	})
+
 }

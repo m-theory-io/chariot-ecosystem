@@ -92,3 +92,11 @@ The MCP server currently registers:
 - `codeToDiagram`: placeholder returning "not implemented" (planned for future AST→diagram support).
 
 If you need a client config example (e.g., to wire this into an MCP-capable app), point the client to launch go-chariot with `CHARIOT_MCP_ENABLED=true` and `CHARIOT_MCP_TRANSPORT=stdio`, or wrap that in a small shell script.
+
+## LAPACK-backed Schur decomposition
+
+The `schur` closure inside go-chariot now calls Gonum's LAPACK implementation (`gonum.org/v1/gonum/lapack/gonum`) to produce the real Schur form (Hessenberg reduction → orthogonal accumulator → `Dhseqr`). Keep the following in mind when building or running the service:
+
+- `go mod download`/`go mod tidy` must be run after pulling to ensure the LAPACK module is present locally.
+- The default Gonum backend is pure Go, so existing `CGO_ENABLED=0` builds still succeed, but LAPACK routines are CPU-bound and will be slower than hardware-accelerated BLAS/LAPACK backends. If you opt into a cgo-backed BLAS for speed, make sure the target image or host has the matching libraries installed.
+- The routine needs several `n×n` work buffers; large user-provided matrices can allocate multiple megabytes and run in O(n³) time. Add validation in DSL programs or API layers if you need to cap problem sizes.

@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+
+	"gonum.org/v1/gonum/lapack"
+	gonumlapack "gonum.org/v1/gonum/lapack/gonum"
+	"gonum.org/v1/gonum/mat"
 )
 
-const leastSquaresPivotTolerance = 1e-10
+const (
+	leastSquaresPivotTolerance = 1e-10
+	eigenSymmetryTolerance     = 1e-9
+	schurZeroTolerance         = 1e-12
+)
 
 // resolveValue unwraps scope entries to their underlying values.
 func resolveValue(val Value) Value {
@@ -133,6 +141,39 @@ func matrixToArrayValue(matrix [][]float64) *ArrayValue {
 		outer.Append(rowArr)
 	}
 	return outer
+}
+
+func matrixToColMajor(matrix [][]float64) []float64 {
+	size := len(matrix)
+	if size == 0 {
+		return nil
+	}
+	data := make([]float64, size*size)
+	for r := 0; r < size; r++ {
+		for c := 0; c < size; c++ {
+			data[c*size+r] = matrix[r][c]
+		}
+	}
+	return data
+}
+
+func colMajorToMatrix(data []float64, size int) [][]float64 {
+	matrix := make([][]float64, size)
+	for r := 0; r < size; r++ {
+		matrix[r] = make([]float64, size)
+		for c := 0; c < size; c++ {
+			matrix[r][c] = data[c*size+r]
+		}
+	}
+	return matrix
+}
+
+func intsToArrayValue(data []int) *ArrayValue {
+	arr := &ArrayValue{}
+	for _, v := range data {
+		arr.Append(Number(v))
+	}
+	return arr
 }
 
 // leastSquaresProjection solves the normal equations and returns coefficients, projection, residual, and its norm.
@@ -356,4 +397,256 @@ func vectorScale(vector *[]float64, scalar float64) []float64 {
 		result[i] = v * scalar
 	}
 	return result
+}
+
+// eigenSymmetricDecomposition returns eigenvalues and eigenvectors for symmetric matrices.
+func eigenSymmetricDecomposition(matrix [][]float64) ([]float64, [][]float64, error) {
+	size := len(matrix)
+	if size == 0 {
+		return nil, nil, errors.New("matrix cannot be empty")
+	}
+	for i := range matrix {
+		if len(matrix[i]) != size {
+			return nil, nil, errors.New("matrix must be square for eigen decomposition")
+		}
+	}
+	for i := 0; i < size; i++ {
+		for j := i + 1; j < size; j++ {
+			if math.Abs(matrix[i][j]-matrix[j][i]) > eigenSymmetryTolerance {
+				return nil, nil, fmt.Errorf("matrix must be symmetric within tolerance %.1e", eigenSymmetryTolerance)
+			}
+		}
+	}
+
+	sym := mat.NewSymDense(size, nil)
+	for i := 0; i < size; i++ {
+		for j := 0; j <= i; j++ {
+			sym.SetSym(i, j, matrix[i][j])
+		}
+	}
+
+	var eig mat.EigenSym
+	if ok := eig.Factorize(sym, true); !ok {
+		return nil, nil, errors.New("failed to factorize symmetric matrix")
+	}
+
+	values := eig.Values(nil)
+	var vec mat.Dense
+	eig.VectorsTo(&vec)
+
+	rows, cols := vec.Dims()
+	vectors := make([][]float64, rows)
+	for i := 0; i < rows; i++ {
+		vectors[i] = make([]float64, cols)
+		for j := 0; j < cols; j++ {
+			vectors[i][j] = vec.At(i, j)
+		}
+	}
+
+	return values, vectors, nil
+}
+
+// eigenGeneralDecomposition returns complex eigenvalues and vectors for general matrices.
+func eigenGeneralDecomposition(matrix [][]float64) ([]float64, []float64, [][]float64, [][]float64, error) {
+	size := len(matrix)
+	if size == 0 {
+		return nil, nil, nil, nil, errors.New("matrix cannot be empty")
+	}
+	for i := range matrix {
+		if len(matrix[i]) != size {
+			return nil, nil, nil, nil, errors.New("matrix must be square for eigen decomposition")
+		}
+	}
+
+	data := make([]float64, size*size)
+	for i := 0; i < size; i++ {
+		copy(data[i*size:(i+1)*size], matrix[i])
+	}
+	dense := mat.NewDense(size, size, data)
+
+	var eig mat.Eigen
+	if ok := eig.Factorize(dense, mat.EigenRight); !ok {
+		return nil, nil, nil, nil, errors.New("failed to factorize matrix")
+	}
+
+	complexVals := eig.Values(nil)
+	realVals := make([]float64, len(complexVals))
+	imagVals := make([]float64, len(complexVals))
+	for i, val := range complexVals {
+		realVals[i] = real(val)
+		imagVals[i] = imag(val)
+	}
+	var vectors mat.CDense
+	eig.VectorsTo(&vectors)
+
+	rows, cols := vectors.Dims()
+	realVectors := make([][]float64, rows)
+	imagVectors := make([][]float64, rows)
+	for i := 0; i < rows; i++ {
+		realVectors[i] = make([]float64, cols)
+		imagVectors[i] = make([]float64, cols)
+		for j := 0; j < cols; j++ {
+			val := vectors.At(i, j)
+			realVectors[i][j] = real(val)
+			imagVectors[i][j] = imag(val)
+		}
+	}
+
+	return realVals, imagVals, realVectors, imagVectors, nil
+}
+
+// dominantEigenPair computes the dominant eigenvalue/vector via the power iteration method.
+func dominantEigenPair(matrix [][]float64, tolerance float64, maxIterations int) (float64, []float64, error) {
+	size := len(matrix)
+	if size == 0 {
+		return 0, nil, errors.New("matrix cannot be empty")
+	}
+	for i := range matrix {
+		if len(matrix[i]) != size {
+			return 0, nil, errors.New("matrix must be square for power iteration")
+		}
+	}
+	if tolerance <= 0 {
+		return 0, nil, errors.New("tolerance must be positive")
+	}
+	if maxIterations <= 0 {
+		return 0, nil, errors.New("maxIterations must be positive")
+	}
+
+	vector := make([]float64, size)
+	for i := range vector {
+		vector[i] = 1 / math.Sqrt(float64(size))
+	}
+
+	prevEigen := 0.0
+	for iter := 0; iter < maxIterations; iter++ {
+		next := make([]float64, size)
+		for i := 0; i < size; i++ {
+			sum := 0.0
+			for j := 0; j < size; j++ {
+				sum += matrix[i][j] * vector[j]
+			}
+			next[i] = sum
+		}
+
+		norm := math.Sqrt(dotProduct(next, next))
+		if norm == 0 {
+			return 0, nil, errors.New("encountered zero vector during iteration")
+		}
+		for i := range next {
+			next[i] /= norm
+		}
+
+		eigen := rayleighQuotient(matrix, next)
+		if math.Abs(eigen-prevEigen) < tolerance {
+			return eigen, next, nil
+		}
+		prevEigen = eigen
+		vector = next
+	}
+
+	return prevEigen, vector, fmt.Errorf("power iteration did not converge within %d iterations", maxIterations)
+}
+
+func dotProduct(a, b []float64) float64 {
+	sum := 0.0
+	for i := range a {
+		sum += a[i] * b[i]
+	}
+	return sum
+}
+
+func rayleighQuotient(matrix [][]float64, vector []float64) float64 {
+	numerator := 0.0
+	denom := dotProduct(vector, vector)
+	for i := 0; i < len(vector); i++ {
+		rowSum := 0.0
+		for j := 0; j < len(vector); j++ {
+			rowSum += matrix[i][j] * vector[j]
+		}
+		numerator += vector[i] * rowSum
+	}
+	if denom == 0 {
+		return 0
+	}
+	return numerator / denom
+}
+
+func denseToMatrix(m mat.Matrix) [][]float64 {
+	rows, cols := m.Dims()
+	result := make([][]float64, rows)
+	for i := 0; i < rows; i++ {
+		result[i] = make([]float64, cols)
+		for j := 0; j < cols; j++ {
+			result[i][j] = m.At(i, j)
+		}
+	}
+	return result
+}
+
+func detectSchurBlocks(tMatrix [][]float64) []int {
+	blocks := []int{}
+	size := len(tMatrix)
+	i := 0
+	for i < size {
+		if i < size-1 && math.Abs(tMatrix[i+1][i]) > schurZeroTolerance {
+			blocks = append(blocks, 2)
+			i += 2
+			continue
+		}
+		blocks = append(blocks, 1)
+		i++
+	}
+	return blocks
+}
+
+// realSchurDecomposition computes the real Schur form using LAPACK routines.
+func realSchurDecomposition(matrix [][]float64) ([][]float64, [][]float64, []float64, []float64, []int, error) {
+	size := len(matrix)
+	if size == 0 {
+		return nil, nil, nil, nil, nil, errors.New("matrix cannot be empty")
+	}
+	for i := range matrix {
+		if len(matrix[i]) != size {
+			return nil, nil, nil, nil, nil, errors.New("matrix must be square for Schur decomposition")
+		}
+	}
+	if size == 1 {
+		return [][]float64{{matrix[0][0]}}, [][]float64{{1}}, []float64{matrix[0][0]}, []float64{0}, []int{1}, nil
+	}
+	impl := gonumlapack.Implementation{}
+	colMajor := matrixToColMajor(matrix)
+	ilo, ihi := 0, size-1
+	tau := make([]float64, size-1)
+	work := make([]float64, 1)
+	impl.Dgehrd(size, ilo, ihi, colMajor, size, tau, work, -1)
+	lwork := int(math.Max(1, work[0]))
+	work = make([]float64, lwork)
+	impl.Dgehrd(size, ilo, ihi, colMajor, size, tau, work, lwork)
+	hessenberg := make([]float64, len(colMajor))
+	copy(hessenberg, colMajor)
+	schurVecs := make([]float64, len(colMajor))
+	copy(schurVecs, colMajor)
+	work = make([]float64, 1)
+	impl.Dorghr(size, ilo, ihi, schurVecs, size, tau, work, -1)
+	lwork = int(math.Max(1, work[0]))
+	work = make([]float64, lwork)
+	impl.Dorghr(size, ilo, ihi, schurVecs, size, tau, work, lwork)
+	wr := make([]float64, size)
+	wi := make([]float64, size)
+	work = make([]float64, 1)
+	impl.Dhseqr(lapack.EigenvaluesAndSchur, lapack.SchurOrig, size, ilo, ihi, hessenberg, size, wr, wi, schurVecs, size, work, -1)
+	lwork = int(math.Max(float64(size), work[0]))
+	work = make([]float64, lwork)
+	if unconverged := impl.Dhseqr(lapack.EigenvaluesAndSchur, lapack.SchurOrig, size, ilo, ihi, hessenberg, size, wr, wi, schurVecs, size, work, lwork); unconverged != 0 {
+		return nil, nil, nil, nil, nil, fmt.Errorf("schur decomposition failed after %d unconverged eigenvalues", unconverged)
+	}
+	tMatrix := colMajorToMatrix(hessenberg, size)
+	qMatrix := colMajorToMatrix(schurVecs, size)
+	realVals := make([]float64, size)
+	imagVals := make([]float64, size)
+	copy(realVals, wr)
+	copy(imagVals, wi)
+	blocks := detectSchurBlocks(tMatrix)
+	return tMatrix, qMatrix, realVals, imagVals, blocks, nil
 }
