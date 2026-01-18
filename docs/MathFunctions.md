@@ -35,6 +35,7 @@ Chariot provides a comprehensive set of mathematical and financial functions, in
 | `solveLinear(matrix, vector)` | Solve square system A·x = b        |
 | `lsp(matrix, vector)` | Least-squares projection summary          |
 | `vectorScale(vector, scalar)` | Scale a vector by a scalar factor  |
+| `dotProduct(vectorA, vectorB)` | Inner product `uᵀv` for two equal-length vectors |
 | `eigenSymmetric(matrix)` | Eigenvalues/vectors for real symmetric matrices |
 | `eigen(matrix)` | Full eigen decomposition (real + imaginary parts) |
 | `dominantEigen(matrix [, tolerance [, maxIterations]])` | Power-iteration dominant eigenpair |
@@ -151,6 +152,8 @@ lsp([[1, 0], [0, 1], [1, 1]], [1, 2, 2])
 // {coefficients: [0.667, 1.667], projection: [0.667, 1.667, 2.333], residual: [0.333, 0.333, -0.333], residualNorm: 0.577}
 vectorScale([1, 2, 3], 0.5)
 // [0.5, 1, 1.5]
+dotProduct([1, 2, 3], [4, 5, 6])
+// 32
 eigenSymmetric([[2, 1], [1, 2]])
 // {values: [1, 3], vectors: [[-0.707, 0.707], [0.707, 0.707]]}
 eigen([[0, -1], [1, 0]])

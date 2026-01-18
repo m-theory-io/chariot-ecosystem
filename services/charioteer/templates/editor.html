@@ -1345,13 +1345,13 @@
             [/\b(cbClose|cbConnect|cbGet|cbInsert|cbOpenBucket|cbQuery|cbRemove|cbReplace|cbSetScope|cbUpsert|newID)\b(?=\s*\()/, 'keyword.chariot.couchbase'],
             [/\b(date|dateAdd|dateDiff|dateSchedule|day|dayCount|dayOfWeek|endOfMonth|formatDate|isBusinessDay|isDate|isEndOfMonth|julianDay|month|nextBusinessDay|now|today|utcTime|year|yearFraction)\b(?=\s*\()/, 'keyword.chariot.date'],
             [/\b(apply|clone|contains|getAllMeta|getAt|getAttributes|getMeta|getProp|indexOf|setMeta|setProp|length)\b(?=\s*\()/, 'keyword.chariot.dispatcher'],
-            [/\b(addMapping|addMappingWithTransform|createTransform|doETL|etlStatus|getTransform|listTransforms|registerTransform)\b(?=\s*\()/, 'keyword.chariot.etl'],
+            [/\b(addMapping|addMappingWithTransform|createTransform|doETL|etlStatus|getTransform|listTransforms|map|registerTransform)\b(?=\s*\()/, 'keyword.chariot.etl'],
             [/\b(deleteFile|convertJSONFileToYAML|convertYAMLFileToJSON|fileExists|getFileSize|jsonToYAML|jsonToYAMLNode|listFiles|loadCSV|loadCSVRaw|loadJSON|loadJSONRaw|loadYAML|loadYAMLMultiDoc|loadYAMLRaw|loadXML|loadXMLRaw|parseXMLString|readFile|saveCSV|saveCSVRaw|saveJSON|saveJSONRaw|saveYAML|saveYAMLMultiDoc|saveYAMLRaw|saveXML|saveXMLRaw|writeFile|yamlToJSON|yamlToJSONNode)\b(?=\s*\()/, 'keyword.chariot.file'],
             [/\b(cryptoRandomString|encrypt|decrypt|sign|verify|hash256|hash512|generateKey|generateRSAKey|randomBytes)\b(?=\s*\()/, 'keyword.chariot.crypto'],
             [/\b(break|continue)\b(?=\s*\()/, 'keyword.chariot.flow'],
             [/\b(callMethod||getHostObject|hostObject)\b(?=\s*\()/, 'keyword.chariot.host'],
             [/\b(parseJSON|parseJSONValue|toJSON|toSimpleJSON)\b(?=\s*\()/, 'keyword.chariot.json'],
-            [/\b(abs|add|amortize|apr|avg|balloon|ceil|ceiling|cos|depreciation|div|e|exp|floor|fv|int|irr|ln|lsp|loanBalance|log|log10|log2|matmul|max|min|mod|mul|nper|npv|pct|pi|pmt|pow|pv|random|randomSeed|randomString|rate|round|sin|solveLinear|sqrt|sub|sum|tan|transpose|vectorScale)\b(?=\s*\()/, 'keyword.chariot.math'],
+            [/\b(abs|add|amortize|apr|avg|balloon|ceil|ceiling|cos|depreciation|div|dotProduct|e|exp|floor|fv|int|irr|ln|lsp|loanBalance|log|log10|log2|matmul|max|min|mod|mul|nper|npv|pct|pi|pmt|pow|pv|random|randomSeed|randomString|rate|round|sin|solveLinear|sqrt|sub|sum|tan|transpose|vectorScale)\b(?=\s*\()/, 'keyword.chariot.math'],
             [/\b(parseJSON|parseJSONValue|toJSON|toSimpleJSON)\b(?=\s*\()/, 'keyword.chariot.json'],
             [/\b(knapsack|knapsackConfig)\b(?=\s*\()/, 'keyword.chariot.knapsack'],
             [/\b(rlInit|rlScore|rlLearn|rlClose|rlSelectBest|extractRLFeatures|rlExplore|nbaDecision)\b(?=\s*\()/, 'keyword.chariot.rl'],
@@ -3002,14 +3002,27 @@
                     break;
 
                 case 'error':
-                    updateDebugStatus('stopped', 'Error: ' + event.message);
+                    const errorMessage = event.message || 'Debugger reported an error';
+                    updateDebugStatus('stopped', 'Error: ' + errorMessage);
                     currentDebugLine = null;
                     updateEditorBreakpoints();
+                    logDebuggerOutput(errorMessage, 'error');
+                    showProblem('Debugger error: ' + errorMessage, 'error');
                     break;
 
                 case 'stopped':
-                    resetDebuggerUI(event.message || 'Stopped');
+                    const stopMessage = event.message || 'Execution stopped';
+                    resetDebuggerUI(stopMessage);
+                    logDebuggerOutput(stopMessage, stopMessage.toLowerCase().includes('error') ? 'error' : 'info');
                     break;
+            }
+        }
+
+        function logDebuggerOutput(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            appendToOutput('[' + timestamp + '] Debugger: ' + escapeHtml(message), type);
+            if (currentBottomTab !== 'output') {
+                switchTab('output');
             }
         }
 

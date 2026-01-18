@@ -156,6 +156,9 @@ export class ChariotCodeGenerator {
       'lsp': 'lsp',
       'vector scale': 'vectorScale',
       'vectorscale': 'vectorScale',
+      'dot product': 'dotProduct',
+      'dotproduct': 'dotProduct',
+      'dot-product': 'dotProduct',
     };
     return aliasMap[lowerKey] || normalized;
   }
@@ -518,6 +521,8 @@ export class ChariotCodeGenerator {
         return this.generateTransposeCode(node);
       case 'matmul':
         return this.generateMatmulCode(node);
+      case 'dotProduct':
+        return this.generateDotProductCode(node);
       case 'solveLinear':
         return this.generateSolveLinearCode(node);
       case 'lsp':
@@ -1605,6 +1610,16 @@ export class ChariotCodeGenerator {
     const left = this.coerceExpression(leftSource, 'matrixA');
     const right = this.coerceExpression(rightSource, 'matrixB');
     return `matmul(${left}, ${right})`;
+  }
+
+  private generateDotProductCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const operands = this.normalizeExpressionList((props as { operands?: unknown }).operands);
+    const leftSource = operands[0] ?? (props as { leftVector?: unknown; leftOperand?: unknown }).leftVector ?? (props as { leftOperand?: unknown }).leftOperand;
+    const rightSource = operands[1] ?? (props as { rightVector?: unknown; rightOperand?: unknown }).rightVector ?? (props as { rightOperand?: unknown }).rightOperand;
+    const left = this.coerceExpression(leftSource, 'vectorA');
+    const right = this.coerceExpression(rightSource, 'vectorB');
+    return `dotProduct(${left}, ${right})`;
   }
 
   private generateSolveLinearCode(node: VisualDSLNode): string {

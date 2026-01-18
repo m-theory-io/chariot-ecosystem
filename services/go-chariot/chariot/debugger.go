@@ -187,17 +187,20 @@ func (d *Debugger) ShouldBreak(file string, line int, rt *Runtime) bool {
 	// Check step mode
 	switch d.stepMode {
 	case StepModeOver:
-		// Break if we're at the same depth or shallower
-		if len(d.callStack) <= d.stepDepth {
+		// Break once we've returned to this depth AND moved to a different line
+		moved := d.lastPausedFile == "" || file != d.lastPausedFile || line != d.lastPausedLine
+		if len(d.callStack) <= d.stepDepth && moved {
 			d.stepMode = StepModeNone
 			return true
 		}
 	case StepModeInto:
-		// Always break on next line
-		d.stepMode = StepModeNone
-		return true
+		// Break on the first new line we reach
+		if d.lastPausedFile == "" || file != d.lastPausedFile || line != d.lastPausedLine {
+			d.stepMode = StepModeNone
+			return true
+		}
 	case StepModeOut:
-		// Break when we return from current function
+		// Break when we return from current function (depth is shallower)
 		if len(d.callStack) < d.stepDepth {
 			d.stepMode = StepModeNone
 			return true

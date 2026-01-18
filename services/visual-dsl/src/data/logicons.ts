@@ -1109,6 +1109,13 @@ export const logiconDefinitions: LogiconData[] = [
     description: 'Scale a vector by a scalar',
     category: 'math'
   },
+  {
+    id: 'dotProduct',
+    label: 'Dot Product',
+    icon: '🎯',
+    description: 'Dot product of two vectors',
+    category: 'math'
+  },
 
   // String Functions
   {
