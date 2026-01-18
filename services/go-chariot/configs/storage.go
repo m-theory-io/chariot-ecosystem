@@ -215,6 +215,7 @@ func EnsureSandboxDirectories(username string) error {
 			zap.String("path", path),
 			zap.String("kind", string(kind)),
 		)
+		// Create directory if it doesn't exist
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			ChariotLogger.Error("Failed to create sandbox directory",
 				zap.String("path", path),

@@ -60,8 +60,11 @@ services:
       - CHARIOT_VAULT_KEY_PREFIX=azure
       # Sandbox configuration
       - CHARIOT_SANDBOX_ENABLED=true
-      - CHARIOT_SANDBOX_ROOT="data/sandboxes"
-      - CHARIOT_SANDBOX_DEFAULT_SCOPE="sandbox"
+      - CHARIOT_DATA_PATH=/app/data
+      - CHARIOT_TREE_PATH=/app/data/trees
+      - CHARIOT_DIAGRAM_PATH=/app/data/diagrams
+      - CHARIOT_SANDBOX_ROOT=/app/data/sandboxes
+      - CHARIOT_SANDBOX_DEFAULT_SCOPE=sandbox
     ports:
       - "8087:8087"
     depends_on:

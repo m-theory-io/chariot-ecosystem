@@ -19,6 +19,12 @@ interface SavedDiagram {
   modified: string;
 }
 
+interface SessionProfilePayload {
+  sandbox_enabled?: boolean;
+  sandbox_scopes?: unknown[];
+  sandbox_scope_default?: string | null;
+}
+
 export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   currentDiagramName,
   onDiagramNameChange,
@@ -54,7 +60,12 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
   const [shareToGlobal, setShareToGlobal] = useState(false);
   const resolvedScope = sessionProfile.enabled ? activeScope : 'global';
   const effectiveSaveScope = shareToGlobal ? 'global' : resolvedScope;
-  const scopeLabel = (scope: string) => (scope === 'sandbox' ? 'Sandbox' : 'Global');
+  const scopeLabel = (scope: string) => {
+    const normalized = (scope || '').toLowerCase();
+    if (normalized === 'sandbox') return 'Sandbox';
+    if (normalized === 'listeners') return 'Listeners';
+    return 'Global';
+  };
   const getAuthToken = () => localStorage.getItem('chariot_auth_token') || '';
   const setAuthToken = (t: string) => localStorage.setItem('chariot_auth_token', t);
   const directoryInputRef = useRef<HTMLInputElement | null>(null);
@@ -153,20 +164,23 @@ export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({
         throw new Error(`HTTP ${res.status}`);
       }
       const payload = await res.json();
-      const data = payload?.data || payload?.Data || payload;
-      if (!data) {
+      const rawProfile = payload?.data || payload?.Data || payload;
+      if (!rawProfile) {
         return;
       }
+      const data = rawProfile as SessionProfilePayload;
       const enabled = !!data.sandbox_enabled;
-      const scopesRaw = Array.isArray(data.sandbox_scopes) ? data.sandbox_scopes : [];
-      const normalized = scopesRaw.map((s: string) => String(s || '').toLowerCase()).filter(Boolean);
+      const rawScopes: unknown[] = Array.isArray(data.sandbox_scopes) ? data.sandbox_scopes : [];
+      const normalized: string[] = rawScopes
+        .map(scopeValue => String(scopeValue ?? '').toLowerCase())
+        .filter((value): value is string => Boolean(value));
       if (enabled && !normalized.includes('global')) {
         normalized.push('global');
       }
       const scopeList = enabled
         ? (normalized.length ? Array.from(new Set(normalized)) : ['sandbox', 'global'])
         : ['global'];
-      const defaultCandidate = String(data.sandbox_scope_default || (enabled ? 'sandbox' : 'global')).toLowerCase();
+      const defaultCandidate = String(data.sandbox_scope_default ?? (enabled ? 'sandbox' : 'global')).toLowerCase();
       const defaultScope = enabled
         ? (scopeList.includes(defaultCandidate) ? defaultCandidate : scopeList[0])
         : 'global';
