@@ -241,6 +241,20 @@ const testMatrixMathGeneration = () => {
             scalar: '0.5'
           }
         }
+      },
+      {
+        id: 'dotProduct-6',
+        type: 'logicon',
+        position: { x: 1200, y: 0 },
+        data: {
+          label: 'Dot Product',
+          icon: '🎯',
+          category: 'math',
+          properties: {
+            leftVector: 'vectorA',
+            rightVector: 'vectorB'
+          }
+        }
       }
     ],
     edges: [
@@ -248,7 +262,8 @@ const testMatrixMathGeneration = () => {
       { id: 'transpose-matmul', source: 'transpose-1', target: 'matmul-2' },
       { id: 'matmul-solve', source: 'matmul-2', target: 'solveLinear-3' },
       { id: 'solve-lsp', source: 'solveLinear-3', target: 'lsp-4' },
-      { id: 'lsp-vectorScale', source: 'lsp-4', target: 'vectorScale-5' }
+      { id: 'lsp-vectorScale', source: 'lsp-4', target: 'vectorScale-5' },
+      { id: 'vectorScale-dotProduct', source: 'vectorScale-5', target: 'dotProduct-6' }
     ],
     nestingRelations: []
   };

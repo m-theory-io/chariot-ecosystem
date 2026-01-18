@@ -1244,6 +1244,30 @@ func RegisterMath(rt *Runtime) {
 		return floatsToArrayValue(scaled), nil
 	})
 
+	rt.Register("dotProduct", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("dotProduct requires 2 arguments: vectorA and vectorB")
+		}
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+		vectorA, err := valueToVector(args[0])
+		if err != nil {
+			return nil, err
+		}
+		vectorB, err := valueToVector(args[1])
+		if err != nil {
+			return nil, err
+		}
+		result, err := dotProductStrict(vectorA, vectorB)
+		if err != nil {
+			return nil, err
+		}
+		return Number(result), nil
+	})
+
 	rt.Register("lsp", func(args ...Value) (Value, error) {
 		if len(args) != 2 {
 			return nil, errors.New("lsp requires 2 arguments: matrix and vector")

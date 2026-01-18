@@ -174,6 +174,39 @@ func TestVectorScaleZeroScalar(t *testing.T) {
 	}
 }
 
+func TestDotProductHelper(t *testing.T) {
+	a := []float64{1, 2, 3}
+	b := []float64{4, -5, 6}
+	value, err := dotProductStrict(a, b)
+	if err != nil {
+		t.Fatalf("dotProduct returned error: %v", err)
+	}
+	assertApprox(t, value, 12, 1e-9)
+}
+
+func TestDotProductHelperLengthMismatch(t *testing.T) {
+	_, err := dotProductStrict([]float64{1, 2}, []float64{3})
+	if err == nil {
+		t.Fatalf("expected error for mismatched lengths")
+	}
+}
+
+func TestDotProductClosure(t *testing.T) {
+	rt := NewRuntime()
+	RegisterMath(rt)
+	vecA := arrayFromNumbers(1, 3, -2)
+	vecB := arrayFromNumbers(4, 0.5, 10)
+	val, err := rt.funcs["dotProduct"](vecA, vecB)
+	if err != nil {
+		t.Fatalf("dotProduct closure returned error: %v", err)
+	}
+	num, ok := val.(Number)
+	if !ok {
+		t.Fatalf("expected Number result, got %T", val)
+	}
+	assertApprox(t, float64(num), 4*1+0.5*3+10*(-2), 1e-9)
+}
+
 func TestEigenSymmetricDecomposition(t *testing.T) {
 	matrix := [][]float64{{2, 1}, {1, 2}}
 	values, vectors, err := eigenSymmetricDecomposition(matrix)

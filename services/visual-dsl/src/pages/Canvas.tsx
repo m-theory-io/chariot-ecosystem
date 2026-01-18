@@ -83,6 +83,7 @@ import { MaxNodePropertiesDialog, MaxNodeProperties } from "../components/dialog
 import { MinNodePropertiesDialog, MinNodeProperties } from "../components/dialogs/MinNodeProperties";
 import { TransposeNodePropertiesDialog, TransposeNodeProperties } from "../components/dialogs/TransposeNodeProperties";
 import { MatmulNodePropertiesDialog, MatmulNodeProperties } from "../components/dialogs/MatmulNodeProperties";
+import { DotProductNodePropertiesDialog, DotProductNodeProperties } from "../components/dialogs/DotProductNodeProperties";
 import { SolveLinearNodePropertiesDialog, SolveLinearNodeProperties } from "../components/dialogs/SolveLinearNodeProperties";
 import { LspNodePropertiesDialog, LspNodeProperties } from "../components/dialogs/LspNodeProperties";
 import { VectorScaleNodePropertiesDialog, VectorScaleNodeProperties } from "../components/dialogs/VectorScaleNodeProperties";
@@ -837,6 +838,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'transpose';
       } else if ((label === 'Matmul' || label === 'matmul' || label === 'Matrix Multiply') && category === 'math') {
         nodeType = 'matmul';
+      } else if ((label === 'Dot Product' || label === 'dotProduct' || label === 'dot product') && category === 'math') {
+        nodeType = 'dotProduct';
       } else if ((label === 'Solve Linear' || label === 'solveLinear' || label === 'Solve linear') && category === 'math') {
         nodeType = 'solveLinear';
       } else if ((label === 'Least Squares' || label === 'least squares' || label === 'lsp' || label === 'LSP') && category === 'math') {
@@ -2184,6 +2187,11 @@ export default function VisualDSLPrototype() {
           leftMatrix: 'matrixA',
           rightMatrix: 'matrixB'
         } as MatmulNodeProperties;
+      } else if (logicon.label === 'Dot Product' || logicon.label === 'dotProduct' || logicon.label === 'dot product') {
+        defaultProperties = {
+          leftVector: 'vectorA',
+          rightVector: 'vectorB'
+        } as DotProductNodeProperties;
       } else if (logicon.label === 'Solve Linear' || logicon.label === 'solveLinear' || logicon.label === 'Solve linear') {
         defaultProperties = {
           matrix: 'matrixA',
@@ -2367,6 +2375,11 @@ export default function VisualDSLPrototype() {
         leftMatrix: 'matrixA',
         rightMatrix: 'matrixB'
       } as MatmulNodeProperties;
+    } else if (logicon.label === 'Dot Product' || logicon.label === 'dotProduct' || logicon.label === 'dot product') {
+      defaultProperties = {
+        leftVector: 'vectorA',
+        rightVector: 'vectorB'
+      } as DotProductNodeProperties;
     } else if (logicon.label === 'Solve Linear' || logicon.label === 'solveLinear' || logicon.label === 'Solve linear') {
       defaultProperties = {
         matrix: 'matrixA',
@@ -3059,6 +3072,11 @@ export default function VisualDSLPrototype() {
         leftMatrix: 'matrixA',
         rightMatrix: 'matrixB'
       } as MatmulNodeProperties;
+    } else if (logicon.label === 'Dot Product' || logicon.label === 'dotProduct' || logicon.label === 'dot product') {
+      defaultProperties = {
+        leftVector: 'vectorA',
+        rightVector: 'vectorB'
+      } as DotProductNodeProperties;
     } else if (logicon.label === 'Solve Linear' || logicon.label === 'solveLinear' || logicon.label === 'Solve linear') {
       defaultProperties = {
         matrix: 'matrixA',
@@ -5313,6 +5331,22 @@ export default function VisualDSLPrototype() {
               initialProperties={propertiesDialog.properties as MatmulNodeProperties || {
                 leftMatrix: 'matrixA',
                 rightMatrix: 'matrixB'
+              }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'dotProduct' && (
+            <DotProductNodePropertiesDialog
+              isOpen={true}
+              onClose={() => setPropertiesDialog(null)}
+              onSave={(properties: DotProductNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              onDelete={() => {
+                deleteNode(propertiesDialog.nodeId);
+                setPropertiesDialog(null);
+              }}
+              initialProperties={propertiesDialog.properties as DotProductNodeProperties || {
+                leftVector: 'vectorA',
+                rightVector: 'vectorB'
               }}
             />
           )}

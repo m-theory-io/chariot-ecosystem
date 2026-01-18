@@ -298,6 +298,20 @@ func TestLinearAlgebraClosures(t *testing.T) {
 			},
 			ExpectedError: true,
 		},
+		{
+			Name: "Dot Product Result",
+			Script: []string{
+				`dotProduct(array(1, 3, -2), array(4, 0.5, 10))`,
+			},
+			ExpectedValue: chariot.Number(4*1 + 0.5*3 + 10*(-2)),
+		},
+		{
+			Name: "Dot Product Length Mismatch",
+			Script: []string{
+				`dotProduct(array(1, 2), array(3))`,
+			},
+			ExpectedError: true,
+		},
 	}
 
 	RunTestCases(t, tests)

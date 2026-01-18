@@ -556,6 +556,16 @@ func dotProduct(a, b []float64) float64 {
 	return sum
 }
 
+func dotProductStrict(a, b []float64) (float64, error) {
+	if len(a) == 0 || len(b) == 0 {
+		return 0, errors.New("vectors cannot be empty")
+	}
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("vector length mismatch: %d vs %d", len(a), len(b))
+	}
+	return dotProduct(a, b), nil
+}
+
 func rayleighQuotient(matrix [][]float64, vector []float64) float64 {
 	numerator := 0.0
 	denom := dotProduct(vector, vector)
