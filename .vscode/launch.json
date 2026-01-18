@@ -28,7 +28,14 @@
                 "AZURE_TENANT_ID": "82fbfa53-3046-4f39-a182-f5e0082313d4",
                 "AZURE_KEY_VAULT_URL": "https://chariot-vault.vault.azure.net",
                 "AZURE_CONFIG_DIR": "/Users/williamhouse/.azure",
-                "CHARIOT_VAULT_KEY_PREFIX": "local"
+                "CHARIOT_VAULT_KEY_PREFIX": "local",
+                "CHARIOT_SANDBOX_ENABLED": "true",
+                "CHARIOTEER_FILES_DIR": "${workspaceFolder}/data/files",
+                "CHARIOT_DATA_PATH": "${workspaceFolder}/data",
+                "CHARIOT_TREE_PATH": "${workspaceFolder}/data/trees",
+                "CHARIOT_DIAGRAM_PATH": "${workspaceFolder}/data/diagrams",
+                "CHARIOT_SANDBOX_ROOT": "${workspaceFolder}/data/sandboxes",
+                "CHARIOT_SANDBOX_DEFAULT_SCOPE": "sandbox"
             },
             "args": [],
             "showLog": true,

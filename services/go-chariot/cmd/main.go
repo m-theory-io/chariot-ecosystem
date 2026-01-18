@@ -35,7 +35,7 @@ func init() {
 	cfg.ChariotConfig.BoolVar("verbose", &cfg.ChariotConfig.Verbose, false)
 	cfg.ChariotConfig.BoolVar("ssl", &cfg.ChariotConfig.SSL, false)
 	// Couchbase connectivity
-	cfg.ChariotConfig.StringVar("couchbase_url", &cfg.ChariotConfig.CBUrl, "192.168.0.117")
+	cfg.ChariotConfig.StringVar("couchbase_url", &cfg.ChariotConfig.CBUrl, "localhost")
 	cfg.ChariotConfig.StringVar("couchbase_user", &cfg.ChariotConfig.CBUser, "")
 	cfg.ChariotConfig.StringVar("couchbase_password", &cfg.ChariotConfig.CBPassword, "")
 	cfg.ChariotConfig.StringVar("couchbase_bucket", &cfg.ChariotConfig.CBBucket, "chariot")
@@ -65,7 +65,7 @@ func init() {
 	cfg.ChariotConfig.StringVar("cert_path", &cfg.ChariotConfig.CertPath, "../.certs")
 	// Sandbox configuration
 	cfg.ChariotConfig.BoolVar("sandbox_enabled", &cfg.ChariotConfig.SandboxEnabled, false)
-	cfg.ChariotConfig.StringVar("sandbox_root", &cfg.ChariotConfig.SandboxRoot, "")
+	cfg.ChariotConfig.StringVar("sandbox_root", &cfg.ChariotConfig.SandboxRoot, "./data/sandboxes")
 	cfg.ChariotConfig.StringVar("sandbox_default_scope", &cfg.ChariotConfig.SandboxDefaultScope, "sandbox")
 	// Function library
 	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stdlib.json")

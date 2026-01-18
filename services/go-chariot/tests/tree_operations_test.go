@@ -22,6 +22,16 @@ func TestTreeOperations(t *testing.T) {
 			ExpectedValue: chariot.Str("John"),
 		},
 		{
+			Name: "Tree Save and Load - Simple GOB",
+			Script: []string{
+				`setq(data, parseJSON('{"name": "John", "age": 30}', 'root'))`,
+				`treeSave(data, 'simple_tree.gob', 'gob')`,
+				`setq(loaded, treeLoad('simple_tree.gob'))`,
+				`getAttribute(loaded, 'name')`,
+			},
+			ExpectedValue: chariot.Str("John"),
+		},
+		{
 			Name: "Tree Save and Load - Complex Structure",
 			Script: []string{
 				`setq(data, parseJSON('{"name": "TechCorp", "employees": [{"name": "Alice", "role": "dev"}, {"name": "Bob", "role": "manager"}]}', 'company'))`,

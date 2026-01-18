@@ -600,23 +600,109 @@ func (s *TreeNodeSerializer) LoadTree(filePath string) (TreeNode, error) {
 		deserializer := &StatefulGobDeserializer{}
 		node, err := deserializer.DeserializeTree(data)
 		if err != nil {
-			cfg.ChariotLogger.Warn("Stateful GOB deserialization failed, trying regular GOB",
+			cfg.ChariotLogger.Warn("Stateful GOB deserialization failed, exploring legacy formats",
 				zap.Error(err))
 
-			// Fallback: Try to decode as a direct TreeNode (for backward compatibility)
-			buf := bytes.NewBuffer(data)
-			decoder := gob.NewDecoder(buf)
-
-			var fallbackNode TreeNode
-			err = decoder.Decode(&fallbackNode)
-			if err != nil {
-				return nil, fmt.Errorf("both stateful and regular GOB deserialization failed: %w", err)
+			legacyNode, legacyErr := s.decodeLegacyGOBPayload(data)
+			if legacyErr != nil {
+				return nil, fmt.Errorf("both stateful and legacy GOB deserialization failed: %w", legacyErr)
 			}
-			return fallbackNode, nil
+			cfg.ChariotLogger.Info("Legacy GOB payload decoded successfully")
+			return legacyNode, nil
 		}
 		return node, nil
 	default:
 		return nil, fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+func (s *TreeNodeSerializer) decodeLegacyGOBPayload(data []byte) (TreeNode, error) {
+	payload := data
+
+	// Attempt to decode the payload directly as a TreeNode
+	if node, err := decodeTreeNodeFromGOBBytes(payload); err == nil {
+		return node, nil
+	}
+
+	// Some older artifacts were gzip-compressed without toggling the Compression flag
+	if isGzipData(payload) {
+		decompressed, err := gunzipBytes(payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress legacy GOB payload: %w", err)
+		}
+		payload = decompressed
+		if node, err := decodeTreeNodeFromGOBBytes(payload); err == nil {
+			return node, nil
+		}
+	}
+
+	// Next, try decoding as a gob-encoded byte slice which itself may contain the tree
+	rawBytes, err := decodeGobByteSlice(payload)
+	if err != nil {
+		return nil, fmt.Errorf("legacy byte-slice decode failed: %w", err)
+	}
+	inner := rawBytes
+	if isGzipData(inner) {
+		inner, err = gunzipBytes(inner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress nested legacy payload: %w", err)
+		}
+	}
+
+	if node, err := decodeTreeNodeFromGOBBytes(inner); err == nil {
+		return node, nil
+	}
+
+	if looksLikeJSONPayload(inner) {
+		return s.LoadTreeFromJSON(string(inner))
+	}
+
+	return nil, fmt.Errorf("legacy payload was not recognized as a supported tree format")
+}
+
+func decodeTreeNodeFromGOBBytes(data []byte) (TreeNode, error) {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+	var node TreeNode
+	if err := decoder.Decode(&node); err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func decodeGobByteSlice(data []byte) ([]byte, error) {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+	var raw []byte
+	if err := decoder.Decode(&raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+func isGzipData(data []byte) bool {
+	return len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b
+}
+
+func gunzipBytes(data []byte) ([]byte, error) {
+	gzReader, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer gzReader.Close()
+	return io.ReadAll(gzReader)
+}
+
+func looksLikeJSONPayload(data []byte) bool {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return false
+	}
+	switch trimmed[0] {
+	case '{', '[':
+		return true
+	default:
+		return false
 	}
 }
 

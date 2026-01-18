@@ -1442,6 +1442,10 @@
             defaultScope: 'global',
             currentScope: 'global'
         };
+        const diagramScopeState = {
+            current: 'global',
+            pinnedByUser: false
+        };
         const editorPaneState = {
             primary: {
                 id: 'primary',
@@ -3202,6 +3206,7 @@
                     defaultScope: resolvedScope,
                     currentScope: resolvedScope
                 };
+                alignDiagramScopeWithProfile(resolvedScope);
                 if (!fileScopePinnedByUser) {
                     currentFileBrowserScope = sandboxProfile.currentScope;
                 }
@@ -3233,6 +3238,7 @@
             currentFileScope = 'global';
             currentFileBrowserScope = 'global';
             fileScopePinnedByUser = false;
+            resetDiagramScopeState();
             applyDiagramScopeUI();
             applyFileScopeUI();
         }
@@ -4727,7 +4733,7 @@
 
                 if (scopeSelect) {
                     scopeSelect.addEventListener('change', async function () {
-                        sandboxProfile.currentScope = scopeSelect.value || 'global';
+                        setDiagramScope(scopeSelect.value || 'global', { pinned: true });
                         applyDiagramScopeUI();
                         await loadDiagramsList(false);
                         currentDiagramName = '';
@@ -4796,7 +4802,8 @@
             select.disabled = true;
             toggleDiagramActionButtons(false);
             try {
-                const resp = await fetch(buildDiagramURL('/api/diagrams'), { headers: getAuthHeaders() });
+                const requestedScope = getCurrentDiagramScope();
+                const resp = await fetch(buildDiagramURL('/api/diagrams', requestedScope), { headers: getAuthHeaders() });
                 if (!resp.ok) {
                     if (resp.status === 401) { logout(); return; }
                     const t = await resp.text();
@@ -4804,10 +4811,7 @@
                     return;
                 }
                 const resolvedScope = (resp.headers.get('X-Chariot-Scope') || '').toLowerCase();
-                if (resolvedScope && resolvedScope !== sandboxProfile.currentScope) {
-                    sandboxProfile.currentScope = resolvedScope;
-                    applyDiagramScopeUI();
-                }
+                reconcileDiagramScopeFromServer(resolvedScope, requestedScope);
                 const result = await resp.json();
                 const list = Array.isArray(result) ? result : (result && result.result === 'OK' ? result.data : []);
                 if (Array.isArray(list)) {
@@ -4890,6 +4894,64 @@
             } catch (_) { return code; }
         }
 
+        function normalizeScopeValue(scope) {
+            return (scope || 'global').toLowerCase();
+        }
+
+        function getDiagramScopeOptions() {
+            const scopes = sandboxProfile.scopes.length ? sandboxProfile.scopes.slice() : ['global', 'sandbox'];
+            if (!scopes.includes(FILE_SCOPE_LISTENERS)) {
+                scopes.push(FILE_SCOPE_LISTENERS);
+            }
+            return scopes;
+        }
+
+        function setDiagramScope(scope, options = {}) {
+            const available = getDiagramScopeOptions();
+            const normalized = normalizeScopeValue(scope);
+            const next = available.includes(normalized) ? normalized : (available[0] || 'global');
+            diagramScopeState.current = next || 'global';
+            if (options.pinned !== undefined) {
+                diagramScopeState.pinnedByUser = !!options.pinned;
+            }
+        }
+
+        function alignDiagramScopeWithProfile(defaultScope) {
+            const available = getDiagramScopeOptions();
+            const normalizedDefault = normalizeScopeValue(defaultScope || available[0] || 'global');
+            const current = normalizeScopeValue(diagramScopeState.current);
+            if (diagramScopeState.pinnedByUser && available.includes(current)) {
+                return;
+            }
+            const next = available.includes(normalizedDefault) ? normalizedDefault : (available[0] || 'global');
+            setDiagramScope(next, { pinned: false });
+        }
+
+        function resetDiagramScopeState() {
+            diagramScopeState.current = 'global';
+            diagramScopeState.pinnedByUser = false;
+        }
+
+        function reconcileDiagramScopeFromServer(resolvedScope, requestedScope) {
+            if (!resolvedScope) {
+                return;
+            }
+            const normalizedResolved = normalizeScopeValue(resolvedScope);
+            const normalizedRequested = normalizeScopeValue(requestedScope || diagramScopeState.current);
+            if (normalizedResolved === normalizedRequested) {
+                return;
+            }
+            const available = getDiagramScopeOptions();
+            if (!available.includes(normalizedResolved)) {
+                return;
+            }
+            if (diagramScopeState.pinnedByUser) {
+                showOutput('Scope "' + getScopeLabel(normalizedRequested) + '" unavailable. Switched to ' + getScopeLabel(normalizedResolved) + '.', 'warning');
+            }
+            setDiagramScope(normalizedResolved, { pinned: false });
+            applyDiagramScopeUI();
+        }
+
         function toggleDiagramActionButtons(enabled) {
             const saveBtn = document.getElementById('saveDiagramButton');
             const saveAsBtn = document.getElementById('saveAsDiagramButton');
@@ -4900,7 +4962,7 @@
         }
 
         function getCurrentDiagramScope() {
-            return sandboxProfile.currentScope || 'global';
+            return diagramScopeState.current || 'global';
         }
 
         function isListenerScope(scope) {
@@ -4938,11 +5000,7 @@
             if (!controls || !select) {
                 return;
             }
-            // Always show all available scopes from profile (baseline feature)
-            const scopes = sandboxProfile.scopes.length ? sandboxProfile.scopes.slice() : ['global', 'sandbox'];
-            if (!scopes.includes(FILE_SCOPE_LISTENERS)) {
-                scopes.push(FILE_SCOPE_LISTENERS);
-            }
+            const scopes = getDiagramScopeOptions();
             select.innerHTML = '';
             scopes.forEach(scope => {
                 const opt = document.createElement('option');
@@ -4950,18 +5008,18 @@
                 opt.textContent = getScopeLabel(scope);
                 select.appendChild(opt);
             });
-            if (!scopes.includes(sandboxProfile.currentScope)) {
-                const fallback = scopes.includes(sandboxProfile.defaultScope) ? sandboxProfile.defaultScope : scopes[0];
-                sandboxProfile.currentScope = fallback || 'global';
+            const activeScope = getCurrentDiagramScope();
+            if (!scopes.includes(activeScope)) {
+                setDiagramScope(scopes[0] || 'global', { pinned: false });
             }
-            select.value = sandboxProfile.currentScope;
+            select.value = getCurrentDiagramScope();
             select.disabled = !authToken;
             // Always show scope controls when logged in
             controls.style.display = authToken ? 'flex' : 'none';
             if (shareLabel && shareCheckbox) {
                 const showShare = sandboxProfile.enabled;
                 shareLabel.style.display = showShare ? 'flex' : 'none';
-                const disableShare = !showShare || sandboxProfile.currentScope === 'global';
+                const disableShare = !showShare || getCurrentDiagramScope() === 'global';
                 shareCheckbox.disabled = disableShare;
                 if (disableShare) {
                     shareCheckbox.checked = false;
