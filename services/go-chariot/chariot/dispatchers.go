@@ -1765,27 +1765,6 @@ func treeNodeImplGetAttribute(args ...Value) (Value, error) {
 	return nil, fmt.Errorf("attribute '%s' not found", attrName)
 }
 
-// Helper for Transform
-func transformGetAttribute(args ...Value) (Value, error) {
-	transformNode, ok := args[0].(*Transform)
-	if !ok {
-		return nil, fmt.Errorf("expected Transform, got %T", args[0])
-	}
-
-	attrName, ok := args[1].(Str)
-	if !ok {
-		return nil, fmt.Errorf("attribute name must be a string, got %T", args[1])
-	}
-
-	if transformNode.Attributes == nil {
-		return nil, fmt.Errorf("node has no attributes")
-	}
-	if val, exists := transformNode.Attributes[string(attrName)]; exists {
-		return val, nil
-	}
-	return nil, fmt.Errorf("attribute '%s' not found", attrName)
-}
-
 // Helper for MapNode
 func mapNodeGetAttribute(args ...Value) (Value, error) {
 	mapNode, ok := args[0].(*MapNode)

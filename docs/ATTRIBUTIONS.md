@@ -68,8 +68,10 @@ This document records the third-party libraries that ship with or are required t
 | github.com/gorilla/websocket | v1.5.3 | BSD-2-Clause | WebSocket protocol implementation for streaming interfaces.
 | github.com/labstack/echo/v4 | v4.13.4 | MIT | HTTP routing/web framework for APIs.
 | github.com/lib/pq | v1.10.9 | MIT | PostgreSQL driver for optional storage backends.
+| github.com/m-theory-io/idgen | v0.1.0-20260112… | MIT | Prefixed/document ID generator leveraged by ETL helpers.
 | github.com/modelcontextprotocol/go-sdk | v1.0.1-0… | Apache-2.0 | Model Context Protocol bindings.
 | go.uber.org/zap | v1.27.0 | MIT | Structured logging.
+| gonum.org/v1/gonum | v0.17.0 | BSD-3-Clause | Linear algebra + LAPACK routines backing Schur/dot math closures.
 | golang.org/x/crypto | v0.41.0 | BSD-3-Clause | Supplemental crypto primitives.
 | gopkg.in/yaml.v3 | v3.0.1 | MIT | YAML parser for configuration files.
 

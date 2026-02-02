@@ -49,6 +49,199 @@
             display: flex;
         }
 
+        .mcp-container {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            height: calc(100vh - 150px);
+            background: #1a1b1f;
+            color: #e2e2e2;
+            box-sizing: border-box;
+        }
+
+        .mcp-sidebar {
+            width: 320px;
+            background: #232326;
+            border: 1px solid #2f2f34;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .mcp-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .mcp-section {
+            margin-bottom: 18px;
+        }
+
+        .mcp-section-header {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #8ec8ff;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .mcp-input,
+        .mcp-select,
+        .mcp-textarea {
+            width: 100%;
+            background: #1c1c21;
+            border: 1px solid #34343a;
+            border-radius: 5px;
+            padding: 6px 10px;
+            color: #e4e4e7;
+            font-size: 13px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .mcp-textarea {
+            min-height: 120px;
+            font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+            resize: vertical;
+        }
+
+        .mcp-label,
+        .mcp-field-group label {
+            display: block;
+            font-size: 12px;
+            color: #b6b6be;
+            margin-bottom: 4px;
+        }
+
+        .mcp-field-group {
+            margin-bottom: 12px;
+        }
+
+        .mcp-transport-fields {
+            padding: 8px 10px;
+            border-left: 2px solid #2f8fe2;
+            background: rgba(47, 143, 226, 0.08);
+            margin-bottom: 12px;
+        }
+
+        .mcp-fixtures-list {
+            max-height: 240px;
+            overflow-y: auto;
+            border: 1px solid #34343a;
+            border-radius: 6px;
+            background: #1c1c20;
+        }
+
+        .mcp-fixture-row {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: #d8d8dc;
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid #2b2b30;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .mcp-fixture-row:last-child {
+            border-bottom: none;
+        }
+
+        .mcp-fixture-row:hover {
+            background: #27272f;
+        }
+
+        .mcp-fixture-row.selected {
+            background: #2d3750;
+            color: #9dd4ff;
+        }
+
+        .mcp-tools-panel,
+        .mcp-console {
+            background: #232327;
+            border: 1px solid #2f2f34;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .mcp-tools-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .mcp-tool-card {
+            border: 1px solid #35353c;
+            border-radius: 6px;
+            padding: 10px;
+            cursor: pointer;
+            background: #1d1d21;
+            transition: border 0.15s, background 0.15s;
+        }
+
+        .mcp-tool-card:hover {
+            border-color: #4fb2ff;
+        }
+
+        .mcp-tool-card.selected {
+            border-color: #4fb2ff;
+            background: rgba(79, 178, 255, 0.12);
+        }
+
+        .mcp-tool-name {
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .mcp-tool-description {
+            font-size: 12px;
+            color: #b4b4bd;
+        }
+
+        .mcp-action-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .mcp-response-block {
+            min-height: 140px;
+            background: #111114;
+            border: 1px solid #35353c;
+            border-radius: 6px;
+            padding: 12px;
+            overflow: auto;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #9fe6c3;
+        }
+
+        .mcp-icon-button {
+            background: #2b2c31;
+            border: 1px solid #3c3c42;
+            color: #d8d8dc;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0 6px;
+            height: 24px;
+            font-size: 16px;
+        }
+
+        .mcp-icon-button:hover {
+            background: #3a3a43;
+        }
+
         .toolbar {
             background-color: #2d2d30;
             color: white;
@@ -1185,6 +1378,7 @@
                     <button id="diagramsTab" class="toolbar-tab">Diagrams</button>
                     <button id="dashboardTab" class="toolbar-tab">Dashboard</button>
                     <button id="agentsTab" class="toolbar-tab">Agents</button>
+                    <button id="mcpTab" class="toolbar-tab">MCP</button>
                 </div>
                 <div id="fileToolbar" class="toolbar-section active">
                     <div class="file-scope-controls" id="fileScopeControls" style="display:none;">
@@ -1226,6 +1420,11 @@
                 </div>
                 <div id="agentsToolbar" class="toolbar-section">
                     <button id="refreshAgentsButton" class="toolbar-button">🔄 Refresh</button>
+                </div>
+                <div id="mcpToolbar" class="toolbar-section">
+                    <button id="mcpConnectButton" class="toolbar-button" disabled>🔌 Connect</button>
+                    <button id="mcpSaveSettingsButton" class="toolbar-button" disabled>💾 Save Settings</button>
+                    <button id="mcpRefreshToolsButton" class="toolbar-button" disabled>📚 Refresh Tools</button>
                 </div>
                 <div id="diagramsToolbar" class="toolbar-section">
                     <div class="diagram-scope-controls" id="diagramScopeControls" style="display:none;">
@@ -1410,6 +1609,16 @@
         let currentTab = 'output';
         let dashboardAutoRefresh = null;    // Timer for auto-refreshing dashboard when visible
         let currentBottomTab = 'output';    // Tracks the bottom panel tab (output|problems)
+        const mcpState = {
+            settings: null,
+            fixtures: [],
+            tools: [],
+            selectedTool: '',
+            selectedFixtureId: null,
+            busy: false,
+            viewReady: false
+        };
+        let mcpToolbarReady = false;
         // Throttle WS updates to avoid overwhelming UI
         let dashboardWSUpdateTimer = null;
         let pendingDashboardData = null;
@@ -1511,6 +1720,18 @@
                     pane.tabStripEl = document.getElementById('editorPane' + pane.id.charAt(0).toUpperCase() + pane.id.slice(1) + 'Tabs');
                 }
             });
+        }
+
+        function disposeMonacoEditorInstance() {
+            if (!editor) {
+                return;
+            }
+            const model = editor.getModel();
+            if (model) {
+                model.dispose();
+            }
+            editor.dispose();
+            editor = null;
         }
 
         function getActivePaneState() {
@@ -4393,13 +4614,16 @@
             const dashboardTab = document.getElementById('dashboardTab');
             const agentsTab = document.getElementById('agentsTab');
             const diagramsTab = document.getElementById('diagramsTab');
+            const mcpTab = document.getElementById('mcpTab');
             const fileToolbar = document.getElementById('fileToolbar');
             const functionsToolbar = document.getElementById('functionsToolbar');
             const dashboardToolbar = document.getElementById('dashboardToolbar');
             const agentsToolbar = document.getElementById('agentsToolbar');
             const diagramsToolbar = document.getElementById('diagramsToolbar');
 
-            if (filesTab && functionsTab && dashboardTab && agentsTab && diagramsTab && fileToolbar && functionsToolbar && dashboardToolbar && agentsToolbar && diagramsToolbar) {
+            const mcpToolbar = document.getElementById('mcpToolbar');
+
+            if (filesTab && functionsTab && dashboardTab && agentsTab && diagramsTab && mcpTab && fileToolbar && functionsToolbar && dashboardToolbar && agentsToolbar && diagramsToolbar && mcpToolbar) {
                 // Helpers to manage dashboard auto-refresh lifecycle
                 function stopDashboardAutoRefresh() {
                     if (dashboardAutoRefresh) {
@@ -4431,12 +4655,14 @@
                     dashboardToolbar.classList.remove('active');
                     agentsToolbar.classList.remove('active');
                     diagramsToolbar.classList.remove('active');
+                    mcpToolbar.classList.remove('active');
                     // Remove active from all tabs
                     filesTab.classList.remove('active');
                     functionsTab.classList.remove('active');
                     dashboardTab.classList.remove('active');
                     agentsTab.classList.remove('active');
                     diagramsTab.classList.remove('active');
+                    mcpTab.classList.remove('active');
 
                     if (selected === 'files') {
                         // Leaving dashboard: stop auto refresh
@@ -4461,8 +4687,11 @@
                                 dashboardContent = editorContainer.innerHTML;
                             }
                         }
-                        // Restore Monaco editor if coming from dashboard or agents
-                        if (previousTab === 'dashboard' || previousTab === 'agents') {
+                        if (previousTab === 'mcp') {
+                            teardownMCPWorkspace();
+                        }
+                        // Restore Monaco editor if coming from dashboard, agents, or MCP
+                        if (previousTab === 'dashboard' || previousTab === 'agents' || previousTab === 'mcp') {
                             // Clear dashboard content and restore editor container
                             const editorContainer = document.getElementById('editorContainer');
                             editorContainer.innerHTML = '';
@@ -4514,8 +4743,11 @@
                                 dashboardContent = editorContainer.innerHTML;
                             }
                         }
-                        // Restore Monaco editor if coming from dashboard or agents
-                        if (previousTab === 'dashboard' || previousTab === 'agents') {
+                        if (previousTab === 'mcp') {
+                            teardownMCPWorkspace();
+                        }
+                        // Restore Monaco editor if coming from dashboard, agents, or MCP
+                        if (previousTab === 'dashboard' || previousTab === 'agents' || previousTab === 'mcp') {
                             // Clear dashboard content and restore editor container
                             const editorContainer = document.getElementById('editorContainer');
                             editorContainer.innerHTML = '';
@@ -4557,6 +4789,8 @@
                         } else if (previousTab === 'agents') {
                             // Ensure we fully stop the Agents WS loop when switching to dashboard
                             stopAgentsWS();
+                        } else if (previousTab === 'mcp') {
+                            teardownMCPWorkspace();
                         }
                         currentTab = 'dashboard';
                         // Show dashboard toolbar
@@ -4607,6 +4841,8 @@
                                 editor = null;
                             }
                             editorContainer.innerHTML = '';
+                        } else if (previousTab === 'mcp') {
+                            teardownMCPWorkspace();
                         }
                         currentTab = 'agents';
                         // Activate Agents toolbar/tab
@@ -4693,6 +4929,13 @@
                             }
                             editorContainer.innerHTML = '';
                             setupMonacoEditor();
+                        } else if (previousTab === 'mcp') {
+                            teardownMCPWorkspace();
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editorContainer) {
+                                editorContainer.innerHTML = '';
+                                setupMonacoEditor();
+                            }
                         }
                         currentTab = 'diagrams';
                         // Show diagrams toolbar and set active tab
@@ -4703,6 +4946,31 @@
                         updateRunButtonState();
                         // Load diagrams list on first enter or refresh as needed
                         try { loadDiagramsList(); } catch (e) { /* ignore */ }
+                    } else if (selected === 'mcp') {
+                        stopDashboardAutoRefresh();
+                        if (previousTab === 'files') {
+                            persistActiveTabContent();
+                            disposeMonacoEditorInstance();
+                        } else if (previousTab === 'functions') {
+                            captureFunctionEditorStateFromActiveTab();
+                            disposeMonacoEditorInstance();
+                        } else if (previousTab === 'agents') {
+                            stopAgentsWS();
+                        } else if (previousTab === 'dashboard') {
+                            const editorContainer = document.getElementById('editorContainer');
+                            if (editorContainer) {
+                                dashboardContent = editorContainer.innerHTML;
+                            }
+                        }
+                        teardownMCPWorkspace();
+                        currentTab = 'mcp';
+                        mcpToolbar.classList.add('active');
+                        mcpTab.classList.add('active');
+                        showMCPWorkspace();
+                        originalContent = '';
+                        isFileModified = false;
+                        updateSaveButtonStates();
+                        updateRunButtonState();
                     }
                 }
                 filesTab.addEventListener('click', function () {
@@ -4719,6 +4987,9 @@
                 });
                 diagramsTab.addEventListener('click', function () {
                     showToolbar('diagrams');
+                });
+                mcpTab.addEventListener('click', function () {
+                    showToolbar('mcp');
                 });
             }
             // Diagrams toolbar handlers (initialize once)
@@ -4803,6 +5074,31 @@
                     });
                 }
                 window.agentsToolbarInitialized = true;
+            }
+
+            if (!window.mcpToolbarInitialized) {
+                const connectBtn = document.getElementById('mcpConnectButton');
+                const saveSettingsBtn = document.getElementById('mcpSaveSettingsButton');
+                const refreshToolsBtn = document.getElementById('mcpRefreshToolsButton');
+                const activateOrWarn = (action) => {
+                    if (document.getElementById('mcpWorkspace')) {
+                        action();
+                        return;
+                    }
+                    if (mcpTab) {
+                        mcpTab.click();
+                    }
+                };
+                if (connectBtn) {
+                    connectBtn.addEventListener('click', () => activateOrWarn(() => triggerMCPToolRefresh({ force: true }))); 
+                }
+                if (saveSettingsBtn) {
+                    saveSettingsBtn.addEventListener('click', () => activateOrWarn(saveMCPSettingsFromForm));
+                }
+                if (refreshToolsBtn) {
+                    refreshToolsBtn.addEventListener('click', () => activateOrWarn(() => triggerMCPToolRefresh({ force: true }))); 
+                }
+                window.mcpToolbarInitialized = true;
             }
         }
 
@@ -4895,6 +5191,592 @@
                 }
             } catch (e) {
                 showOutput('Error generating code: ' + e.message, 'error');
+            }
+        }
+
+        // ==== MCP Sandbox ====
+        function buildMCPWorkspaceTemplate() {
+            return `
+                <div class="mcp-container" id="mcpWorkspace">
+                    <div class="mcp-sidebar">
+                        <div class="mcp-section">
+                            <div class="mcp-section-header">Connection</div>
+                            <label class="mcp-label" for="mcpTransportSelect">Transport</label>
+                            <select id="mcpTransportSelect" class="mcp-select">
+                                <option value="stdio">STDIO (Command)</option>
+                                <option value="ws">WebSocket</option>
+                            </select>
+                            <div class="mcp-transport-fields" data-transport="stdio">
+                                <label class="mcp-label" for="mcpCommandInput">Command</label>
+                                <input id="mcpCommandInput" class="mcp-input" placeholder="/usr/local/bin/my-mcp" />
+                                <label class="mcp-label" for="mcpArgsInput">Arguments</label>
+                                <textarea id="mcpArgsInput" class="mcp-textarea" placeholder="--flag\nvalue"></textarea>
+                                <label class="mcp-label" for="mcpEnvInput">Env Vars</label>
+                                <textarea id="mcpEnvInput" class="mcp-textarea" placeholder="KEY=VALUE"></textarea>
+                            </div>
+                            <div class="mcp-transport-fields" data-transport="ws" style="display:none;">
+                                <label class="mcp-label" for="mcpUrlInput">Server URL</label>
+                                <input id="mcpUrlInput" class="mcp-input" placeholder="wss://127.0.0.1:9000/mcp" />
+                                <label class="mcp-label" for="mcpTokenInput">Auth Token</label>
+                                <input id="mcpTokenInput" class="mcp-input" placeholder="Bearer ..." />
+                            </div>
+                            <label class="mcp-label" for="mcpTimeoutInput">Timeout (ms)</label>
+                            <input id="mcpTimeoutInput" class="mcp-input" type="number" min="1000" step="500" placeholder="30000" />
+                        </div>
+                        <div class="mcp-section">
+                            <div class="mcp-section-header">Fixtures <button id="mcpNewFixtureButton" class="mcp-icon-button" title="New fixture">＋</button></div>
+                            <div class="mcp-fixtures-list" id="mcpFixturesList">
+                                <div style="padding:10px;color:#888;font-size:12px;">No fixtures yet</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mcp-main">
+                        <div class="mcp-tools-panel">
+                            <div class="mcp-section-header">Tools <button id="mcpReloadToolsInline" class="mcp-icon-button" title="Refresh tools">⟳</button></div>
+                            <div class="mcp-tools-list" id="mcpToolsList"></div>
+                        </div>
+                        <div class="mcp-console">
+                            <div class="mcp-field-group">
+                                <label for="mcpToolInput">Selected Tool</label>
+                                <input id="mcpToolInput" class="mcp-input" placeholder="tool.name" />
+                            </div>
+                            <div class="mcp-field-group">
+                                <label for="mcpFixtureNameInput">Fixture Name</label>
+                                <input id="mcpFixtureNameInput" class="mcp-input" placeholder="Fixture label" />
+                            </div>
+                            <div class="mcp-field-group">
+                                <label for="mcpPayloadInput">Payload (JSON)</label>
+                                <textarea id="mcpPayloadInput" class="mcp-textarea" placeholder="{\n  \"input\": \"value\"\n}"></textarea>
+                            </div>
+                            <div class="mcp-action-row">
+                                <button id="mcpExecuteButton" class="toolbar-button" disabled>▶ Execute</button>
+                                <button id="mcpSaveFixtureButton" class="toolbar-button" disabled>💾 Save Fixture</button>
+                                <button id="mcpDeleteFixtureButton" class="toolbar-button file-action delete" disabled>🗑️ Delete Fixture</button>
+                            </div>
+                            <div class="mcp-section-header">Response</div>
+                            <pre id="mcpResponseOutput" class="mcp-response-block">// Run a tool to see the response</pre>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function setMCPToolbarArmed(isReady) {
+            mcpToolbarReady = !!isReady;
+            ['mcpConnectButton', 'mcpSaveSettingsButton', 'mcpRefreshToolsButton'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.disabled = !mcpToolbarReady;
+                }
+            });
+        }
+
+        function showMCPWorkspace() {
+            const container = document.getElementById('editorContainer');
+            if (!container) {
+                return;
+            }
+            disposeMonacoEditorInstance();
+            container.innerHTML = buildMCPWorkspaceTemplate();
+            container.dataset.mcpActive = 'true';
+            bindMCPWorkspaceHandlers();
+            setMCPToolbarArmed(true);
+            mcpState.viewReady = true;
+            setMCPBusy(false);
+            bootstrapMCPData().catch(err => {
+                showOutput('Failed to load MCP data: ' + err.message, 'error');
+            });
+        }
+
+        function teardownMCPWorkspace() {
+            const container = document.getElementById('editorContainer');
+            if (container && container.dataset && container.dataset.mcpActive === 'true') {
+                container.innerHTML = '';
+                delete container.dataset.mcpActive;
+            }
+            mcpState.viewReady = false;
+            setMCPToolbarArmed(false);
+        }
+
+        function bindMCPWorkspaceHandlers() {
+            const transportSelect = document.getElementById('mcpTransportSelect');
+            if (transportSelect) {
+                transportSelect.addEventListener('change', () => applyMCPTransportVisibility(transportSelect.value));
+            }
+            applyMCPTransportVisibility(transportSelect ? transportSelect.value : 'stdio');
+
+            const newFixtureBtn = document.getElementById('mcpNewFixtureButton');
+            if (newFixtureBtn) {
+                newFixtureBtn.addEventListener('click', newMCPFixtureDraft);
+            }
+            const saveFixtureBtn = document.getElementById('mcpSaveFixtureButton');
+            if (saveFixtureBtn) {
+                saveFixtureBtn.addEventListener('click', saveCurrentMCPFixture);
+            }
+            const deleteFixtureBtn = document.getElementById('mcpDeleteFixtureButton');
+            if (deleteFixtureBtn) {
+                deleteFixtureBtn.addEventListener('click', deleteCurrentMCPFixture);
+            }
+            const executeBtn = document.getElementById('mcpExecuteButton');
+            if (executeBtn) {
+                executeBtn.addEventListener('click', executeCurrentMCPTool);
+            }
+            const inlineRefresh = document.getElementById('mcpReloadToolsInline');
+            if (inlineRefresh) {
+                inlineRefresh.addEventListener('click', () => triggerMCPToolRefresh({ force: true }));
+            }
+            const toolInput = document.getElementById('mcpToolInput');
+            if (toolInput) {
+                toolInput.addEventListener('input', function () {
+                    mcpState.selectedTool = this.value.trim();
+                    refreshMCPActionStates();
+                });
+            }
+            refreshMCPActionStates();
+        }
+
+        async function bootstrapMCPData() {
+            const settings = await loadMCPSettingsFromServer();
+            applyMCPSettingsToForm(settings);
+            await loadMCPFixtures();
+            renderMCPFixturesList();
+            try {
+                await triggerMCPToolRefresh({ force: false, skipAlert: true });
+            } catch (e) {
+                // Silent; user can retry manually
+            }
+        }
+
+        function applyMCPTransportVisibility(value) {
+            const sections = document.querySelectorAll('.mcp-transport-fields');
+            sections.forEach(section => {
+                section.style.display = section.dataset.transport === value ? 'block' : 'none';
+            });
+        }
+
+        function collectMCPSettingsFromForm() {
+            if (!mcpState.viewReady) {
+                return mcpState.settings || { transport: 'stdio' };
+            }
+            const transport = document.getElementById('mcpTransportSelect')?.value || 'stdio';
+            const command = document.getElementById('mcpCommandInput')?.value.trim() || '';
+            const argsText = document.getElementById('mcpArgsInput')?.value || '';
+            const args = argsText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            const envText = document.getElementById('mcpEnvInput')?.value || '';
+            const env = {};
+            envText.split(/\r?\n/).forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed || !trimmed.includes('=')) {
+                    return;
+                }
+                const [key, ...rest] = trimmed.split('=');
+                const value = rest.join('=').trim();
+                if (key) {
+                    env[key.trim()] = value;
+                }
+            });
+            const url = document.getElementById('mcpUrlInput')?.value.trim() || '';
+            const token = document.getElementById('mcpTokenInput')?.value.trim() || '';
+            const timeoutValue = parseInt(document.getElementById('mcpTimeoutInput')?.value, 10);
+            const settings = {
+                transport,
+                command,
+                args,
+                env,
+                url,
+                token,
+                timeoutMs: Number.isNaN(timeoutValue) ? 0 : timeoutValue
+            };
+            mcpState.settings = settings;
+            return settings;
+        }
+
+        function applyMCPSettingsToForm(settings) {
+            const safe = settings || { transport: 'stdio' };
+            const transportSelect = document.getElementById('mcpTransportSelect');
+            if (transportSelect) {
+                transportSelect.value = safe.transport || 'stdio';
+            }
+            const setValue = (id, value = '') => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.value = value;
+                }
+            };
+            setValue('mcpCommandInput', safe.command || '');
+            setValue('mcpArgsInput', (safe.args || []).join('\n'));
+            const envLines = safe.env ? Object.entries(safe.env).map(([k, v]) => `${k}=${v}`) : [];
+            setValue('mcpEnvInput', envLines.join('\n'));
+            setValue('mcpUrlInput', safe.url || '');
+            setValue('mcpTokenInput', safe.token || '');
+            setValue('mcpTimeoutInput', safe.timeoutMs ? String(safe.timeoutMs) : '');
+            applyMCPTransportVisibility(safe.transport || 'stdio');
+            mcpState.settings = safe;
+        }
+
+        async function loadMCPSettingsFromServer() {
+            const resp = await fetch('/charioteer/api/mcp/settings', { headers: getAuthHeaders() });
+            if (resp.status === 401) { logout(); throw new Error('Unauthorized'); }
+            if (!resp.ok) {
+                throw new Error(await resp.text());
+            }
+            const payload = await resp.json();
+            const data = payload?.data || payload;
+            mcpState.settings = data || { transport: 'stdio' };
+            return mcpState.settings;
+        }
+
+        async function saveMCPSettingsFromForm() {
+            if (!mcpState.viewReady) {
+                showOutput('Open the MCP tab to save settings.', 'info');
+                return;
+            }
+            const settings = collectMCPSettingsFromForm();
+            const resp = await fetch('/charioteer/api/mcp/settings', {
+                method: 'POST',
+                headers: getAuthHeadersWithJSON(),
+                body: JSON.stringify({ settings })
+            });
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                showOutput('Failed to save MCP settings: ' + await resp.text(), 'error');
+                return;
+            }
+            const payload = await resp.json();
+            mcpState.settings = payload?.data || settings;
+            showOutput('MCP settings saved.', 'success');
+        }
+
+        async function loadMCPFixtures() {
+            const resp = await fetch('/charioteer/api/mcp/fixtures', { headers: getAuthHeaders() });
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                throw new Error(await resp.text());
+            }
+            const payload = await resp.json();
+            mcpState.fixtures = Array.isArray(payload?.data) ? payload.data : [];
+        }
+
+        function renderMCPFixturesList() {
+            const listEl = document.getElementById('mcpFixturesList');
+            if (!listEl) {
+                return;
+            }
+            listEl.innerHTML = '';
+            if (!mcpState.fixtures.length) {
+                listEl.innerHTML = '<div style="padding:10px;color:#888;font-size:12px;">No fixtures saved</div>';
+                return;
+            }
+            mcpState.fixtures.forEach(fixture => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'mcp-fixture-row' + (fixture.id === mcpState.selectedFixtureId ? ' selected' : '');
+                row.textContent = fixture.name + (fixture.tool ? ' · ' + fixture.tool : '');
+                row.addEventListener('click', () => selectMCPFixture(fixture.id));
+                listEl.appendChild(row);
+            });
+        }
+
+        function selectMCPFixture(id) {
+            const fixture = mcpState.fixtures.find(item => item.id === id);
+            if (!fixture) {
+                return;
+            }
+            mcpState.selectedFixtureId = fixture.id;
+            const nameInput = document.getElementById('mcpFixtureNameInput');
+            if (nameInput) {
+                nameInput.value = fixture.name || '';
+            }
+            mcpState.selectedTool = fixture.tool || '';
+            const payloadInput = document.getElementById('mcpPayloadInput');
+            if (payloadInput) {
+                payloadInput.value = serializeMCPPayloadForEditor(fixture.payload);
+            }
+            renderMCPFixturesList();
+            refreshMCPActionStates();
+            updateMCPSelectedToolDisplay();
+        }
+
+        function newMCPFixtureDraft() {
+            mcpState.selectedFixtureId = null;
+            const nameInput = document.getElementById('mcpFixtureNameInput');
+            const payloadInput = document.getElementById('mcpPayloadInput');
+            if (nameInput) {
+                nameInput.value = '';
+            }
+            if (payloadInput) {
+                payloadInput.value = '';
+            }
+            refreshMCPActionStates();
+        }
+
+        async function saveCurrentMCPFixture() {
+            if (!mcpState.viewReady) {
+                return;
+            }
+            const name = document.getElementById('mcpFixtureNameInput')?.value.trim();
+            const tool = document.getElementById('mcpToolInput')?.value.trim();
+            if (!name) {
+                showOutput('Enter a fixture name before saving.', 'error');
+                return;
+            }
+            if (!tool) {
+                showOutput('Select a tool before saving a fixture.', 'error');
+                return;
+            }
+            let payload;
+            try {
+                payload = getMCPPayloadFromEditor();
+            } catch (err) {
+                showOutput('Fixture payload must be valid JSON: ' + err.message, 'error');
+                return;
+            }
+            setMCPBusy(true);
+            let resp;
+            try {
+                resp = await fetch('/charioteer/api/mcp/fixtures', {
+                    method: 'POST',
+                    headers: getAuthHeadersWithJSON(),
+                    body: JSON.stringify({ fixture: { id: mcpState.selectedFixtureId || '', name, tool, payload } })
+                });
+            } catch (err) {
+                showOutput('Failed to save fixture: ' + err.message, 'error');
+                return;
+            } finally {
+                setMCPBusy(false);
+            }
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                showOutput('Failed to save fixture: ' + await resp.text(), 'error');
+                return;
+            }
+            const payloadResp = await resp.json();
+            const saved = payloadResp?.data;
+            mcpState.selectedFixtureId = saved?.id || null;
+            await loadMCPFixtures();
+            renderMCPFixturesList();
+            refreshMCPActionStates();
+            showOutput('Fixture saved.', 'success');
+        }
+
+        async function deleteCurrentMCPFixture() {
+            if (!mcpState.selectedFixtureId) {
+                showOutput('Select a fixture to delete.', 'info');
+                return;
+            }
+            const id = mcpState.selectedFixtureId;
+            setMCPBusy(true);
+            let resp;
+            try {
+                resp = await fetch('/charioteer/api/mcp/fixtures/' + encodeURIComponent(id), {
+                    method: 'DELETE',
+                    headers: getAuthHeadersWithJSON()
+                });
+            } catch (err) {
+                showOutput('Failed to delete fixture: ' + err.message, 'error');
+                return;
+            } finally {
+                setMCPBusy(false);
+            }
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                showOutput('Failed to delete fixture: ' + await resp.text(), 'error');
+                return;
+            }
+            mcpState.selectedFixtureId = null;
+            await loadMCPFixtures();
+            renderMCPFixturesList();
+            newMCPFixtureDraft();
+            showOutput('Fixture deleted.', 'success');
+        }
+
+        function serializeMCPPayloadForEditor(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) {
+                    return '';
+                }
+                try {
+                    return JSON.stringify(JSON.parse(trimmed), null, 2);
+                } catch (err) {
+                    return trimmed;
+                }
+            }
+            try {
+                return JSON.stringify(value, null, 2);
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function getMCPPayloadFromEditor() {
+            const textarea = document.getElementById('mcpPayloadInput');
+            if (!textarea) {
+                return null;
+            }
+            const raw = textarea.value.trim();
+            if (!raw) {
+                return null;
+            }
+            return JSON.parse(raw);
+        }
+
+        async function triggerMCPToolRefresh(options = {}) {
+            if (!mcpState.viewReady) {
+                return;
+            }
+            const settings = collectMCPSettingsFromForm();
+            setMCPBusy(true);
+            let resp;
+            try {
+                resp = await fetch('/charioteer/api/mcp/tools', {
+                    method: 'POST',
+                    headers: getAuthHeadersWithJSON(),
+                    body: JSON.stringify({ settings })
+                });
+            } catch (err) {
+                if (!options.skipAlert) {
+                    showOutput('Failed to reach MCP server: ' + err.message, 'error');
+                }
+                return;
+            } finally {
+                setMCPBusy(false);
+            }
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                if (!options.skipAlert) {
+                    showOutput('Failed to list MCP tools: ' + await resp.text(), 'error');
+                }
+                return;
+            }
+            const payload = await resp.json();
+            const data = payload?.data || {};
+            mcpState.tools = Array.isArray(data.tools) ? data.tools : [];
+            renderMCPToolsList();
+            if (!mcpState.selectedTool && mcpState.tools.length) {
+                mcpState.selectedTool = mcpState.tools[0].name;
+            }
+            updateMCPSelectedToolDisplay();
+            if (!options.skipAlert) {
+                showOutput('Loaded ' + mcpState.tools.length + ' MCP tools.', 'success');
+            }
+        }
+
+        function renderMCPToolsList() {
+            const listEl = document.getElementById('mcpToolsList');
+            if (!listEl) {
+                return;
+            }
+            listEl.innerHTML = '';
+            if (!mcpState.tools.length) {
+                listEl.innerHTML = '<div style="color:#888;font-size:13px;">No tools available.</div>';
+                return;
+            }
+            mcpState.tools.forEach(tool => {
+                const card = document.createElement('div');
+                card.className = 'mcp-tool-card' + (tool.name === mcpState.selectedTool ? ' selected' : '');
+                card.innerHTML = '<div class="mcp-tool-name">' + (tool.name || '') + '</div>' +
+                    '<div class="mcp-tool-description">' + (tool.description || 'No description provided') + '</div>';
+                card.addEventListener('click', () => {
+                    mcpState.selectedTool = tool.name;
+                    updateMCPSelectedToolDisplay();
+                    renderMCPToolsList();
+                });
+                listEl.appendChild(card);
+            });
+        }
+
+        function updateMCPSelectedToolDisplay() {
+            const input = document.getElementById('mcpToolInput');
+            if (input) {
+                input.value = mcpState.selectedTool || '';
+            }
+            refreshMCPActionStates();
+        }
+
+        async function executeCurrentMCPTool() {
+            if (!mcpState.viewReady) {
+                return;
+            }
+            const tool = document.getElementById('mcpToolInput')?.value.trim();
+            if (!tool) {
+                showOutput('Select a tool before executing.', 'error');
+                return;
+            }
+            let payload;
+            try {
+                payload = getMCPPayloadFromEditor();
+            } catch (err) {
+                showOutput('Payload must be valid JSON: ' + err.message, 'error');
+                return;
+            }
+            const settings = collectMCPSettingsFromForm();
+            setMCPBusy(true);
+            let resp;
+            try {
+                resp = await fetch('/charioteer/api/mcp/execute', {
+                    method: 'POST',
+                    headers: getAuthHeadersWithJSON(),
+                    body: JSON.stringify({ tool, payload, settings })
+                });
+            } catch (err) {
+                showOutput('Execution failed: ' + err.message, 'error');
+                return;
+            } finally {
+                setMCPBusy(false);
+            }
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                showOutput('Execution failed: ' + await resp.text(), 'error');
+                return;
+            }
+            const payloadResp = await resp.json();
+            renderMCPResponse(payloadResp?.data);
+        }
+
+        function renderMCPResponse(result) {
+            const output = document.getElementById('mcpResponseOutput');
+            if (!output) {
+                return;
+            }
+            if (!result) {
+                output.textContent = '// No response received';
+                return;
+            }
+            output.textContent = prettyJSONString(result);
+        }
+
+        function prettyJSONString(value) {
+            try {
+                return JSON.stringify(value, null, 2);
+            } catch (err) {
+                return String(value);
+            }
+        }
+
+        function setMCPBusy(isBusy) {
+            mcpState.busy = !!isBusy;
+            refreshMCPActionStates();
+        }
+
+        function refreshMCPActionStates() {
+            const executeBtn = document.getElementById('mcpExecuteButton');
+            if (executeBtn) {
+                executeBtn.disabled = !!mcpState.busy || !mcpState.selectedTool;
+            }
+            const saveBtn = document.getElementById('mcpSaveFixtureButton');
+            if (saveBtn) {
+                saveBtn.disabled = !!mcpState.busy;
+            }
+            const deleteBtn = document.getElementById('mcpDeleteFixtureButton');
+            if (deleteBtn) {
+                deleteBtn.disabled = !!mcpState.busy || !mcpState.selectedFixtureId;
+            }
+            const inlineRefresh = document.getElementById('mcpReloadToolsInline');
+            if (inlineRefresh) {
+                inlineRefresh.disabled = !!mcpState.busy;
             }
         }
 

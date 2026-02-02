@@ -356,18 +356,6 @@ func registerJSONFileOps(rt *Runtime) {
 	})
 }
 
-// findJSONNode function
-func (rt *Runtime) findJSONNode(nodeName string) (*JSONNode, error) {
-	// Check current scope (walks up to globalScope automatically)
-	if val, exists := rt.currentScope.Get(nodeName); exists {
-		if jsonNode, ok := val.(*JSONNode); ok {
-			return jsonNode, nil
-		}
-	}
-
-	return nil, fmt.Errorf("JSON node '%s' not found", nodeName)
-}
-
 // Create a clean JSONNode from native Go values
 func createCleanJSONNode(name string, v interface{}) (Value, error) {
 	_ = name

@@ -51,27 +51,6 @@ func (n *JSONNode) Clone() TreeNode {
 	return clone
 }
 
-// Helper to clone JSON values
-func cloneJSONValue(v interface{}) interface{} {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		newMap := make(map[string]interface{})
-		for k, v := range val {
-			newMap[k] = cloneJSONValue(v)
-		}
-		return newMap
-	case []interface{}:
-		newArr := make([]interface{}, len(val))
-		for i, v := range val {
-			newArr[i] = cloneJSONValue(v)
-		}
-		return newArr
-	default:
-		// Primitive values (strings, numbers, booleans, null) can be copied directly
-		return val
-	}
-}
-
 // DecodeStream processes a JSON stream incrementally
 func (n *JSONNode) DecodeStream(r io.Reader, callback func(*JSONNode, string) bool) error {
 	n.decoder = json.NewDecoder(r)

@@ -582,6 +582,7 @@ func rayleighQuotient(matrix [][]float64, vector []float64) float64 {
 	return numerator / denom
 }
 
+/* denseToMatrix converts a mat.Matrix to a [][]float64 matrix. Currently unused
 func denseToMatrix(m mat.Matrix) [][]float64 {
 	rows, cols := m.Dims()
 	result := make([][]float64, rows)
@@ -593,6 +594,7 @@ func denseToMatrix(m mat.Matrix) [][]float64 {
 	}
 	return result
 }
+*/
 
 func detectSchurBlocks(tMatrix [][]float64) []int {
 	blocks := []int{}

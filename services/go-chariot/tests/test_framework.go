@@ -93,6 +93,7 @@ func init() {
 	if err := vault.InitVaultClient(); err != nil {
 		cfg.ChariotLogger.Error("vault client init failed", zap.String("error", err.Error()))
 	}
+	_ = compareJSONStructure
 }
 
 // RunTestCases executes a batch of test cases

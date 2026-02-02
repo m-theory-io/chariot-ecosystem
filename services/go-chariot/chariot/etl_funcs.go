@@ -1322,21 +1322,6 @@ func setMetaTime(node TreeNode, key string, t time.Time) {
 	node.SetMeta(key, t.Format(time.RFC3339))
 }
 
-//lint:ignore U1000 This function is used in the code
-func setMetaDuration(node TreeNode, key string, d time.Duration) {
-	node.SetMeta(key, d.String())
-}
-
-//lint:ignore U1000 This function is used in the code
-func getOptionInt(options map[string]Value, key string, defaultValue int) int {
-	if val, exists := options[key]; exists {
-		if num, ok := val.(Number); ok {
-			return int(num)
-		}
-	}
-	return defaultValue
-}
-
 func getETLJobStatus(rt *Runtime, jobId string) (Value, error) {
 	// Try to get job status from Couchbase or runtime storage
 	if couchbaseNode, exists := rt.GetVariable("couchbaseConnection"); exists {

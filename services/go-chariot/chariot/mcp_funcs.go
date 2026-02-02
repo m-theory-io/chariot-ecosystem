@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	mcpspec "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 	"github.com/gorilla/websocket"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -119,7 +120,8 @@ func RegisterMCPFunctions(rt *Runtime) {
 				wsURL = fmt.Sprintf("ws://127.0.0.1:%d%s", cfg.ChariotConfig.Port, path)
 			}
 
-			dialer := websocket.DefaultDialer
+			dialer := *websocket.DefaultDialer
+			dialer.Subprotocols = []string{mcpspec.WebsocketSubprotocol}
 			conn, _, err := dialer.Dial(wsURL, nil)
 			if err != nil {
 				return nil, fmt.Errorf("mcpConnect(ws): dial failed: %w", err)
