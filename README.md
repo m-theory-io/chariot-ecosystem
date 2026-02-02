@@ -44,12 +44,12 @@ These changes do not introduce new breaking storage locations for legacy deploym
 
 ## Model Context Protocol (MCP) integration
 
-go-chariot includes an optional MCP server built with the official Go SDK. It supports stdio transport today and has a placeholder route for WebSocket (WS) transport.
+go-chariot includes an optional MCP server built with the official Go SDK. It supports both stdio and WebSocket (WS) transports.
 
 ### Transports
 
 - stdio: Recommended. The process runs only the MCP server and exits when the MCP client ends the session.
-- ws: A route is mounted, but currently returns 501 (not implemented). Prefer stdio for now.
+- ws: The REST server stays up and exposes the WebSocket endpoint at `CHARIOT_MCP_WS_PATH`. Clients must send `Sec-WebSocket-Protocol: modelcontextprotocol.mcp.v1` during the handshake per the MCP spec.
 
 ### Configuration
 
@@ -82,7 +82,7 @@ CHARIOT_MCP_ENABLED=true CHARIOT_MCP_TRANSPORT=stdio ./cmd
 
 Notes
 - In stdio mode, the REST API is not started; the process serves MCP over stdio and exits when the client disconnects.
-- In ws mode, the HTTP server starts as usual; the WebSocket route is registered at `CHARIOT_MCP_WS_PATH`, but currently returns 501 until WS transport is implemented.
+- In ws mode, the HTTP server starts as usual; the WebSocket route is registered at `CHARIOT_MCP_WS_PATH` and serves MCP IO transport frames. The server enforces the MCP subprotocol (`modelcontextprotocol.mcp.v1`).
 
 ### Available tools
 

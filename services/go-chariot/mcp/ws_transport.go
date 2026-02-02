@@ -5,17 +5,32 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 )
 
 // websocketUpgrader returns a configured websocket.Upgrader.
 func websocketUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
+		CheckOrigin:  func(r *http.Request) bool { return true },
+		Subprotocols: []string{spec.WebsocketSubprotocol},
 		// EnableCompression can be toggled if needed
 	}
+}
+
+func requestHasMCPSubprotocol(r *http.Request) bool {
+	for _, hdr := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for _, raw := range strings.Split(hdr, ",") {
+			if strings.TrimSpace(raw) == spec.WebsocketSubprotocol {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // wsReadWriteCloser adapts a Gorilla websocket.Conn to an io.ReadWriteCloser

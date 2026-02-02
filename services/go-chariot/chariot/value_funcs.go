@@ -1293,29 +1293,6 @@ func ConvertToNativeJSON(val interface{}) interface{} {
 	}
 }
 
-// Helper function to check type compatibility
-func ensureTypeCompatibility(existing, newValue Value) error {
-	switch existing.(type) {
-	case Number:
-		if _, ok := newValue.(Number); !ok {
-			return fmt.Errorf("type mismatch: expected number, got %T", newValue)
-		}
-	case Str:
-		if _, ok := newValue.(Str); !ok {
-			return fmt.Errorf("type mismatch: expected string, got %T", newValue)
-		}
-	case Bool:
-		if _, ok := newValue.(Bool); !ok {
-			return fmt.Errorf("type mismatch: expected boolean, got %T", newValue)
-		}
-	case *ArrayValue:
-		if _, ok := newValue.(*ArrayValue); !ok {
-			return fmt.Errorf("type mismatch: expected array, got %T", newValue)
-		}
-	}
-	return nil
-}
-
 // Update your declare/declareGlobal functions
 func validateTypeCompatibility(typeStr string, value Value) error {
 	switch typeStr {

@@ -3,10 +3,12 @@ package mcp
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 	"github.com/labstack/echo/v4"
 )
 
@@ -67,6 +69,9 @@ func RunSTDIO() error {
 // HandleWS upgrades to a WebSocket and runs the MCP server over it using IOTransport.
 // This is wired from cmd/main.go via an Echo route.
 func HandleWS(c echo.Context) error {
+	if !requestHasMCPSubprotocol(c.Request()) {
+		return echo.NewHTTPError(http.StatusBadRequest, "missing required Sec-WebSocket-Protocol: "+spec.WebsocketSubprotocol)
+	}
 	// Upgrade HTTP request to WebSocket
 	upgrader := websocketUpgrader()
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)

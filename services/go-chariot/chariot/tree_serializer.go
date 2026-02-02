@@ -1170,71 +1170,6 @@ func (s *TreeNodeSerializer) LoadTreeFromJSON(jsonContent string) (TreeNode, err
 	return node, nil
 }
 
-// Helper to create a TreeNode from a JSON object
-func (s *TreeNodeSerializer) createNodeFromJSON(name string, obj interface{}) (TreeNode, error) {
-	switch v := obj.(type) {
-	case map[string]interface{}:
-		// Create a JSONNode for objects
-		node := NewJSONNode(name)
-
-		// Add all properties
-		for key, val := range v {
-			if nestedMap, ok := val.(map[string]interface{}); ok {
-				// Nested object - create child node
-				child, err := s.createNodeFromJSON(key, nestedMap)
-				if err != nil {
-					return nil, err
-				}
-				node.AddChild(child)
-			} else if nestedArray, ok := val.([]interface{}); ok {
-				// Array - create array node
-				arrayNode := NewJSONNode(key)
-				arrayNode.SetAttribute("type", Str("array"))
-
-				// Add array items as children
-				for i, item := range nestedArray {
-					itemName := fmt.Sprintf("item_%d", i)
-					itemNode, err := s.createNodeFromJSON(itemName, item)
-					if err != nil {
-						return nil, err
-					}
-					arrayNode.AddChild(itemNode)
-				}
-
-				node.AddChild(arrayNode)
-			} else {
-				// Simple value
-				node.Set(key, val)
-			}
-		}
-
-		return node, nil
-
-	case []interface{}:
-		// Create array node
-		node := NewJSONNode(name)
-		node.SetAttribute("type", Str("array"))
-
-		// Add array items as children
-		for i, item := range v {
-			itemName := fmt.Sprintf("item_%d", i)
-			itemNode, err := s.createNodeFromJSON(itemName, item)
-			if err != nil {
-				return nil, err
-			}
-			node.AddChild(itemNode)
-		}
-
-		return node, nil
-
-	default:
-		// Simple value - create leaf node
-		node := NewTreeNode(name)
-		node.SetAttribute("value", convertToValue(v))
-		return node, nil
-	}
-}
-
 // Helper to write attributes to XML
 func (s *TreeNodeSerializer) writeAttributes(buffer *bytes.Buffer, node TreeNode) {
 	// Write regular attributes
@@ -1645,6 +1580,7 @@ func convertToValue(v interface{}) Value {
 	}
 }
 
+/* currently unused
 // Replace deriveKey with your existing function
 func deriveKey(password string, salt []byte) []byte {
 	crypto := getCryptoManager()
@@ -1653,3 +1589,4 @@ func deriveKey(password string, salt []byte) []byte {
 	}
 	return crypto.DeriveKeyPBKDF2(password, salt, 100000, 32)
 }
+*/

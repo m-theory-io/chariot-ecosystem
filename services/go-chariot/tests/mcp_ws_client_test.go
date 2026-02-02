@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	mcpspec "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -42,7 +43,10 @@ func mockExternalServer() echo.HandlerFunc {
 	})
 
 	return func(c echo.Context) error {
-		upgrader := &websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+		upgrader := &websocket.Upgrader{
+			CheckOrigin:  func(r *http.Request) bool { return true },
+			Subprotocols: []string{mcpspec.WebsocketSubprotocol},
+		}
 		conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {
 			return err

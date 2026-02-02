@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
+	mcpspec "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -128,7 +129,9 @@ func TestMCP_WebSocket_Server_ListAndExecute(t *testing.T) {
 	// Dial with go-sdk client
 	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "test-client", Version: "0"}, nil)
 	url := "ws://" + addr + path
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	dialer := *websocket.DefaultDialer
+	dialer.Subprotocols = []string{mcpspec.WebsocketSubprotocol}
+	conn, _, err := dialer.Dial(url, nil)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}

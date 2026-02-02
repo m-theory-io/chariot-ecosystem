@@ -269,78 +269,12 @@ func GetValueTypeSpec(val Value) string {
 	}
 }
 
-// isValidTypeSpec checks if a type specification string is valid
-func isValidTypeSpec(typeSpec string) bool {
-	if len(typeSpec) != 1 {
-		return false
-	}
-
-	switch typeSpec[0] {
-	case 'N': // Number
-		return true
-	case 'S': // String
-		return true
-	case 'L': // Logical/Boolean
-		return true
-	case 'A': // Array
-		return true
-	case 'M': // Map
-		return true
-	case 'R': // Relation/Table (SQL result)
-		return true
-	case 'O': // Object
-		return true
-	case 'H': // HostObject
-		return true
-	case 'T': // TreeNode
-		return true
-	case 'F': // Function
-		return true
-	case 'J': // JSON
-		return true
-	case 'X': // XML
-		return true
-	case 'V': // Variable/untyped
-		return true
-	case 'P': // Plan
-		return true
-	case 'E': // ETL Transform / expression alias
-		return true
-	default:
-		return false
-	}
-}
-
 // ValueToString converts a Value to its string representation
 func ValueToString(v Value) string {
 	if stringer, ok := v.(interface{ String() string }); ok {
 		return stringer.String()
 	}
 	return fmt.Sprintf("%v", v)
-}
-
-// Helper function to convert various numeric Go types to float64
-func convertToNativeFloat64(v interface{}) float64 {
-	switch num := v.(type) {
-	case float64:
-		return num
-	case float32:
-		return float64(num)
-	case int:
-		return float64(num)
-	case int32:
-		return float64(num)
-	case int64:
-		return float64(num)
-	case uint:
-		return float64(num)
-	case uint32:
-		return float64(num)
-	case uint64:
-		return float64(num)
-	default:
-		return 0
-	}
 }
 
 // convertValueToFloat64 converts a Value to float64, handling various types

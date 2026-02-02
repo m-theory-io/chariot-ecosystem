@@ -465,16 +465,17 @@ func mapToXMLString(data map[string]interface{}, elementName string, indent int)
 
 	// Process attributes and content
 	for key, value := range data {
-		if key == "@attributes" {
+		switch key {
+		case "@attributes":
 			if attrs, ok := value.(map[string]interface{}); ok {
 				for attrName, attrValue := range attrs {
 					attributes = append(attributes, fmt.Sprintf(`%s="%v"`, attrName, attrValue))
 				}
 			}
-		} else if key == "#text" {
+		case "#text":
 			textContent = fmt.Sprintf("%v", value)
-		} else {
-			// Regular child elements
+		default:
+			// Regular child elements}
 			switch v := value.(type) {
 			case map[string]interface{}:
 				childXML := mapToXMLString(v, key, indent+1)
@@ -522,11 +523,6 @@ func isValidYAMLFile(filename string) bool {
 func isValidJSONFile(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
 	return ext == ".json"
-}
-
-func isValidCSVFile(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	return ext == ".csv"
 }
 
 func isValidXMLFile(filename string) bool {
