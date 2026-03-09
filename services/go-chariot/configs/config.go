@@ -66,6 +66,13 @@ type Config struct {
 	MCPEnabled   bool   `evar:"mcp_enabled"`   // Enable MCP server
 	MCPTransport string `evar:"mcp_transport"` // stdio | ws (websocket)
 	MCPWSPath    string `evar:"mcp_ws_path"`   // WebSocket path when using ws
+	// NSQ messaging
+	NSQEnabled        bool   `evar:"nsq_enabled"`
+	NSQDAddress       string `evar:"nsq_addr"`
+	NSQLookupdAddress string `evar:"nsq_lookupd"`
+	NSQDefaultTopic   string `evar:"nsq_topic"`
+	NSQDefaultChannel string `evar:"nsq_channel"`
+	NSQResponseTopics string `evar:"nsq_response_topics"`
 }
 
 var ChariotConfig = &Config{}

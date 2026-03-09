@@ -1339,14 +1339,6 @@ func getETLJobStatus(rt *Runtime, jobId string) (Value, error) {
 	return Str("unknown"), nil
 }
 
-// Placeholder for NSQ integration
-func sendNSQMessage(topic string, data interface{}) error {
-	// TODO: Implement NSQ message sending
-	// For now, just log the message
-	fmt.Printf("NSQ Message to %s: %+v\n", topic, data)
-	return nil
-}
-
 // Helper function to generate document ID for Couchbase
 func generateDocId(prefix string, format string, sqlRow map[string]interface{}) string {
 	// Try to get type prefix from the row data or use default
