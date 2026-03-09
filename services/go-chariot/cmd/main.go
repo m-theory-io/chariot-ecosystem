@@ -79,6 +79,13 @@ func init() {
 	cfg.ChariotConfig.BoolVar("mcp_enabled", &cfg.ChariotConfig.MCPEnabled, false)
 	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "ws")
 	cfg.ChariotConfig.StringVar("mcp_ws_path", &cfg.ChariotConfig.MCPWSPath, "/mcp")
+	// NSQ messaging
+	cfg.ChariotConfig.BoolVar("nsq_enabled", &cfg.ChariotConfig.NSQEnabled, false)
+	cfg.ChariotConfig.StringVar("nsq_addr", &cfg.ChariotConfig.NSQDAddress, "")
+	cfg.ChariotConfig.StringVar("nsq_lookupd", &cfg.ChariotConfig.NSQLookupdAddress, "")
+	cfg.ChariotConfig.StringVar("nsq_topic", &cfg.ChariotConfig.NSQDefaultTopic, "")
+	cfg.ChariotConfig.StringVar("nsq_channel", &cfg.ChariotConfig.NSQDefaultChannel, "")
+	cfg.ChariotConfig.StringVar("nsq_response_topics", &cfg.ChariotConfig.NSQResponseTopics, "")
 
 	// Bind evars
 	_ = kissflag.BindAllEVars(cfg.ChariotConfig)
@@ -116,6 +123,13 @@ func main() {
 		zap.Bool("Headless", cfg.ChariotConfig.Headless),
 		zap.Bool("DevRESTEnabled", cfg.ChariotConfig.DevRESTEnabled),
 	)
+	if spec := strings.TrimSpace(cfg.ChariotConfig.NSQResponseTopics); spec != "" {
+		if err := chariot.RegisterResponseTopicsFromSpec(spec); err != nil {
+			cfg.ChariotLogger.Warn("Failed to register NSQ response topics from env", zap.Error(err))
+		} else {
+			cfg.ChariotLogger.Info("Registered NSQ response topics", zap.String("spec", spec))
+		}
+	}
 	// Create session manager with 30 minute timeout, clean up every 5 minutes
 	timeOut := time.Duration(cfg.ChariotConfig.Timeout) * time.Minute
 	cleanUpInterval := time.Duration(5) * time.Minute

@@ -266,6 +266,60 @@ func RegisterSystem(rt *Runtime) {
 		return buildListenerResult(listener.opts), nil
 	})
 
+	rt.Register("listenNSQ", func(args ...Value) (Value, error) {
+		if len(args) < 3 {
+			return nil, errors.New("listenNSQ requires 3 arguments: topic, channel, handlers map")
+		}
+		for i, arg := range args {
+			if entry, ok := arg.(ScopeEntry); ok {
+				args[i] = entry.Value
+			}
+		}
+		var optsArg Value
+		if len(args) >= 4 {
+			optsArg = args[3]
+		}
+		opts, err := buildNSQListenerOptions(args[0], args[1], args[2], optsArg)
+		if err != nil {
+			return nil, err
+		}
+		listener, err := startRuntimeNSQListener(rt, opts)
+		if err != nil {
+			return nil, err
+		}
+		return buildNSQListenerResult(listener.opts), nil
+	})
+
+	rt.Register("registerResponseTopic", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("registerResponseTopic requires 2 arguments: key and topic")
+		}
+		key, ok := args[0].(Str)
+		if !ok {
+			return nil, fmt.Errorf("response topic key must be a string, got %T", args[0])
+		}
+		topic, ok := args[1].(Str)
+		if !ok {
+			return nil, fmt.Errorf("response topic value must be a string, got %T", args[1])
+		}
+		if err := RegisterResponseTopic(string(key), string(topic)); err != nil {
+			return nil, err
+		}
+		return Bool(true), nil
+	})
+
+	rt.Register("listResponseTopics", func(args ...Value) (Value, error) {
+		if len(args) != 0 {
+			return nil, errors.New("listResponseTopics accepts no arguments")
+		}
+		registered := ListResponseTopics()
+		result := NewMap()
+		for k, v := range registered {
+			result.Set(k, Str(v))
+		}
+		return result, nil
+	})
+
 }
 
 func ChariotValueToZapFields(fields map[string]Value) []zap.Field {
