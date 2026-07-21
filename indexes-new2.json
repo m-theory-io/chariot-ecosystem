@@ -1,0 +1,1019 @@
+[
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "cfacts",
+    "index": "cfact_parent_id_subtype_archived",
+    "index_expression": "`parent_id`,`subtype`,`value`.`archived`",
+    "index_old": "adv_cfact_parent_id_subtype_type",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'comment'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "cfacts",
+    "index": "cfact_id",
+    "index_expression": "`id`",
+    "index_old": "idx_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "cfacts",
+    "index": "cfact_type_updated_at",
+    "index_expression": "`type` INCLUDE MISSING, `updated_at`",
+    "index_old": "cfact_type_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "cfacts",
+    "index": "cfact_use_as",
+    "index_expression": "`use_as`",
+    "index_old": "idx_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_node_id_use_as_node_type",
+    "index_expression": "`node_id`,`node_type`,`use_as`",
+    "index_old": "adv_node_id_use_as_node_type",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_node_id_node_type_scope",
+    "index_expression": "`node_id`,`node_type`,`value`.`scope`",
+    "index_old": "adv_node_type_value_scope",
+    "scope": "{{ .scope }}",
+    "where": "`node_type` = 'organization'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_node_type_parent_node_id_use_as",
+    "index_expression": "`node_type`,`parent_node_id`,`use_as`",
+    "index_old": "adv_parent_node_id_node_type_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_parent_node_id_node_type_use_as",
+    "index_expression": "`parent_node_id`, `node_type`, `use_as`",
+    "index_old": "adv_parent_node_id_node_type_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_title_node_id",
+    "index_expression": "`title`,`node_id`",
+    "index_old": "adv_title_node_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_node_id",
+    "index_expression": "`node_id`",
+    "index_old": "idx_node_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_node_type",
+    "index_expression": "`node_type`",
+    "index_old": "idx_node_type",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_created_at",
+    "index_expression": "`created_at`",
+    "index_old": "idx_created_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_created_by",
+    "index_expression": "`created_by`",
+    "index_old": "idx_created_by",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_order_by",
+    "index_expression": "`order_by`",
+    "index_old": "idx_order_by",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_origin",
+    "index_expression": "`value`.`origin`",
+    "index_old": "idx_origin",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_updated_at",
+    "index_expression": "`updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_updated_by",
+    "index_expression": "`updated_by`",
+    "index_old": "idx_updated_by",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_use_as",
+    "index_expression": "`use_as`",
+    "index_old": "idx_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "containers",
+    "index": "con_type_updated_at_base_id_meta_id",
+    "index_expression": "`type` INCLUDE MISSING, `updated_at`, (`value`.`base_id`), (meta().id)",
+    "index_old": "",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_datasets_item_type_nodeitem_id",
+    "index_expression": "(all (array (`dsets`.`nodeitem_id`) for `dsets` in (`value`.`datasets`) end)),`item_type`,`nodeitem_id`",
+    "index_old": "adv_ALL_value_datasets_nodeitem_id_item_type_nodeitem_id",
+    "scope": "{{ .scope }}",
+    "where": "`value`.`datasets` IS VALUED"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_assets_nodeitem_id_item_type_use_as",
+    "index_expression": "(distinct (array (`asset`.`nodeitem_id`) for `asset` in (`value`.`assets`) end)),`item_type`,`use_as`",
+    "index_old": "adv_DISTINCT_value_assets_nodeitem_id_use_as_item_type",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_created_at_item_type_use_as_optimization_id_user_id",
+    "index_expression": "`created_at`,`item_type`,`use_as`,`value`.`optimization_id`,`value`.`user_id`",
+    "index_old": "adv_documents_optimization_id_user_id_item_type_use_as",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_item_type_node_id_nodeitem_id_user_id_user_name",
+    "index_expression": "`item_type`,`node_id`,`nodeitem_id`,`value`.`user_id`,`value`.`user_name`",
+    "index_old": "adv_item_type_node_id_nodeitem_id_value_user_id_value_user_name",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'user'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_item_type_node_id_organization_id_reference_id",
+    "index_expression": "`item_type`,`node_id`,`value`.`organization_id`,`value`.`reference_id`",
+    "index_old": "adv_item_type_node_id_value_reference_id_value_organization_id",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'itemref'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_item_type_okta_profile_roles_user_id",
+    "index_expression": "`item_type`,`value`.`okta_profile`,`value`.`roles`,`value`.`user_id`",
+    "index_old": "adv_item_type_value_user_id",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'user'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_editor_item_type_node_id_use_as",
+    "index_expression": "(distinct (array `editor` for `editor` in (`value`.`editors`) end)),`item_type`,`node_id`,`use_as`",
+    "index_old": "adv_node_id_item_type_use_as_editors",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'dashmodel'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_node_id_item_type_use_as_published",
+    "index_expression": "`node_id`, `item_type`, `use_as`, (`value`.`published`)",
+    "index_old": "adv_node_id_item_type",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` IN ['usecase', 'challenge']"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_nodeitem_id_first_last_user_name_title",
+    "index_expression": "`nodeitem_id`,`value`.`org_name`,ifmissingor""((`value`.`first_name` || \" \" || `value`.`last_name`), `value`.`user_name`), `title`",
+    "index_old": "adv_nodeitem_id_ifmissingor""_value_first_name_concat_concat_v2183061442",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'user'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_fact_item_type_nodeitem_id",
+    "index_expression": "(all (array `fact` for `fact` in (`value`.`facts`) end)),`item_type`,`nodeitem_id`",
+    "index_old": "adv_nodeitem_id_item_type_facts",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` IN ['user', 'dataset', 'persona']"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_item_type_title_nodeitem_id",
+    "index_expression": "`item_type`,`nodeitem_id`,`title`",
+    "index_old": "adv_nodeitem_id_item_type_title",
+    "scope": "{{ .scope }}",
+    "where": "(`value`.`base_id` is not valued) OR (`value`.`base_id` = `nodeitem_id`)"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_item_type_nodeitem_id_user_id_user_name",
+    "index_expression": "`item_type`,`nodeitem_id`,`value`.`user_id`,`value`.`user_name`",
+    "index_old": "adv_nodeitem_id_item_type_user",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'user'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_nodeitem_id_avatarId",
+    "index_expression": "`nodeitem_id`,`value`.`avatarId`",
+    "index_old": "adv_nodeitem_id_value_avatarId",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'user'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_nodeitem_id_use_as_item_type_origin_base_id_meta_id",
+    "index_expression": "`nodeitem_id`,`use_as`,`item_type`,`value`.`origin`,`value`.`base_id`,meta().`id`",
+    "index_old": "adv_nodeitem_id_value_base_id_meta_id_use_as_item_type_value_origin",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_nodeitem_id_user_name",
+    "index_expression": "`nodeitem_id`,`value`.`user_name`",
+    "index_old": "adv_nodeitem_id_value_user_name",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'user'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_base_id",
+    "index_expression": "`value`.`base_id`",
+    "index_old": "idx_base_id",
+    "scope": "{{ .scope }}",
+    "where": "`value`.`base_id` IS VALUED"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_nodeitem_id",
+    "index_expression": "`nodeitem_id`",
+    "index_old": "idx_nodeitem_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_node_id_item_type",
+    "index_expression": "`node_id`,`item_type`",
+    "index_old": "idx_node_id_item_type",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_created_by",
+    "index_expression": "`created_by`",
+    "index_old": "idx_created_by",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_order_by",
+    "index_expression": "`order_by`",
+    "index_old": "idx_order_by",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_origin",
+    "index_expression": "`value`.`origin`",
+    "index_old": "idx_origin",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_reference_id",
+    "index_expression": "`value`.`reference_id`",
+    "index_old": "idx_reference_id",
+    "scope": "{{ .scope }}",
+    "where": "`item_type` = 'itemref'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_revision_no",
+    "index_expression": "`value`.`revision_no`",
+    "index_old": "idx_revision_no",
+    "scope": "{{ .scope }}",
+    "where": "`value`.`base_id` IS VALUED"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_title",
+    "index_expression": "`title`",
+    "index_old": "idx_title",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_type_updated_at_base_id_meta_id",
+    "index_expression": "`type` INCLUDE MISSING, `updated_at`, (`value`.`base_id`), (meta().id)",
+    "index_old": "",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_updated_at",
+    "index_expression": "`updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_updated_by",
+    "index_expression": "`updated_by`",
+    "index_old": "idx_updated_by",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_nodeitem_id_title_roles_user_id_base_id_meta_id",
+    "index_expression": "`nodeitem_id`,`title`,`value`.`roles`,`value`.`user_id`,`value`.`base_id`,meta().`id`",
+    "index_old": "idx_user_roles",
+    "scope": "{{ .scope }}",
+    "where": "(`item_type` = 'user')"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "documents",
+    "index": "doc_item_type_limit",
+    "index_expression": "`item_type`,`value`.`limit`",
+    "index_old": "idx_users_filtered",
+    "scope": "{{ .scope }}",
+    "where": "(`item_type` = 'user')"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_created_at_parent_id_file_name",
+    "index_expression": "`created_at`,`parent_id`, (`value`.`fileName`)",
+    "index_old": "fact_created_at_parent_id_file_name",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_optimization_id_user_id",
+    "index_expression": "`optimization_id`, `user_id`",
+    "index_old": "fact_optimization_id_user_id",
+    "scope": "{{ .scope }}",
+    "where": "subtype = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_doc_id_doc_type_meta_id",
+    "index_expression": "`subtype`,`value`.`doc_id`,`value`.`doc_type`,meta().`id`",
+    "index_old": "idx_access_facts",
+    "scope": "{{ .scope }}",
+    "where": "subtype = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_file_name_thumbnail",
+    "index_expression": "`value`.`file_name`,`value`.`thumbnail`",
+    "index_old": "adv_facts_metadata_thumbnail",
+    "scope": "{{ .scope }}",
+    "where": "subtype='image'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_id_title_chatDestination",
+    "index_expression": "`id`,`title`,`value`.`chatDestination`",
+    "index_old": "adv_facts_select_with_meta",
+    "scope": "{{ .scope }}",
+    "where": "subtype='conversation'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_id_origin_use_as_subtype_meta_id",
+    "index_expression": "`id`,`value`.`origin`,`use_as`,`subtype`,meta().`id`",
+    "index_old": "adv_id_meta_id_value_base_id_item_type_node_type_value_origin_type_use_as_subtype",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_subtype_use_as_type_status",
+    "index_expression": "`parent_id`,`subtype`,`use_as`,`value`.`status`",
+    "index_old": "adv_parent_id_subtype_use_as_type_value_status",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` IN ['step','access','publish','avaConsole-step','invite','usecase-challenge','document-history']"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_use_as",
+    "index_expression": "`parent_id`,`use_as`",
+    "index_old": "adv_parent_id_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_doc_id_doc_role",
+    "index_expression": "`parent_id`,(`value`.`doc_id`),(`value`.`doc_role`)",
+    "index_old": "adv_parent_id_value_doc_id_value_doc_role",
+    "scope": "{{ .scope }}",
+    "where": "subtype = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_subtype_doc_id_org_id",
+    "index_expression": "`parent_id`, `subtype`, (`value`.`doc_id`), (`value`.`org_id`)",
+    "index_old": "adv_value_org_id_subtype_parent_id_value_doc_id_value_deleted",
+    "scope": "{{ .scope }}",
+    "where": "subtype = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_use_as_optimization_id_created_at_elapsed_time_end_time_start_time_status",
+    "index_expression": "`subtype`,`use_as`,`optimization_id`,`created_at`,`elapsed_time`,`end_time`,`start_time`,`status`.`status`",
+    "index_old": "adv_latest_runs",
+    "scope": "{{ .scope }}",
+    "where": "subtype = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_created_at_parent_id_published_sequence_no_status",
+    "index_expression": "`created_at`,`parent_id`,`published`,`sequence_no`,`status`.`status`",
+    "index_old": "adv_status_sequence_no_parent_id_published_created",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_doc_id_subtype_doc_type_meta_id_base_id",
+    "index_expression": "(`value`.`doc_id`),`subtype`,(`value`.`doc_type`),(`value`.`base_id`)",
+    "index_old": "adv_value_doc_id_subtype_value_doc_type_meta_id_value_base_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_sequence_no_start_time_status",
+    "index_expression": "`parent_id`,`sequence_no`,`start_time`,`status`.`status`",
+    "index_old": "adv_status_sequence_no_parent_id_start",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_organization_id_parent_id_meta_id",
+    "index_expression": "`subtype`,`organization_id`,`parent_id`,meta().`id`",
+    "index_old": "adv_subtype_organization_id_parent_id_base_id_meta_id",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'ava'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_order_parent_id_subtype",
+    "index_expression": "`order`,`parent_id`,`subtype`",
+    "index_old": "adv_subtype_parent_id_order",
+    "scope": "{{ .scope }}",
+    "where": "`order` IS VALUED"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_subtype_thumbnail_data",
+    "index_expression": "`parent_id`,`subtype`,ifmissingor""(`value`.`thumbnail`, `value`.`data`)",
+    "index_old": "adv_subtype_parent_id_type_ifmissingor""_value_thumbnail_value_data",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'image'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_subtype_doc_type",
+    "index_expression": "`parent_id`,`subtype`,`value`.`doc_type`",
+    "index_old": "adv_subtype_parent_id_value_doc_type",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_optimization_id_status_subtype_use_as",
+    "index_expression": "`optimization_id`,`status`.`status`,`subtype`,`use_as`",
+    "index_old": "adv_subtype_use_as_optimization_id_status",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'run' AND `use_as` = 'optimization'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_optimization_id_user_id",
+    "index_expression": "`optimization_id`,`user_id`",
+    "index_old": "",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_updated_at_file_name",
+    "index_expression": "`subtype`,`updated_at`, `file_name`",
+    "index_old": "fact_subtype_updated_at_file_name",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'run'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_doc_type_doc_id_parent_id",
+    "index_expression": "`subtype`,(`value`.`doc_type`), (`value`.`doc_id`), `parent_id`",
+    "index_old": "fact_subtype_doc_type_doc_id_parent_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_primary_doc_id",
+    "index_expression": "`subtype`, (`value`.`primary`), (`value`.`doc_id`)",
+    "index_old": "fact_subtype_primary_doc_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_parent_id_use_as",
+    "index_expression": "`subtype`, `parent_id`, `use_as`",
+    "index_old": "fact_subtype_parent_id_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype_doc_type_doc_id_org_id",
+    "index_expression": "`parent_id`,`subtype`,(`value`.`doc_id`),(`value`.`org_id`)",
+    "index_old": "adv_value_org_id_subtype_parent_id_value_doc_id",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_parent_id_doc_id_primary",
+    "index_expression": "`parent_id`,`value`.`doc_id`,`value`.`primary`",
+    "index_old": "adv_value_primary_value_doc_id_parent_id",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_doc_id",
+    "index_expression": "`value`.`doc_id`",
+    "index_old": "cov_subtype_access_doc_id",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_subtype",
+    "index_expression": "`subtype`",
+    "index_old": "idx_subtype",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_use_as",
+    "index_expression": "`use_as`",
+    "index_old": "idx_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_use_as_assistant_id",
+    "index_expression": "`use_as`, (`value`.`assistant_id`)",
+    "index_old": "fact_use_as_assistant_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_use_as_subtype_conversation_id",
+    "index_expression": "`use_as`, `subtype`, (`value`.`conversation_id`)",
+    "index_old": "fact_use_as_subtype_conversation_id",
+    "scope": "{{ .scope }}",
+    "where": "`use_as` = 'avachat'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_created_at_parent_id_file_name",
+    "index_expression": "`created_at`,`parent_id`, (`value`.`fileName`)",
+    "index_old": "fact_created_at_parent_id_file_name",
+    "scope": "{{ .scope }}",
+    "where": "`use_as` = 'share-history'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_created_at_subtype",
+    "index_expression": "`created_at`,`subtype`",
+    "index_old": "idx_created_at_subtype",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_archived_id",
+    "index_expression": "`value`.`archived_id`",
+    "index_old": "idx_fact_archive",
+    "scope": "{{ .scope }}",
+    "where": "`subtype` = 'access'"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_order_by",
+    "index_expression": "`order_by`",
+    "index_old": "idx_order_by",
+    "scope": "{{ .scope }}",
+    "where": "`order_by` IS VALUED"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_param_name",
+    "index_expression": "((distinct (array (`param`.`name`) for `param` in `parameters` end)))",
+    "index_old": "idx_parameter_name",
+    "scope": "{{ .scope }}",
+    "where": "IS_ARRAY(`parameters`)"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_type_updated_at",
+    "index_expression": "`type` INCLUDE MISSING, `updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_updated_at",
+    "index_expression": "`updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "facts",
+    "index": "fact_updated_by",
+    "index_expression": "`updated_by`",
+    "index_old": "idx_updated_by",
+    "scope": "{{ .scope }}",
+    "where": "`updated_by` IS VALUED"
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_id_parent_id",
+    "index_expression": "`id`,`parent_id`",
+    "index_old": "adv_jfact_id_parent_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_biz_key",
+    "index_expression": "`value`.`biz_key`",
+    "index_old": "idx_jfact_biz_key",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_dataset_id",
+    "index_expression": "`value`.`_dataset_id`",
+    "index_old": "idx_jfact_dataset_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_parent_id",
+    "index_expression": "`parent_id`",
+    "index_old": "idx_jfact_parent_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_row_id",
+    "index_expression": "`value`.`row_id`",
+    "index_old": "idx_jfact_row_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_subtype",
+    "index_expression": "`subtype`",
+    "index_old": "idx_jfact_subtype",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_use_as",
+    "index_expression": "`use_as`",
+    "index_old": "idx_jfact_useas",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_parent_id_subtype_use_as",
+    "index_expression": "`parent_id`,`subtype`,`use_as`",
+    "index_old": "idx_parentsubuseas",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "jfacts",
+    "index": "jfact_type_updated_at",
+    "index_expression": "`type` INCLUDE MISSING, `updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "rfacts",
+    "index": "rfact_parent_id",
+    "index_expression": "`parent_id`",
+    "index_old": "idx_rfact_parent_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "rfacts",
+    "index": "rfact_parent_id_sheet_name",
+    "index_expression": "`parent_id`,`sheet_name`",
+    "index_old": "idx_rfact_parent_sheet",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "rfacts",
+    "index": "rfact_subtype",
+    "index_expression": "`subtype`",
+    "index_old": "idx_rfact_subtype",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "rfacts",
+    "index": "rfact_type_updated_at",
+    "index_expression": "`type` INCLUDE MISSING, `updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_id",
+    "index_expression": "`id`",
+    "index_old": "idx_xfact_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_type_last_update",
+    "index_expression": "`type` INCLUDE MISSING, (`value`.`last_update`)",
+    "index_old": "xfact_type_last_updated",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_biz_key",
+    "index_expression": "`value`.`biz_key`",
+    "index_old": "idx_xfact_biz_key",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_parent_id",
+    "index_expression": "`parent_id`",
+    "index_old": "idx_xfact_parent_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_row_id",
+    "index_expression": "`value`.`row_id`",
+    "index_old": "idx_xfact_row_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_subtype",
+    "index_expression": "`subtype`",
+    "index_old": "idx_xfact_subtype",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_type_last_update",
+    "index_expression": "`type` INCLUDE MISSING, (`value`.`last_update`)",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "xfacts",
+    "index": "xfact_use_as",
+    "index_expression": "`use_as`",
+    "index_old": "idx_use_as",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "flagents",
+    "index": "flagent_created_at",
+    "index_expression": "`created_at`",
+    "index_old": "idx_created_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "flagents",
+    "index": "flagent_updated_at",
+    "index_expression": "`updated_at`",
+    "index_old": "idx_updated_at",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "flagents",
+    "index": "flagent_user_id",
+    "index_expression": "`user_id`",
+    "index_old": "idx_user_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "flagents",
+    "index": "flagent_run_id",
+    "index_expression": "`run_id`",
+    "index_old": "idx_run_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  },
+  {
+    "bucket": "{{ .bucket }}",
+    "collection": "flagents",
+    "index": "flagent_job_id",
+    "index_expression": "`job_id`",
+    "index_old": "idx_job_id",
+    "scope": "{{ .scope }}",
+    "where": ""
+  }
+]

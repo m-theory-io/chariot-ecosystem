@@ -69,9 +69,12 @@ services:
   # Charioteer Service (Go)
   charioteer:
     build:
-      context: ./services/charioteer
-      dockerfile: ../../infrastructure/docker/charioteer/Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/charioteer/Dockerfile
       target: production
+      args:
+        TARGETOS: linux
+        TARGETARCH: ${CHARIOTEER_TARGETARCH:-amd64}
     container_name: chariot-charioteer
     network_mode: host
     volumes:
@@ -95,9 +98,12 @@ services:
   # Go-Chariot Service
   go-chariot:
     build:
-      context: ./services/go-chariot
-      dockerfile: ../../infrastructure/docker/go-chariot/Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/go-chariot/Dockerfile
       target: production
+      args:
+        TARGETOS: linux
+        TARGETARCH: ${GO_CHARIOT_TARGETARCH:-amd64}
     container_name: chariot-go-chariot
     network_mode: host
     volumes:
@@ -142,8 +148,8 @@ services:
   # Visual DSL (React/TypeScript frontend served with Node.js)
   visual-dsl:
     build:
-      context: ./services/visual-dsl
-      dockerfile: ../../infrastructure/docker/visual-dsl/Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/visual-dsl/Dockerfile
     container_name: chariot-visual-dsl
     network_mode: host
     environment:

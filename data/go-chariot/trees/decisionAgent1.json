@@ -1,0 +1,432 @@
+{
+  "_meta": {
+    "serializer_type": "*chariot.TreeNodeImpl",
+    "serializer_version": "1.0"
+  },
+  "children": [
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "deposit": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "IfNode",
+                "condition": {
+                  "_node_type": "FuncCall",
+                  "args": [
+                    {
+                      "_node_type": "VarRef",
+                      "name": "profile"
+                    },
+                    {
+                      "_node_type": "Literal",
+                      "val": "is_employed"
+                    }
+                  ],
+                  "name": "getAttribute"
+                },
+                "falseBranch": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "Literal",
+                        "val": 2500
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "currency"
+                      }
+                    ],
+                    "name": "offerVar"
+                  }
+                ],
+                "position": 0,
+                "trueBranch": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "Literal",
+                        "val": 1000
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "currency"
+                      }
+                    ],
+                    "name": "offerVar"
+                  }
+                ]
+              }
+            ]
+          },
+          "parameters": [
+            "profile",
+            "offer"
+          ],
+          "source": "func(profile,offer)"
+        },
+        "description": "A lease plan for well-qualified applicants",
+        "monthly": {
+          "_value_type": "offer_variable",
+          "format_tag": "currency",
+          "value": 2500
+        },
+        "name": "Green Lease Plan",
+        "start_date": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [],
+                        "name": "now"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "day"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": 15
+                      }
+                    ],
+                    "name": "dateAdd"
+                  },
+                  {
+                    "_node_type": "Literal",
+                    "val": "YYYY-MM-DD"
+                  }
+                ],
+                "name": "formatDate"
+              }
+            ]
+          },
+          "parameters": [
+            "profile",
+            "offer"
+          ],
+          "source": "func(profile,offer)"
+        },
+        "term": {
+          "_value_type": "offer_variable",
+          "format_tag": "int",
+          "value": 12
+        },
+        "text": "Pay {deposit} deposit and {monthly} 1st-month rent today, to start your lease on {start_date}. Remaining rent of {monthly} for {term} months, to be paid on the 1st of every month."
+      },
+      "name": "offer"
+    },
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "ageFilter": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "profile"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "age"
+                      }
+                    ],
+                    "name": "getAttribute"
+                  },
+                  {
+                    "_node_type": "Literal",
+                    "val": 18
+                  }
+                ],
+                "name": "biggerEq"
+              }
+            ]
+          },
+          "parameters": [
+            "profile"
+          ],
+          "source": "func(profile)"
+        },
+        "debtFilter": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "profile"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "debt"
+                      }
+                    ],
+                    "name": "getAttribute"
+                  },
+                  {
+                    "_node_type": "Literal",
+                    "val": 10000
+                  }
+                ],
+                "name": "smallerEq"
+              }
+            ]
+          },
+          "parameters": [
+            "profile"
+          ],
+          "source": "func(profile)"
+        },
+        "employmentFilter": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "profile"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "is_employed"
+                      }
+                    ],
+                    "name": "getAttribute"
+                  },
+                  {
+                    "_node_type": "VarRef",
+                    "name": "true"
+                  }
+                ],
+                "name": "equal"
+              }
+            ]
+          },
+          "parameters": [
+            "profile"
+          ],
+          "source": "func(profile)"
+        }
+      },
+      "name": "rules"
+    },
+    {
+      "_meta": {
+        "serializer_type": "*chariot.JSONNode",
+        "serializer_version": "1.0"
+      },
+      "attributes": {
+        "onDecisionRequest": {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "profile"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "req"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "profile"
+                      }
+                    ],
+                    "name": "getProp"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "ageFilter"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "rules"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "ageFilter"
+                      }
+                    ],
+                    "name": "getAttribute"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "debtFilter"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "rules"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "debtFilter"
+                      }
+                    ],
+                    "name": "getAttribute"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "employmentFilter"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "rules"
+                      },
+                      {
+                        "_node_type": "Literal",
+                        "val": "employmentFilter"
+                      }
+                    ],
+                    "name": "getAttribute"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "approved"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "ageFilter"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "profile"
+                          }
+                        ],
+                        "name": "call"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "debtFilter"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "profile"
+                          }
+                        ],
+                        "name": "call"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "employmentFilter"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "profile"
+                          }
+                        ],
+                        "name": "call"
+                      }
+                    ],
+                    "name": "and"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "VarRef",
+                "name": "approved"
+              }
+            ]
+          },
+          "parameters": [
+            "req"
+          ],
+          "source": "func(req)"
+        }
+      },
+      "name": "handlers"
+    }
+  ],
+  "name": "agent"
+}

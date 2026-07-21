@@ -217,6 +217,7 @@
 
         .mcp-response-block {
             min-height: 140px;
+            max-height: 280px;
             background: #111114;
             border: 1px solid #35353c;
             border-radius: 6px;
@@ -225,6 +226,26 @@
             font-size: 13px;
             line-height: 1.4;
             color: #9fe6c3;
+            white-space: pre;
+            tab-size: 2;
+        }
+
+        .mcp-response-block.mcp-response-fullscreen {
+            position: fixed;
+            inset: 56px 24px 24px 24px;
+            z-index: 10020;
+            max-height: none;
+            height: auto;
+            margin: 0;
+            box-shadow: 0 18px 64px rgba(0, 0, 0, 0.55);
+        }
+
+        body.mcp-response-expanded::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 10010;
+            background: rgba(0, 0, 0, 0.62);
         }
 
         .mcp-icon-button {
@@ -1558,7 +1579,7 @@
             [/\b(csvHeaders|csvRowCount|csvColumnCount|csvGetRow|csvGetCell|csvToCSV|csvLoad)\b(?=\s*\()/, 'keyword.chariot.csv'],
             [/\b(generateCreateTable|sqlBegin|sqlConnect|sqlClose|sqlCommit|sqlExecute|sqlListTables|sqlQuery|sqlRollback)\b(?=\s*\()/, 'keyword.chariot.sql'],
             [/\b(append|ascii|atPos|char|charAt|concat|digits|format|hasPrefix|hasSuffix|interpolate|join|lastPos|lower|occurs|padLeft|padRight|repeat|replace|right|split|sprintf|string|strlen|substr|substring|trim|trimLeft|trimRight|upper)\b(?=\s*\()/, 'keyword.chariot.string'],
-            [/\b(exit|getEnv|hasEnv|listen|logPrint|mcpCallTool|mcpConnect|mcpClose|mcpListTools|platform|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
+            [/\b(exit|getEnv|hasEnv|listen|listenNSQ|listResponseTopics|logPrint|mcpCallTool|mcpConnect|mcpClose|mcpListTools|platform|registerResponseTopic|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
             [/\b(newTree|treeFind|treeGetMetadata|treeLoad|treeLoadSecure|treeSave|treeSaveSecure|treeSearch||treeToYAML|treeToXML|treeValidateSecure|treeWalk)\b(?=\s*\()/, 'keyword.chariot.tree'],
             [/\b(boolean|call|declare|declareGlobal|deleteFunction|destroy|empty|exists|func|function|getFunction|getVariable|hasMeta|inspectRuntime|isNull|isNumeric|listFunctions|loadFunctions|mapValue|merge|offerVar|offerVariable|registerFunction|saveFunctions|setValue|setq|symbol|toBool|toMapValue|toNumber|toString|typeOf|valueOf)\b(?=\s*\()/, 'keyword.chariot.value'],
             [/\bfunction\b/, 'keyword.control.chariot'], // Always highlight 'function' as a keyword
@@ -1615,9 +1636,11 @@
             tools: [],
             selectedTool: '',
             selectedFixtureId: null,
+            toolDrafts: {},
             busy: false,
             viewReady: false
         };
+        const defaultLocalChariotMCPURL = '{{ .LocalMCPURL }}' || 'http://localhost:8087/mcp';
         let mcpToolbarReady = false;
         // Throttle WS updates to avoid overwhelming UI
         let dashboardWSUpdateTimer = null;
@@ -4579,6 +4602,15 @@
             // Keyboard shortcuts (only register once)
             if (!window.chariotKeyboardHandlerRegistered) {
                 document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        const responseOutput = document.getElementById('mcpResponseOutput');
+                        if (responseOutput && responseOutput.classList.contains('mcp-response-fullscreen')) {
+                            e.preventDefault();
+                            setMCPResponseFullscreen(false);
+                            return;
+                        }
+                    }
+
                     // Skip if event is from Monaco editor
                     if (e.target.closest('.monaco-editor')) {
                         // Only handle Ctrl/Cmd+S, ignore arrow keys
@@ -5200,10 +5232,12 @@
                 <div class="mcp-container" id="mcpWorkspace">
                     <div class="mcp-sidebar">
                         <div class="mcp-section">
-                            <div class="mcp-section-header">Connection</div>
+                            <div class="mcp-section-header">Connection <button id="mcpLocalChariotPresetButton" class="mcp-icon-button" title="Use local Chariot MCP">◎</button></div>
                             <label class="mcp-label" for="mcpTransportSelect">Transport</label>
                             <select id="mcpTransportSelect" class="mcp-select">
                                 <option value="stdio">STDIO (Command)</option>
+                                <option value="http">HTTP / SSE</option>
+                                <option value="sse">SSE</option>
                                 <option value="ws">WebSocket</option>
                             </select>
                             <div class="mcp-transport-fields" data-transport="stdio">
@@ -5214,9 +5248,9 @@
                                 <label class="mcp-label" for="mcpEnvInput">Env Vars</label>
                                 <textarea id="mcpEnvInput" class="mcp-textarea" placeholder="KEY=VALUE"></textarea>
                             </div>
-                            <div class="mcp-transport-fields" data-transport="ws" style="display:none;">
+                            <div class="mcp-transport-fields" data-transport="http sse ws" style="display:none;">
                                 <label class="mcp-label" for="mcpUrlInput">Server URL</label>
-                                <input id="mcpUrlInput" class="mcp-input" placeholder="wss://127.0.0.1:9000/mcp" />
+                                <input id="mcpUrlInput" class="mcp-input" placeholder="${defaultLocalChariotMCPURL}" />
                                 <label class="mcp-label" for="mcpTokenInput">Auth Token</label>
                                 <input id="mcpTokenInput" class="mcp-input" placeholder="Bearer ..." />
                             </div>
@@ -5253,7 +5287,7 @@
                                 <button id="mcpSaveFixtureButton" class="toolbar-button" disabled>💾 Save Fixture</button>
                                 <button id="mcpDeleteFixtureButton" class="toolbar-button file-action delete" disabled>🗑️ Delete Fixture</button>
                             </div>
-                            <div class="mcp-section-header">Response</div>
+                            <div class="mcp-section-header">Response <button id="mcpResponseFullscreenButton" class="mcp-icon-button" title="Toggle response fullscreen">⛶</button></div>
                             <pre id="mcpResponseOutput" class="mcp-response-block">// Run a tool to see the response</pre>
                         </div>
                     </div>
@@ -5288,6 +5322,7 @@
         }
 
         function teardownMCPWorkspace() {
+            setMCPResponseFullscreen(false);
             const container = document.getElementById('editorContainer');
             if (container && container.dataset && container.dataset.mcpActive === 'true') {
                 container.innerHTML = '';
@@ -5300,9 +5335,14 @@
         function bindMCPWorkspaceHandlers() {
             const transportSelect = document.getElementById('mcpTransportSelect');
             if (transportSelect) {
-                transportSelect.addEventListener('change', () => applyMCPTransportVisibility(transportSelect.value));
+                transportSelect.addEventListener('change', () => handleMCPTransportChange(transportSelect.value));
             }
             applyMCPTransportVisibility(transportSelect ? transportSelect.value : 'stdio');
+
+            const localChariotPresetBtn = document.getElementById('mcpLocalChariotPresetButton');
+            if (localChariotPresetBtn) {
+                localChariotPresetBtn.addEventListener('click', applyLocalChariotMCPPreset);
+            }
 
             const newFixtureBtn = document.getElementById('mcpNewFixtureButton');
             if (newFixtureBtn) {
@@ -5324,10 +5364,21 @@
             if (inlineRefresh) {
                 inlineRefresh.addEventListener('click', () => triggerMCPToolRefresh({ force: true }));
             }
+            const responseFullscreenBtn = document.getElementById('mcpResponseFullscreenButton');
+            if (responseFullscreenBtn) {
+                responseFullscreenBtn.addEventListener('click', toggleMCPResponseFullscreen);
+            }
             const toolInput = document.getElementById('mcpToolInput');
             if (toolInput) {
                 toolInput.addEventListener('input', function () {
-                    mcpState.selectedTool = this.value.trim();
+                    const nextTool = this.value.trim();
+                    if (nextTool !== mcpState.selectedTool) {
+                        storeMCPDraftForTool(mcpState.selectedTool);
+                        mcpState.selectedTool = nextTool;
+                        if (!mcpState.toolDrafts[nextTool]) {
+                            restoreMCPDraftForTool(nextTool, { preserveToolInput: true });
+                        }
+                    }
                     refreshMCPActionStates();
                 });
             }
@@ -5349,8 +5400,42 @@
         function applyMCPTransportVisibility(value) {
             const sections = document.querySelectorAll('.mcp-transport-fields');
             sections.forEach(section => {
-                section.style.display = section.dataset.transport === value ? 'block' : 'none';
+                const transports = (section.dataset.transport || '').split(/\s+/).filter(Boolean);
+                section.style.display = transports.includes(value) ? 'block' : 'none';
             });
+        }
+
+        function handleMCPTransportChange(value) {
+            applyMCPTransportVisibility(value);
+            if (value === 'http' || value === 'sse') {
+                const urlInput = document.getElementById('mcpUrlInput');
+                if (urlInput && !urlInput.value.trim()) {
+                    urlInput.value = defaultLocalChariotMCPURL;
+                }
+            }
+            collectMCPSettingsFromForm();
+        }
+
+        function applyLocalChariotMCPPreset() {
+            const transportSelect = document.getElementById('mcpTransportSelect');
+            if (transportSelect) {
+                transportSelect.value = 'http';
+            }
+            const setValue = (id, value = '') => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.value = value;
+                }
+            };
+            setValue('mcpCommandInput', '');
+            setValue('mcpArgsInput', '');
+            setValue('mcpEnvInput', '');
+            setValue('mcpUrlInput', defaultLocalChariotMCPURL);
+            setValue('mcpTokenInput', '');
+            setValue('mcpTimeoutInput', '30000');
+            applyMCPTransportVisibility('http');
+            collectMCPSettingsFromForm();
+            showOutput('Local Chariot MCP preset applied. Start go-chariot with CHARIOT_MCP_TRANSPORT=http, then refresh tools.', 'info');
         }
 
         function collectMCPSettingsFromForm() {
@@ -5374,7 +5459,14 @@
                     env[key.trim()] = value;
                 }
             });
-            const url = document.getElementById('mcpUrlInput')?.value.trim() || '';
+            const urlInput = document.getElementById('mcpUrlInput');
+            let url = urlInput?.value.trim() || '';
+            if (!url && ['http', 'sse', 'ws'].includes(transport)) {
+                url = defaultLocalChariotMCPURL;
+                if (urlInput) {
+                    urlInput.value = url;
+                }
+            }
             const token = document.getElementById('mcpTokenInput')?.value.trim() || '';
             const timeoutValue = parseInt(document.getElementById('mcpTimeoutInput')?.value, 10);
             const settings = {
@@ -5388,6 +5480,17 @@
             };
             mcpState.settings = settings;
             return settings;
+        }
+
+        function validateMCPSettingsForRequest(settings) {
+            const transport = settings?.transport || 'stdio';
+            if (transport === 'stdio' && !String(settings?.command || '').trim()) {
+                return 'Command is required for STDIO transport.';
+            }
+            if (['http', 'sse', 'ws'].includes(transport) && !String(settings?.url || '').trim()) {
+                return 'Server URL is required for HTTP/SSE/WebSocket transport.';
+            }
+            return '';
         }
 
         function applyMCPSettingsToForm(settings) {
@@ -5406,11 +5509,13 @@
             setValue('mcpArgsInput', (safe.args || []).join('\n'));
             const envLines = safe.env ? Object.entries(safe.env).map(([k, v]) => `${k}=${v}`) : [];
             setValue('mcpEnvInput', envLines.join('\n'));
-            setValue('mcpUrlInput', safe.url || '');
+            const transport = safe.transport || 'stdio';
+            const url = safe.url || (['http', 'sse', 'ws'].includes(transport) ? defaultLocalChariotMCPURL : '');
+            setValue('mcpUrlInput', url);
             setValue('mcpTokenInput', safe.token || '');
             setValue('mcpTimeoutInput', safe.timeoutMs ? String(safe.timeoutMs) : '');
-            applyMCPTransportVisibility(safe.transport || 'stdio');
-            mcpState.settings = safe;
+            applyMCPTransportVisibility(transport);
+            mcpState.settings = collectMCPSettingsFromForm();
         }
 
         async function loadMCPSettingsFromServer() {
@@ -5456,6 +5561,82 @@
             mcpState.fixtures = Array.isArray(payload?.data) ? payload.data : [];
         }
 
+        function getCurrentMCPDraft() {
+            return {
+                fixtureId: mcpState.selectedFixtureId || null,
+                fixtureName: document.getElementById('mcpFixtureNameInput')?.value || '',
+                payloadText: document.getElementById('mcpPayloadInput')?.value || ''
+            };
+        }
+
+        function storeMCPDraftForTool(toolName) {
+            const key = (toolName || '').trim();
+            if (!key || !mcpState.viewReady) {
+                return;
+            }
+            mcpState.toolDrafts[key] = getCurrentMCPDraft();
+        }
+
+        function getLatestMCPFixtureForTool(toolName) {
+            const key = (toolName || '').trim();
+            if (!key) {
+                return null;
+            }
+            return mcpState.fixtures.find(item => item.tool === key) || null;
+        }
+
+        function setMCPDraftFields(draft) {
+            const safe = draft || { fixtureId: null, fixtureName: '', payloadText: '' };
+            const nameInput = document.getElementById('mcpFixtureNameInput');
+            const payloadInput = document.getElementById('mcpPayloadInput');
+            if (nameInput) {
+                nameInput.value = safe.fixtureName || '';
+            }
+            if (payloadInput) {
+                payloadInput.value = safe.payloadText || '';
+            }
+            mcpState.selectedFixtureId = safe.fixtureId || null;
+        }
+
+        function restoreMCPDraftForTool(toolName, options = {}) {
+            const key = (toolName || '').trim();
+            mcpState.selectedTool = key;
+            if (!options.preserveToolInput) {
+                updateMCPSelectedToolDisplay();
+            }
+            if (!key) {
+                setMCPDraftFields(null);
+                renderMCPFixturesList();
+                refreshMCPActionStates();
+                return;
+            }
+
+            let draft = mcpState.toolDrafts[key];
+            if (!draft) {
+                const fixture = getLatestMCPFixtureForTool(key);
+                if (fixture) {
+                    draft = {
+                        fixtureId: fixture.id || null,
+                        fixtureName: fixture.name || '',
+                        payloadText: serializeMCPPayloadForEditor(fixture.payload)
+                    };
+                }
+            }
+            setMCPDraftFields(draft || null);
+            renderMCPFixturesList();
+            refreshMCPActionStates();
+        }
+
+        function selectMCPTool(toolName) {
+            const nextTool = (toolName || '').trim();
+            if (nextTool === mcpState.selectedTool) {
+                return;
+            }
+            storeMCPDraftForTool(mcpState.selectedTool);
+            restoreMCPDraftForTool(nextTool);
+            renderMCPToolsList();
+        }
+
         function renderMCPFixturesList() {
             const listEl = document.getElementById('mcpFixturesList');
             if (!listEl) {
@@ -5481,6 +5662,7 @@
             if (!fixture) {
                 return;
             }
+            storeMCPDraftForTool(mcpState.selectedTool);
             mcpState.selectedFixtureId = fixture.id;
             const nameInput = document.getElementById('mcpFixtureNameInput');
             if (nameInput) {
@@ -5491,6 +5673,7 @@
             if (payloadInput) {
                 payloadInput.value = serializeMCPPayloadForEditor(fixture.payload);
             }
+            mcpState.toolDrafts[fixture.tool || ''] = getCurrentMCPDraft();
             renderMCPFixturesList();
             refreshMCPActionStates();
             updateMCPSelectedToolDisplay();
@@ -5506,6 +5689,7 @@
             if (payloadInput) {
                 payloadInput.value = '';
             }
+            storeMCPDraftForTool(mcpState.selectedTool);
             refreshMCPActionStates();
         }
 
@@ -5553,6 +5737,7 @@
             const saved = payloadResp?.data;
             mcpState.selectedFixtureId = saved?.id || null;
             await loadMCPFixtures();
+            storeMCPDraftForTool(tool);
             renderMCPFixturesList();
             refreshMCPActionStates();
             showOutput('Fixture saved.', 'success');
@@ -5628,6 +5813,13 @@
                 return;
             }
             const settings = collectMCPSettingsFromForm();
+            const validationMessage = validateMCPSettingsForRequest(settings);
+            if (validationMessage) {
+                if (!options.skipAlert) {
+                    showOutput(validationMessage, 'error');
+                }
+                return;
+            }
             setMCPBusy(true);
             let resp;
             try {
@@ -5654,11 +5846,12 @@
             const payload = await resp.json();
             const data = payload?.data || {};
             mcpState.tools = Array.isArray(data.tools) ? data.tools : [];
-            renderMCPToolsList();
             if (!mcpState.selectedTool && mcpState.tools.length) {
-                mcpState.selectedTool = mcpState.tools[0].name;
+                restoreMCPDraftForTool(mcpState.tools[0].name);
+            } else {
+                updateMCPSelectedToolDisplay();
             }
-            updateMCPSelectedToolDisplay();
+            renderMCPToolsList();
             if (!options.skipAlert) {
                 showOutput('Loaded ' + mcpState.tools.length + ' MCP tools.', 'success');
             }
@@ -5680,9 +5873,7 @@
                 card.innerHTML = '<div class="mcp-tool-name">' + (tool.name || '') + '</div>' +
                     '<div class="mcp-tool-description">' + (tool.description || 'No description provided') + '</div>';
                 card.addEventListener('click', () => {
-                    mcpState.selectedTool = tool.name;
-                    updateMCPSelectedToolDisplay();
-                    renderMCPToolsList();
+                    selectMCPTool(tool.name);
                 });
                 listEl.appendChild(card);
             });
@@ -5713,6 +5904,11 @@
                 return;
             }
             const settings = collectMCPSettingsFromForm();
+            const validationMessage = validateMCPSettingsForRequest(settings);
+            if (validationMessage) {
+                showOutput(validationMessage, 'error');
+                return;
+            }
             setMCPBusy(true);
             let resp;
             try {
@@ -5746,6 +5942,28 @@
                 return;
             }
             output.textContent = prettyJSONString(result);
+        }
+
+        function setMCPResponseFullscreen(expanded) {
+            const output = document.getElementById('mcpResponseOutput');
+            const button = document.getElementById('mcpResponseFullscreenButton');
+            if (!output) {
+                return;
+            }
+            output.classList.toggle('mcp-response-fullscreen', !!expanded);
+            document.body.classList.toggle('mcp-response-expanded', !!expanded);
+            if (button) {
+                button.textContent = expanded ? '↙' : '⛶';
+                button.title = expanded ? 'Exit response fullscreen' : 'Toggle response fullscreen';
+            }
+        }
+
+        function toggleMCPResponseFullscreen() {
+            const output = document.getElementById('mcpResponseOutput');
+            if (!output) {
+                return;
+            }
+            setMCPResponseFullscreen(!output.classList.contains('mcp-response-fullscreen'));
         }
 
         function prettyJSONString(value) {
@@ -7488,7 +7706,10 @@
                     '<div id="agentsContent" style="display:none;">' +
                     '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">' +
                     '<h2 style="margin:0; color:#569cd6;">BDI Agents</h2>' +
+                    '<div style="display:flex; gap:8px;">' +
+                    '<button id="createPlanBtn" class="toolbar-button" style="padding:8px 16px;">➕ Create Plan</button>' +
                     '<button id="createAgentBtn" class="toolbar-button" style="padding:8px 16px;">➕ Create Agent</button>' +
+                    '</div>' +
                     '</div>' +
                     '<div style="background:#252526; border:1px solid #333; border-radius:6px; padding:16px; margin-bottom:24px;">' +
                     '<table style="width:100%; border-collapse:collapse; color:#d4d4d4; font-size:13px;">' +
@@ -7537,6 +7758,24 @@
                     '</div>' +
                     '<pre id="agentsStream" style="height:30vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; border:1px solid #333; white-space:pre-wrap; word-break:break-word; font-size:11px;"></pre>' +
                     '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div id="createPlanModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000;">' +
+                    '<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#252526; border:1px solid #444; border-radius:8px; padding:24px; width:720px; max-width:92vw; max-height:86vh; overflow:auto;">' +
+                    '<h3 style="margin-top:0; color:#569cd6;">Create / Save Plan</h3>' +
+                    '<div style="margin-bottom:12px;">' +
+                    '<label style="display:block; margin-bottom:4px; color:#bbb;">Plan Variable Name:</label>' +
+                    '<input id="createPlanName" type="text" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;" placeholder="thermostatPlan" />' +
+                    '</div>' +
+                    '<div style="margin-bottom:12px;">' +
+                    '<label style="display:block; margin-bottom:4px; color:#bbb;">Plan Code:</label>' +
+                    '<textarea id="createPlanCode" style="width:100%; min-height:260px; padding:10px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; resize:vertical; font-family:monospace;"></textarea>' +
+                    '</div>' +
+                    '<div style="font-size:11px; color:#888; margin-bottom:16px;">The code must create a global plan variable with the selected name.</div>' +
+                    '<div style="display:flex; gap:12px; justify-content:flex-end;">' +
+                    '<button id="cancelCreatePlan" class="toolbar-button">Cancel</button>' +
+                    '<button id="confirmCreatePlan" class="toolbar-button" style="background:#0e639c;">Save Plan</button>' +
                     '</div>' +
                     '</div>' +
                     '</div>' +
@@ -7606,9 +7845,25 @@
                 }
 
                 // Create Agent button
+                const createPlanBtn = document.getElementById('createPlanBtn');
+                if (createPlanBtn) {
+                    createPlanBtn.addEventListener('click', showCreatePlanModal);
+                }
+
                 const createAgentBtn = document.getElementById('createAgentBtn');
                 if (createAgentBtn) {
                     createAgentBtn.addEventListener('click', showCreateAgentModal);
+                }
+
+                const cancelPlanBtn = document.getElementById('cancelCreatePlan');
+                if (cancelPlanBtn) {
+                    cancelPlanBtn.addEventListener('click', () => {
+                        document.getElementById('createPlanModal').style.display = 'none';
+                    });
+                }
+                const confirmPlanBtn = document.getElementById('confirmCreatePlan');
+                if (confirmPlanBtn) {
+                    confirmPlanBtn.addEventListener('click', saveAgentPlan);
                 }
 
                 // Create Agent modal handlers
@@ -7840,31 +8095,22 @@
         async function loadPlansForAgents() {
             console.log('[loadPlansForAgents] Starting...');
             try {
-                // Use the listPlans() function to get all plan names directly
-                const chariotCode = 'listPlans()\n';
-
-                console.log('[loadPlansForAgents] Executing listPlans()...');
-                const resp = await fetch('/charioteer/api/execute', {
-                    method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ program: chariotCode })
-                });
+                const resp = await fetch('/charioteer/api/agents/plans', { headers: getAuthHeaders() });
 
                 if (!resp.ok) {
                     const errorResult = await resp.json();
-                    console.error('[loadPlansForAgents] Execute failed:', resp.status, errorResult);
+                    console.error('[loadPlansForAgents] Plan list failed:', resp.status, errorResult);
                     return;
                 }
 
                 const result = await resp.json();
-                console.log('[loadPlansForAgents] Execute result:', result);
+                console.log('[loadPlansForAgents] Plans result:', result);
 
                 // Extract plan names from result
                 let planNames = [];
-                if (result.data && Array.isArray(result.data)) {
+                if (result.data && Array.isArray(result.data.plans)) {
+                    planNames = result.data.plans;
+                } else if (result.data && Array.isArray(result.data)) {
                     planNames = result.data;
                 } else if (result.result && Array.isArray(result.result)) {
                     planNames = result.result;
@@ -7906,6 +8152,74 @@
                 console.log('[loadPlansForAgents] Completed successfully');
             } catch (e) {
                 console.error('[loadPlansForAgents] Error:', e);
+            }
+        }
+
+        function buildDefaultPlanCode(planName) {
+            const safeName = (planName || 'thermostatPlan').trim() || 'thermostatPlan';
+            return [
+                "setq(planTrigger, func() { true })",
+                "setq(planGuard, func() { true })",
+                "setq(planStep, func() { logPrint('" + safeName + " running'); True })",
+                "setq(planDrop, func() { False })",
+                "declareGlobal(" + safeName + ", 'P', plan('" + safeName + "', array(), planTrigger, planGuard, array(planStep), planDrop))"
+            ].join('\n');
+        }
+
+        function showCreatePlanModal() {
+            const modal = document.getElementById('createPlanModal');
+            if (!modal) return;
+            const nameInput = document.getElementById('createPlanName');
+            const codeInput = document.getElementById('createPlanCode');
+            const defaultName = 'thermostatPlan';
+            if (nameInput) {
+                nameInput.value = defaultName;
+                nameInput.oninput = function () {
+                    if (codeInput && !codeInput.dataset.userEdited) {
+                        codeInput.value = buildDefaultPlanCode(nameInput.value);
+                    }
+                };
+            }
+            if (codeInput) {
+                codeInput.dataset.userEdited = '';
+                codeInput.value = buildDefaultPlanCode(defaultName);
+                codeInput.oninput = function () {
+                    codeInput.dataset.userEdited = '1';
+                };
+            }
+            modal.style.display = 'flex';
+        }
+
+        async function saveAgentPlan() {
+            const name = document.getElementById('createPlanName')?.value.trim();
+            const code = document.getElementById('createPlanCode')?.value.trim();
+            if (!name || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+                alert('Enter a valid plan variable name.');
+                return;
+            }
+            if (!code) {
+                alert('Enter plan code.');
+                return;
+            }
+            try {
+                const resp = await fetch('/charioteer/api/agents/plans', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify({ name, code })
+                });
+                const result = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(result.data || result.message || 'Failed to save plan');
+                }
+                document.getElementById('createPlanModal').style.display = 'none';
+                showOutput('Plan saved: ' + name, 'success');
+                await loadPlansForAgents();
+                const runOnceSelect = document.getElementById('planSelectRunOnce');
+                const createSelect = document.getElementById('createAgentPlan');
+                if (runOnceSelect) runOnceSelect.value = name;
+                if (createSelect) createSelect.value = name;
+            } catch (e) {
+                alert('Failed to save plan: ' + e.message);
             }
         }
 
@@ -8022,7 +8336,7 @@
                 }
 
                 const result = await resp.json();
-                const beliefs = result.data || {};
+                const beliefs = result.data || result.Data || {};
 
                 const modal = document.getElementById('beliefsModal');
                 const nameSpan = document.getElementById('beliefsAgentName');
@@ -8033,15 +8347,28 @@
                     if (Object.keys(beliefs).length === 0) {
                         content.innerHTML = '<div style="color:#888; padding:12px;">No beliefs set</div>';
                     } else {
-                        let html = '<table style="width:100%; border-collapse:collapse;">';
+                        let html = '<table style="width:100%; border-collapse:collapse;">' +
+                            '<thead><tr style="border-bottom:1px solid #444; color:#569cd6;">' +
+                            '<th style="text-align:left; padding:8px;">Key</th>' +
+                            '<th style="text-align:left; padding:8px;">Value</th>' +
+                            '<th style="text-align:right; padding:8px;">Action</th>' +
+                            '</tr></thead><tbody>';
                         for (const [key, value] of Object.entries(beliefs)) {
                             html += '<tr style="border-bottom:1px solid #444;">' +
                                 '<td style="padding:8px; color:#569cd6;">' + escapeHtml(key) + '</td>' +
-                                '<td style="padding:8px; font-family:monospace;">' + escapeHtml(JSON.stringify(value)) + '</td>' +
+                                '<td style="padding:8px; font-family:monospace;">' +
+                                '<input class="belief-value-input" data-key="' + escapeHtml(key) + '" value="' + escapeHtml(JSON.stringify(value)) + '" style="width:100%; padding:6px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; font-family:monospace;" />' +
+                                '</td>' +
+                                '<td style="padding:8px; text-align:right;">' +
+                                '<button class="toolbar-button belief-save-button" data-key="' + escapeHtml(key) + '" style="padding:4px 8px; font-size:11px;">Save</button>' +
+                                '</td>' +
                                 '</tr>';
                         }
-                        html += '</table>';
+                        html += '</tbody></table>';
                         content.innerHTML = html;
+                        content.querySelectorAll('.belief-save-button').forEach(button => {
+                            button.addEventListener('click', () => saveBeliefValue(name, button.getAttribute('data-key')));
+                        });
                     }
                 }
 
@@ -8115,8 +8442,37 @@
 
                 // Refresh beliefs display
                 await viewBeliefs(name);
+                await fetchAndRenderAgents();
             } catch (e) {
                 alert('Failed to set belief: ' + e.message);
+            }
+        }
+
+        async function saveBeliefValue(name, key) {
+            if (!name || !key) return;
+            const input = document.querySelector('.belief-value-input[data-key="' + escapeSelector(key) + '"]');
+            if (!input) return;
+            let value;
+            try {
+                value = JSON.parse(input.value);
+            } catch {
+                value = input.value;
+            }
+            try {
+                const resp = await fetch('/charioteer/api/agents/belief', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
+                    body: JSON.stringify({ name, key, value })
+                });
+                if (!resp.ok) {
+                    const result = await resp.json();
+                    throw new Error(result.data || 'Failed to update belief');
+                }
+                showOutput('Belief updated on agent "' + name + '": ' + key, 'success');
+                await viewBeliefs(name);
+                await fetchAndRenderAgents();
+            } catch (e) {
+                alert('Failed to update belief: ' + e.message);
             }
         }
 

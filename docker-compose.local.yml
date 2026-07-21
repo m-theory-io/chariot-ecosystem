@@ -1,0 +1,160 @@
+# Standalone developer stack for chariot services only.
+# Connects to externally managed Couchbase, MySQL, and NSQ instances
+# already running on the host (or elsewhere) via overridable env vars.
+
+volumes:
+  ssl-certs:
+    driver: local
+
+networks:
+  chariot-local:
+    driver: bridge
+  chariot-shared:
+    external: true
+    name: chariot-shared
+
+services:
+  go-chariot:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/go-chariot/Dockerfile
+      target: production
+      args:
+        TARGETARCH: ${GO_CHARIOT_TARGETARCH:-arm64}
+        TARGETOS: linux
+    platform: linux/arm64/v8
+    container_name: chariot-go-chariot-local
+    networks:
+      - chariot-local
+      - chariot-shared
+    ports:
+      - "8087:8087"
+    volumes:
+      - ssl-certs:/app/ssl
+      - ./config/go-chariot:/app/config:ro
+      - ./logs/go-chariot:/app/logs
+      - ./data/go-chariot:/app/data
+      - ./services/charioteer/files:/app/data/files
+      - ${HOME}/.azure:/home/gochariot/.azure:rw
+    environment:
+      - GO_ENV=development
+      - SKIP_DB_WAIT=true
+      - CHARIOT_CERT_PATH=/tmp/ssl
+      - CHARIOT_SSL=false
+      - CHARIOT_VERBOSE=true
+      - COUCHBASE_URL=couchbase://db
+      - COUCHBASE_USERNAME=${LOCAL_COUCHBASE_USERNAME:-Administrator}
+      - COUCHBASE_PASSWORD=${LOCAL_COUCHBASE_PASSWORD:-chariot123}
+      - COUCHBASE_BUCKET=${LOCAL_COUCHBASE_BUCKET:-chariot}
+      - MYSQL_HOST=mysql-server
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${LOCAL_MYSQL_DATABASE:-chariot}
+      - MYSQL_USERNAME=${LOCAL_MYSQL_USERNAME:-chariot}
+      - MYSQL_PASSWORD=${LOCAL_MYSQL_PASSWORD:-chariot123}
+      - CHARIOT_SECRET_PROVIDER=${CHARIOT_SECRET_PROVIDER:-file}
+      - CHARIOT_SECRET_FILE_PATH=${CHARIOT_SECRET_FILE_PATH:-/app/config/secrets.local.json}
+      - CHARIOTEER_URL=http://charioteer:8080
+      - CHARIOT_NSQ_ENABLED=${CHARIOT_NSQ_ENABLED:-true}
+      - CHARIOT_NSQ_ADDR=${CHARIOT_NSQ_ADDR:-host.docker.internal:4150}
+      - CHARIOT_NSQ_TOPIC_IN=${CHARIOT_NSQ_TOPIC_IN:-test_requests}
+      - CHARIOT_NSQ_TOPIC_OUT=${CHARIOT_NSQ_TOPIC_OUT:-test_responses}
+      - CHARIOT_NSQ_CHANNEL=${CHARIOT_NSQ_CHANNEL:-chariot_channel}
+      - CHARIOT_MCP_ENABLED=${CHARIOT_MCP_ENABLED:-true}
+      - CHARIOT_MCP_TRANSPORT=${CHARIOT_MCP_TRANSPORT:-http}
+      - CHARIOT_MCP_WS_PATH=${CHARIOT_MCP_WS_PATH:-/mcp}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-82fbfa53-3046-4f39-a182-f5e0082313d4}
+      - AZURE_KEY_VAULT_URL=${AZURE_KEY_VAULT_URL:-https://chariot-vault.vault.azure.net}
+      - AZURE_CONFIG_DIR=/home/gochariot/.azure
+      - CHARIOT_VAULT_KEY_PREFIX=${CHARIOT_VAULT_KEY_PREFIX:-local}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  charioteer:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/charioteer/Dockerfile
+      target: production
+      args:
+        TARGETARCH: ${CHARIOTEER_TARGETARCH:-arm64}
+        TARGETOS: linux
+    platform: linux/arm64/v8
+    container_name: chariot-charioteer-local
+    networks:
+      - chariot-local
+    ports:
+      - "8080:8080"
+    volumes:
+      - ssl-certs:/app/ssl
+      - ./config/charioteer:/app/config:ro
+      - ./logs/charioteer:/app/logs
+      - ./services/charioteer/files:/app/files
+    environment:
+      - NODE_ENV=development
+      - CHARIOT_BACKEND_URL=http://go-chariot:8087
+    depends_on:
+      go-chariot:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/charioteer/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  visual-dsl:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/visual-dsl/Dockerfile
+    platform: linux/arm64/v8
+    container_name: chariot-visual-dsl-local
+    networks:
+      - chariot-local
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=development
+      - CHARIOTEER_URL=http://charioteer:8080
+      - GO_CHARIOT_URL=http://go-chariot:8087
+    depends_on:
+      go-chariot:
+        condition: service_started
+      charioteer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./infrastructure/docker/nginx
+      dockerfile: Dockerfile
+    container_name: chariot-nginx-local
+    networks:
+      - chariot-local
+    ports:
+      - "8088:80"
+      - "8443:443"
+    depends_on:
+      go-chariot:
+        condition: service_healthy
+      charioteer:
+        condition: service_healthy
+      visual-dsl:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--no-check-certificate", "-O", "-", "https://127.0.0.1/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped

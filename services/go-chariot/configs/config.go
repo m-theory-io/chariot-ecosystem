@@ -64,8 +64,8 @@ type Config struct {
 	ListenerScriptsDir string `evar:"listener_scripts_dir"`
 	// MCP (Model Context Protocol) integration
 	MCPEnabled   bool   `evar:"mcp_enabled"`   // Enable MCP server
-	MCPTransport string `evar:"mcp_transport"` // stdio | ws (websocket)
-	MCPWSPath    string `evar:"mcp_ws_path"`   // WebSocket path when using ws
+	MCPTransport string `evar:"mcp_transport"` // stdio | http/sse | ws (websocket)
+	MCPWSPath    string `evar:"mcp_ws_path"`   // MCP path when using http/sse or ws
 	// NSQ messaging
 	NSQEnabled        bool   `evar:"nsq_enabled"`
 	NSQDAddress       string `evar:"nsq_addr"`

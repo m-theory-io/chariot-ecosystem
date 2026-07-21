@@ -1,10 +1,10 @@
-//go:build linux && amd64 && cgo && !cuda
+//go:build linux && arm64 && cgo && !cuda
 
 package chariot
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../knapsack-library/lib/linux-cpu
-#cgo LDFLAGS: -Wl,--start-group ${SRCDIR}/../knapsack-library/lib/linux-cpu/librl_support.a -lstdc++ -Wl,--end-group -lm
+#cgo CFLAGS: -I${SRCDIR}/../knapsack-library/lib/linux-arm64
+#cgo LDFLAGS: -Wl,--start-group ${SRCDIR}/../knapsack-library/lib/linux-arm64/librl_support.a -lstdc++ -Wl,--end-group -lm
 
 #include <stdlib.h>
 #include "rl_api.h"
@@ -17,20 +17,16 @@ import (
 	"unsafe"
 )
 
-// rlInit_impl is the Linux CPU implementation of rlInit
-// It wraps rl_init_from_json from librl_support.a
+// rlInit_impl is the Linux ARM64 implementation of rlInit
 func rlInit_impl(configJSON string) (interface{}, error) {
 	if configJSON == "" {
 		return nil, errors.New("rlInit: empty config JSON")
 	}
 
-	// Validate JSON structure
 	var cfg RLConfig
 	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
 		return nil, fmt.Errorf("rlInit: invalid JSON: %v", err)
 	}
-
-	// Validate required fields
 	if cfg.FeatDim <= 0 {
 		return nil, errors.New("rlInit: feat_dim must be > 0")
 	}
@@ -41,7 +37,6 @@ func rlInit_impl(configJSON string) (interface{}, error) {
 	cCfg := C.CString(configJSON)
 	defer C.free(unsafe.Pointer(cCfg))
 
-	// Error buffer for C API
 	const errLen = 512
 	errBuf := make([]byte, errLen)
 	cErr := (*C.char)(unsafe.Pointer(&errBuf[0]))
@@ -58,8 +53,7 @@ func rlInit_impl(configJSON string) (interface{}, error) {
 	return handle, nil
 }
 
-// rlScore_impl is the Linux CPU implementation of rlScore
-// It wraps rl_score_batch_with_features from librl_support.a
+// rlScore_impl is the Linux ARM64 implementation of rlScore
 func rlScore_impl(handle interface{}, features []float64, featDim int) ([]float64, error) {
 	if handle == nil {
 		return nil, errors.New("rlScore: nil handle")
@@ -69,30 +63,23 @@ func rlScore_impl(handle interface{}, features []float64, featDim int) ([]float6
 	if !ok {
 		return nil, fmt.Errorf("rlScore: invalid handle type %T", handle)
 	}
-
 	if len(features) == 0 {
 		return nil, errors.New("rlScore: empty features array")
 	}
-
 	if featDim <= 0 {
 		return nil, errors.New("rlScore: featDim must be > 0")
 	}
-
 	numCandidates := len(features) / featDim
 	if len(features)%featDim != 0 {
 		return nil, fmt.Errorf("rlScore: features length %d not divisible by featDim %d", len(features), featDim)
 	}
 
-	// Convert features to C float array
 	cFeatures := make([]C.float, len(features))
 	for i, f := range features {
 		cFeatures[i] = C.float(f)
 	}
-
-	// Allocate output scores array
 	scores := make([]C.double, numCandidates)
 
-	// Error buffer
 	const errLen = 512
 	errBuf := make([]byte, errLen)
 	cErr := (*C.char)(unsafe.Pointer(&errBuf[0]))
@@ -106,7 +93,6 @@ func rlScore_impl(handle interface{}, features []float64, featDim int) ([]float6
 		cErr,
 		C.int(errLen),
 	)
-
 	if rc != 0 {
 		errMsg := C.GoString(cErr)
 		if errMsg == "" {
@@ -115,32 +101,26 @@ func rlScore_impl(handle interface{}, features []float64, featDim int) ([]float6
 		return nil, fmt.Errorf("rlScore: %s", errMsg)
 	}
 
-	// Convert C scores to Go slice
 	result := make([]float64, numCandidates)
 	for i := 0; i < numCandidates; i++ {
 		result[i] = float64(scores[i])
 	}
-
 	return result, nil
 }
 
-// rlLearn_impl is the Linux CPU implementation of rlLearn
-// It wraps rl_learn_batch from librl_support.a
+// rlLearn_impl is the Linux ARM64 implementation of rlLearn
 func rlLearn_impl(handle interface{}, feedbackJSON string) error {
 	if handle == nil {
 		return errors.New("rlLearn: nil handle")
 	}
-
 	h, ok := handle.(C.rl_handle_t)
 	if !ok {
 		return fmt.Errorf("rlLearn: invalid handle type %T", handle)
 	}
-
 	if feedbackJSON == "" {
 		return errors.New("rlLearn: empty feedback JSON")
 	}
 
-	// Validate JSON structure
 	var feedback RLFeedback
 	if err := json.Unmarshal([]byte(feedbackJSON), &feedback); err != nil {
 		return fmt.Errorf("rlLearn: invalid JSON: %v", err)
@@ -149,7 +129,6 @@ func rlLearn_impl(handle interface{}, feedbackJSON string) error {
 	cFeedback := C.CString(feedbackJSON)
 	defer C.free(unsafe.Pointer(cFeedback))
 
-	// Error buffer
 	const errLen = 512
 	errBuf := make([]byte, errLen)
 	cErr := (*C.char)(unsafe.Pointer(&errBuf[0]))
@@ -166,17 +145,14 @@ func rlLearn_impl(handle interface{}, feedbackJSON string) error {
 	return nil
 }
 
-// rlClose_impl is the Linux CPU implementation of rlClose
-// It wraps rl_close from librl_support.a
+// rlClose_impl is the Linux ARM64 implementation of rlClose
 func rlClose_impl(handle interface{}) {
 	if handle == nil {
 		return
 	}
-
 	h, ok := handle.(C.rl_handle_t)
 	if !ok {
 		return
 	}
-
 	C.rl_close(h)
 }

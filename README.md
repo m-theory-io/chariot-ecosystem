@@ -44,12 +44,13 @@ These changes do not introduce new breaking storage locations for legacy deploym
 
 ## Model Context Protocol (MCP) integration
 
-go-chariot includes an optional MCP server built with the official Go SDK. It supports both stdio and WebSocket (WS) transports.
+go-chariot includes an optional MCP server built with the official Go SDK. It supports stdio, HTTP/SSE, and WebSocket (WS) transports.
 
 ### Transports
 
-- stdio: Recommended. The process runs only the MCP server and exits when the MCP client ends the session.
-- ws: The REST server stays up and exposes the WebSocket endpoint at `CHARIOT_MCP_WS_PATH`. Clients must send `Sec-WebSocket-Protocol: modelcontextprotocol.mcp.v1` during the handshake per the MCP spec.
+- stdio: Recommended for local editor integration. The process runs only the MCP server and exits when the MCP client ends the session.
+- http/sse: Recommended for VS Code-compatible network access. The REST server stays up and exposes the MCP HTTP/SSE endpoint at `CHARIOT_MCP_WS_PATH` (default `/mcp`). VS Code `type: "http"` clients try Streamable HTTP first and fall back to SSE.
+- ws: Legacy WebSocket access. The REST server stays up and exposes the WebSocket endpoint at `CHARIOT_MCP_WS_PATH`. Clients must send `Sec-WebSocket-Protocol: modelcontextprotocol.mcp.v1` during the handshake per the MCP spec.
 
 ### Configuration
 
@@ -57,8 +58,8 @@ You can configure via environment variables (preferred) or via flags defined in 
 
 - Environment variables
 	- `CHARIOT_MCP_ENABLED` (bool, default: `false`)
-	- `CHARIOT_MCP_TRANSPORT` (string: `stdio` | `ws`, default: `stdio`)
-	- `CHARIOT_MCP_WS_PATH` (string, default: `/mcp`)
+	- `CHARIOT_MCP_TRANSPORT` (string: `stdio` | `http` | `sse` | `ws`, default: `stdio`)
+	- `CHARIOT_MCP_WS_PATH` (string, default: `/mcp`; used for HTTP/SSE and WS network transports)
 
 - Flags (wired in `services/go-chariot/cmd/main.go`)
 	- `mcp_enabled`
@@ -82,7 +83,23 @@ CHARIOT_MCP_ENABLED=true CHARIOT_MCP_TRANSPORT=stdio ./cmd
 
 Notes
 - In stdio mode, the REST API is not started; the process serves MCP over stdio and exits when the client disconnects.
+- In http/sse mode, the HTTP server starts as usual; the route registered at `CHARIOT_MCP_WS_PATH` handles the SSE event stream and POST message endpoint. VS Code can use this with `type: "http"` or `type: "sse"`.
 - In ws mode, the HTTP server starts as usual; the WebSocket route is registered at `CHARIOT_MCP_WS_PATH` and serves MCP IO transport frames. The server enforces the MCP subprotocol (`modelcontextprotocol.mcp.v1`).
+
+### VS Code network configuration
+
+When go-chariot is running with `CHARIOT_MCP_ENABLED=true` and `CHARIOT_MCP_TRANSPORT=http`, add a server like this to `.vscode/mcp.json`:
+
+```jsonc
+{
+	"servers": {
+		"chariotHttp": {
+			"type": "http",
+			"url": "http://localhost:8087/mcp"
+		}
+	}
+}
+```
 
 ### Available tools
 

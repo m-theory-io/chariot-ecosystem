@@ -1,0 +1,14 @@
+{
+	"servers": {
+		"my-mcp-server-24d2a3d5": {
+			"url": "https://gc1-mcp.guardianchain.io/mcp",
+			"type": "http"
+		},
+		"chariot": {
+			"type": "stdio",
+			"command": "${workspaceFolder}/scripts/run-mcp-stdio.sh",
+			"args": []
+		}
+	},
+	"inputs": []
+}

@@ -22,6 +22,7 @@ func startEchoWith(path string, handler echo.HandlerFunc) (addr string, shutdown
 	e.HideBanner = true
 	e.HidePort = true
 	e.GET(path, handler)
+	e.POST(path, handler)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -171,5 +172,53 @@ func TestMCP_WebSocket_Server_ListAndExecute(t *testing.T) {
 	if got != "3" {
 		t.Fatalf("expected '3', got %q", got)
 	}
+	structured, ok := res.StructuredContent.(map[string]any)
+	if !ok || structured["result"] != "3" {
+		t.Fatalf("expected structured result '3', got %#v", res.StructuredContent)
+	}
 	_ = rwc.Close()
+}
+
+func TestMCP_HTTP_SSE_Server_ListAndExecute(t *testing.T) {
+	path := "/mcp"
+	handler := echo.WrapHandler(mcp.NewHTTPHandler())
+	addr, shutdown, err := startEchoWith(path, handler)
+	if err != nil {
+		t.Fatalf("start server: %v", err)
+	}
+	defer shutdown()
+
+	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "test-http-client", Version: "0"}, nil)
+	transport := &sdkmcp.SSEClientTransport{Endpoint: "http://" + addr + path}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	sess, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer sess.Close()
+
+	lt, err := sess.ListTools(ctx, &sdkmcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("list tools: %v", err)
+	}
+	have := map[string]bool{}
+	for _, tl := range lt.Tools {
+		have[tl.Name] = true
+	}
+	if !have["ping"] || !have["execute"] {
+		t.Fatalf("expected ping and execute, got: %#v", have)
+	}
+
+	res, err := sess.CallTool(ctx, &sdkmcp.CallToolParams{Name: "execute", Arguments: map[string]any{"code": "setq(x, add(5,5))"}})
+	if err != nil {
+		t.Fatalf("call execute: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("execute returned error: %#v", res)
+	}
+	structured, ok := res.StructuredContent.(map[string]any)
+	if !ok || structured["result"] != "10" {
+		t.Fatalf("expected structured result '10', got %#v", res.StructuredContent)
+	}
 }

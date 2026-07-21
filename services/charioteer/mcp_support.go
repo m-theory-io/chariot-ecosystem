@@ -88,7 +88,7 @@ func (s *MCPStore) loadSettings() error {
 	data, err := os.ReadFile(s.settingsPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			s.settings = MCPSettings{Transport: "stdio"}
+			s.settings = defaultMCPSettings()
 			return nil
 		}
 		return fmt.Errorf("read MCP settings: %w", err)
@@ -229,8 +229,14 @@ func writeJSONFile(path string, v any) error {
 
 func normalizeMCPSettings(settings MCPSettings) MCPSettings {
 	settings.Transport = strings.ToLower(strings.TrimSpace(settings.Transport))
+	if settings.Transport == "stdio" && strings.TrimSpace(settings.Command) == "" && strings.TrimSpace(settings.URL) == "" && settings.UpdatedAt.IsZero() {
+		return defaultMCPSettings()
+	}
 	if settings.Transport == "" {
-		settings.Transport = "stdio"
+		settings.Transport = "http"
+	}
+	if (settings.Transport == "http" || settings.Transport == "sse") && strings.TrimSpace(settings.URL) == "" {
+		settings.URL = defaultLocalChariotMCPURL()
 	}
 	if settings.Env == nil {
 		settings.Env = map[string]string{}
@@ -240,6 +246,18 @@ func normalizeMCPSettings(settings MCPSettings) MCPSettings {
 		settings.Args = []string{}
 	}
 	return settings
+}
+
+func defaultLocalChariotMCPURL() string {
+	return strings.TrimRight(getBackendURL(), "/") + "/mcp"
+}
+
+func defaultMCPSettings() MCPSettings {
+	return MCPSettings{
+		Transport: "http",
+		URL:       defaultLocalChariotMCPURL(),
+		TimeoutMs: int(defaultMCPTimeout / time.Millisecond),
+	}
 }
 
 func normalizePayload(raw json.RawMessage) json.RawMessage {
@@ -265,6 +283,21 @@ type mcpConnection struct {
 	session *mcp.ClientSession
 	cmd     *exec.Cmd
 	conn    *websocket.Conn
+	cancel  context.CancelFunc
+}
+
+type mcpAuthTransport struct {
+	base  http.RoundTripper
+	token string
+}
+
+func (t mcpAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.TrimSpace(t.token) == "" {
+		return t.base.RoundTrip(req)
+	}
+	clone := req.Clone(req.Context())
+	clone.Header.Set("Authorization", t.token)
+	return t.base.RoundTrip(clone)
 }
 
 func (c *mcpConnection) Close() {
@@ -278,6 +311,9 @@ func (c *mcpConnection) Close() {
 	if c.cmd != nil && c.cmd.Process != nil {
 		_ = c.cmd.Process.Kill()
 	}
+	if c.cancel != nil {
+		c.cancel()
+	}
 }
 
 func buildContext(timeoutMs int) (context.Context, context.CancelFunc) {
@@ -289,10 +325,9 @@ func buildContext(timeoutMs int) (context.Context, context.CancelFunc) {
 
 func connectMCP(settings MCPSettings) (*mcpConnection, error) {
 	ctx, cancel := buildContext(settings.TimeoutMs)
-	defer cancel()
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "charioteer-mcp", Version: "0.1"}, nil)
-	conn := &mcpConnection{}
+	conn := &mcpConnection{cancel: cancel}
 
 	switch settings.Transport {
 	case "stdio":
@@ -313,6 +348,7 @@ func connectMCP(settings MCPSettings) (*mcpConnection, error) {
 		transports := &mcp.CommandTransport{Command: cmd}
 		session, err := client.Connect(ctx, transports, nil)
 		if err != nil {
+			cancel()
 			return nil, fmt.Errorf("mcp stdio connect failed: %w", err)
 		}
 		conn.session = session
@@ -329,17 +365,37 @@ func connectMCP(settings MCPSettings) (*mcpConnection, error) {
 		}
 		wsConn, _, err := dialer.Dial(settings.URL, header)
 		if err != nil {
+			cancel()
 			return nil, fmt.Errorf("dial MCP websocket: %w", err)
 		}
 		rwc := &wsrwc{conn: wsConn}
 		session, err := client.Connect(ctx, &mcp.IOTransport{Reader: rwc, Writer: rwc}, nil)
 		if err != nil {
 			_ = wsConn.Close()
+			cancel()
 			return nil, fmt.Errorf("mcp websocket connect failed: %w", err)
 		}
 		conn.session = session
 		conn.conn = wsConn
+	case "http", "sse":
+		if settings.URL == "" {
+			return nil, errors.New("url is required for HTTP/SSE transport")
+		}
+		httpClient := http.DefaultClient
+		if strings.TrimSpace(settings.Token) != "" {
+			httpClient = &http.Client{
+				Transport: mcpAuthTransport{base: http.DefaultTransport, token: settings.Token},
+			}
+		}
+		transport := &mcp.SSEClientTransport{Endpoint: settings.URL, HTTPClient: httpClient}
+		session, err := client.Connect(ctx, transport, nil)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("mcp HTTP/SSE connect failed: %w", err)
+		}
+		conn.session = session
 	default:
+		cancel()
 		return nil, fmt.Errorf("unsupported transport: %s", settings.Transport)
 	}
 
@@ -591,7 +647,7 @@ func resolveSettings(override *MCPSettings) MCPSettings {
 	if mcpStore != nil {
 		return mcpStore.GetSettings()
 	}
-	return MCPSettings{Transport: "stdio"}
+	return defaultMCPSettings()
 }
 
 func extractResourceID(path string) string {

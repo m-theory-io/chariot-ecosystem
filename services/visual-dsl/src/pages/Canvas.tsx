@@ -254,6 +254,33 @@ export default function VisualDSLPrototype() {
   const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
   const [etlTransforms, setEtlTransforms] = React.useState<EtlTransformDefinition[]>([]);
   const [etlTransformError, setEtlTransformError] = React.useState<string | null>(null);
+  const ensureAuthToken = React.useCallback(async () => {
+    const existingToken = localStorage.getItem('chariot_auth_token') || '';
+    if (existingToken) {
+      return existingToken;
+    }
+
+    const loginRes = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username: 'dev', password: 'dev' }),
+    });
+
+    if (!loginRes.ok) {
+      throw new Error(`HTTP ${loginRes.status}`);
+    }
+
+    const body = await loginRes.json();
+    const token = body?.Data?.token || body?.data?.token || '';
+    if (!token) {
+      throw new Error('Missing auth token');
+    }
+
+    localStorage.setItem('chariot_auth_token', token);
+    return token;
+  }, []);
+
   React.useEffect(() => {
     let aborted = false;
 
@@ -558,7 +585,6 @@ export default function VisualDSLPrototype() {
       const defaultServer = typeof window !== 'undefined' ? `${window.location.origin}/api/diagrams` : '/api/diagrams';
       const baseUrl = (localStorage.getItem('diagram_server_base_url') || defaultServer).replace(/\/$/, '');
       try {
-        const token = localStorage.getItem('chariot_auth_token') || '';
         const storedScope = (localStorage.getItem('diagram_server_scope') || 'global').toLowerCase();
         const shareFlag = localStorage.getItem('diagram_server_share') === '1';
         const targetScope = shareFlag ? 'global' : (storedScope || 'global');
@@ -577,12 +603,18 @@ export default function VisualDSLPrototype() {
             targetUrl = `${baseUrl}${joiner}scope=${encodeURIComponent(targetScope)}`;
           }
         }
-        const res = await fetch(targetUrl, {
+        const postDiagram = async (token: string) => fetch(targetUrl, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: token } : {}) },
           body: JSON.stringify({ name: currentDiagramName, content: JSON.parse(jsonString) }),
         });
+        let token = localStorage.getItem('chariot_auth_token') || '';
+        let res = await postDiagram(token);
+        if (res.status === 401) {
+          token = await ensureAuthToken();
+          res = await postDiagram(token);
+        }
         if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
         const scopeLabelText = targetScope === 'sandbox' ? 'sandbox' : 'global';
         alert(`Diagram "${currentDiagramName}" saved to server (${scopeLabelText} scope).`);
