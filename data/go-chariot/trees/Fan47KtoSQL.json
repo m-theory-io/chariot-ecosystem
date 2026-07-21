@@ -1,0 +1,239 @@
+{
+  "_meta": {
+    "created": 1755029709,
+    "serializer_type": "*chariot.Transform",
+    "serializer_version": "1.0",
+    "transformType": "CSV_TO_SQL",
+    "version": "1.0"
+  },
+  "attributes": {
+    "mappings": [
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Sequence #",
+        "TargetColumn": "sequence_num",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Market Area File Group",
+        "TargetColumn": "market_area_file_group",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Hit",
+        "TargetColumn": "hit",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "First",
+        "TargetColumn": "first",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Middle",
+        "TargetColumn": "middle",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Last",
+        "TargetColumn": "last",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Prefix",
+        "TargetColumn": "prefix",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Suffix",
+        "TargetColumn": "suffix",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Maternal Surname",
+        "TargetColumn": "maternal_surname",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Housenum",
+        "TargetColumn": "housenum",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Predir",
+        "TargetColumn": "predir",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Street",
+        "TargetColumn": "street",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "St_Type",
+        "TargetColumn": "st_type",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Apt",
+        "TargetColumn": "apt",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "City",
+        "TargetColumn": "city",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "State",
+        "TargetColumn": "state",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Zip",
+        "TargetColumn": "zip",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "SSN",
+        "TargetColumn": "ssn",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "DOB",
+        "TargetColumn": "dob",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Phone",
+        "TargetColumn": "phone",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Frozen",
+        "TargetColumn": "frozen",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Empirica",
+        "TargetColumn": "empirica",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "TransRisk NA",
+        "TargetColumn": "transrisk_na",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "\u003cnil\u003e",
+        "Required": "false",
+        "SourceField": "Precision 03",
+        "TargetColumn": "precision_03",
+        "Transform": ""
+      },
+      {
+        "DataType": "text",
+        "DefaultValue": "",
+        "Program": "[]",
+        "Required": "false",
+        "SourceField": "Horizon 03",
+        "TargetColumn": "horizon_03",
+        "Transform": ""
+      }
+    ]
+  },
+  "name": "Fan47KtoSQL"
+}

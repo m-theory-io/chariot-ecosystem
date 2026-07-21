@@ -4,6 +4,9 @@
 # Stage 1: Build stage
 FROM golang:1.24-alpine AS gobuilder
 
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
 # Install build dependencies
 RUN apk add --no-cache \
     git \
@@ -24,7 +27,7 @@ RUN go mod download && go mod verify
 COPY services/charioteer/ .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o charioteer \

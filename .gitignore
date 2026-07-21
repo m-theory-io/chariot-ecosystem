@@ -10,6 +10,7 @@ node_modules/
 # Logs
 *.log
 npm-debug.log*
+*.har
 
 # Docker
 .docker/

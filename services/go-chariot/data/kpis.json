@@ -1,0 +1,16 @@
+{
+    "K_1": {
+        "description": "The amount of debt in dollars.",
+        "kpi_name": "amount_of_debt",
+        "kpi_type": "number",
+        "kpi_unit": "USD",
+        "kpi_default": 0.0,
+        "kpi_direction": "minimize",
+        "kpi_source": "debt.current_balance",
+        "weight": 1.0,
+        "bounds": [0.0, 1000000.0],
+        "center": 0.0,
+        "scale": 1.0,
+        "scale_method": "mad"
+    }
+}

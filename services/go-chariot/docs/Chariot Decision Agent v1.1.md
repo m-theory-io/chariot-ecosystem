@@ -1,4 +1,4 @@
-# Chariot Decision Agent v1.1
+# Chariot Decision Agent v1.2
 
 ## Overview
 
@@ -22,6 +22,8 @@ Agent
 │   ├── ageFilter: func(profile) { bigger(getAttribute(profile, 'age'), 18) }
 │   ├── debtFilter: func(profile) { smaller(getAttribute(profile, 'debt'), 10000) }
 │   └── employmentFilter: func(profile) { equal(getAttribute(profile, 'is_employed'), true) }
+├── scores
+│   └── rl_rank: func(profile) { rlScore(profile) } 
 └── handlers
     └── onDecisionRequest: func(req) { ... }
 ```
@@ -53,6 +55,13 @@ setAttribute(offer, 'text', 'Pay {deposit} deposit and {monthly} 1st-month rent 
 ```
 
 ---
+## Rules
+
+The `rules` dictionary contains logical functions that accept the `profile` object as an argument. Rules return `true` or `false`. An "approved" offer indicates the `profile` is qualified to receive the offer. To qualify, each rule function must return `true` for the given `profile`.
+
+## Scores
+
+The `scores` dictionary contains scoring functions that return a number. Currently, the `rl_rank` function computes the LinUCB score of the provided `profile`. Applications can use the score to drive presentation choices. The result of the choice is learned.
 
 ## Merging Offer Variables with the Text Template
 

@@ -1,0 +1,290 @@
+{
+  "_meta": {
+    "serializer_type": "*chariot.TreeNodeImpl",
+    "serializer_version": "1.0"
+  },
+  "attributes": {
+    "thermostat": {
+      "_value_type": "plan",
+      "drop": {
+        "_value_type": "function",
+        "body": {
+          "_node_type": "Block",
+          "stmts": [
+            {
+              "_node_type": "VarRef",
+              "name": "false"
+            }
+          ]
+        },
+        "parameters": null,
+        "source": "func()"
+      },
+      "guard": {
+        "_value_type": "function",
+        "body": {
+          "_node_type": "Block",
+          "stmts": [
+            {
+              "_node_type": "VarRef",
+              "name": "True"
+            }
+          ]
+        },
+        "parameters": null,
+        "source": "func()"
+      },
+      "name": "Thermostat",
+      "params": null,
+      "steps": [
+        {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "Literal",
+                    "val": "Performing step 1"
+                  }
+                ],
+                "name": "logPrint"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "needHeat"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "thermostat"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "currentTemp"
+                          }
+                        ],
+                        "name": "belief"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "thermostat"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "lower"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "smaller"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "needCool"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "thermostat"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "currentTemp"
+                          }
+                        ],
+                        "name": "belief"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "thermostat"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "upper"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "bigger"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "IfNode",
+                "condition": {
+                  "_node_type": "VarRef",
+                  "name": "needHeat"
+                },
+                "falseBranch": [
+                  {
+                    "_node_type": "IfNode",
+                    "condition": {
+                      "_node_type": "VarRef",
+                      "name": "needCool"
+                    },
+                    "falseBranch": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "temp OK"
+                          }
+                        ],
+                        "name": "logPrint"
+                      }
+                    ],
+                    "position": 0,
+                    "trueBranch": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "turn A/C on"
+                          }
+                        ],
+                        "name": "logPrint"
+                      }
+                    ]
+                  }
+                ],
+                "position": 0,
+                "trueBranch": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "Literal",
+                        "val": "turn A/C off"
+                      }
+                    ],
+                    "name": "logPrint"
+                  }
+                ]
+              }
+            ]
+          },
+          "parameters": null,
+          "source": "func()"
+        }
+      ],
+      "trigger": {
+        "_value_type": "function",
+        "body": {
+          "_node_type": "Block",
+          "stmts": [
+            {
+              "_node_type": "FuncCall",
+              "args": [
+                {
+                  "_node_type": "FuncCall",
+                  "args": [
+                    {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "Literal",
+                          "val": "thermostat"
+                        },
+                        {
+                          "_node_type": "Literal",
+                          "val": "currentTemp"
+                        }
+                      ],
+                      "name": "belief"
+                    },
+                    {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "Literal",
+                          "val": "thermostat"
+                        },
+                        {
+                          "_node_type": "Literal",
+                          "val": "lower"
+                        }
+                      ],
+                      "name": "belief"
+                    }
+                  ],
+                  "name": "smaller"
+                },
+                {
+                  "_node_type": "FuncCall",
+                  "args": [
+                    {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "Literal",
+                          "val": "thermostat"
+                        },
+                        {
+                          "_node_type": "Literal",
+                          "val": "currentTemp"
+                        }
+                      ],
+                      "name": "belief"
+                    },
+                    {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "Literal",
+                          "val": "thermostat"
+                        },
+                        {
+                          "_node_type": "Literal",
+                          "val": "upper"
+                        }
+                      ],
+                      "name": "belief"
+                    }
+                  ],
+                  "name": "bigger"
+                }
+              ],
+              "name": "or"
+            }
+          ]
+        },
+        "parameters": null,
+        "source": "func()"
+      }
+    }
+  },
+  "name": "root"
+}

@@ -77,15 +77,15 @@ func init() {
 	cfg.ChariotConfig.StringVar("listener_scripts_dir", &cfg.ChariotConfig.ListenerScriptsDir, "listeners")
 	// MCP configuration
 	cfg.ChariotConfig.BoolVar("mcp_enabled", &cfg.ChariotConfig.MCPEnabled, false)
-	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "ws")
+	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "stdio")
 	cfg.ChariotConfig.StringVar("mcp_ws_path", &cfg.ChariotConfig.MCPWSPath, "/mcp")
 	// NSQ messaging
-	cfg.ChariotConfig.BoolVar("nsq_enabled", &cfg.ChariotConfig.NSQEnabled, false)
-	cfg.ChariotConfig.StringVar("nsq_addr", &cfg.ChariotConfig.NSQDAddress, "")
-	cfg.ChariotConfig.StringVar("nsq_lookupd", &cfg.ChariotConfig.NSQLookupdAddress, "")
-	cfg.ChariotConfig.StringVar("nsq_topic", &cfg.ChariotConfig.NSQDefaultTopic, "")
-	cfg.ChariotConfig.StringVar("nsq_channel", &cfg.ChariotConfig.NSQDefaultChannel, "")
-	cfg.ChariotConfig.StringVar("nsq_response_topics", &cfg.ChariotConfig.NSQResponseTopics, "")
+	cfg.ChariotConfig.BoolVar("nsq_enabled", &cfg.ChariotConfig.NSQEnabled, true)
+	cfg.ChariotConfig.StringVar("nsq_addr", &cfg.ChariotConfig.NSQDAddress, "localhost:4150")
+	cfg.ChariotConfig.StringVar("nsq_lookupd", &cfg.ChariotConfig.NSQLookupdAddress, "localhost:4160")
+	cfg.ChariotConfig.StringVar("nsq_topic", &cfg.ChariotConfig.NSQDefaultTopic, "chariot_requests")
+	cfg.ChariotConfig.StringVar("nsq_channel", &cfg.ChariotConfig.NSQDefaultChannel, "chariot_channel")
+	cfg.ChariotConfig.StringVar("nsq_response_topics", &cfg.ChariotConfig.NSQResponseTopics, "chariot_responses")
 
 	// Bind evars
 	_ = kissflag.BindAllEVars(cfg.ChariotConfig)
@@ -233,10 +233,18 @@ func main() {
 		fmt.Println("Looking for cert at:", fullPathCrt)
 		fmt.Println("Looking for key at:", fullPathKey)
 
-		// Optionally mount MCP WebSocket endpoint (placeholder until implemented)
-		if cfg.ChariotConfig.MCPEnabled && strings.ToLower(cfg.ChariotConfig.MCPTransport) == "ws" {
-			e.GET(cfg.ChariotConfig.MCPWSPath, func(c echo.Context) error { return mcpserver.HandleWS(c) })
-			cfg.ChariotLogger.Info("MCP WebSocket route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
+		// Optionally mount MCP endpoint for network clients.
+		if cfg.ChariotConfig.MCPEnabled {
+			switch strings.ToLower(cfg.ChariotConfig.MCPTransport) {
+			case "ws":
+				e.GET(cfg.ChariotConfig.MCPWSPath, func(c echo.Context) error { return mcpserver.HandleWS(c) })
+				cfg.ChariotLogger.Info("MCP WebSocket route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
+			case "http", "sse":
+				mcpHTTPHandler := echo.WrapHandler(mcpserver.NewHTTPHandler())
+				e.GET(cfg.ChariotConfig.MCPWSPath, mcpHTTPHandler)
+				e.POST(cfg.ChariotConfig.MCPWSPath, mcpHTTPHandler)
+				cfg.ChariotLogger.Info("MCP HTTP/SSE route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
+			}
 		}
 
 		// Start server with or without SSL (this call blocks)

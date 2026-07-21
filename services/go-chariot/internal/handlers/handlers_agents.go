@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,6 +25,76 @@ type agentStartReq struct {
 func (h *Handlers) ListAgents(c echo.Context) error {
 	names := ch.DefaultAgentNames()
 	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]any{"agents": names}})
+}
+
+func (h *Handlers) ListPlans(c echo.Context) error {
+	plans := h.listBootstrapPlans()
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]any{"plans": plans}})
+}
+
+func (h *Handlers) SavePlan(c echo.Context) error {
+	var req struct {
+		Name string `json:"name"`
+		Code string `json:"code"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if req.Name == "" || !isChariotIdentifier(req.Name) {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "valid plan name is required"})
+	}
+	if req.Code == "" {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "plan code is required"})
+	}
+
+	if _, err := h.bootstrapRuntime.ExecProgram(req.Code); err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	planVal, ok := h.bootstrapRuntime.GlobalScope().Get(req.Name)
+	if !ok {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("plan code did not create global plan %q", req.Name)})
+	}
+	plan, ok := planVal.(*ch.Plan)
+	if !ok || plan == nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("%q is not a plan", req.Name)})
+	}
+
+	cfg.ChariotLogger.Info("Plan saved", zap.String("name", req.Name), zap.String("plan", plan.Name))
+	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]any{"name": req.Name, "plan": plan.Name, "plans": h.listBootstrapPlans()}})
+}
+
+func (h *Handlers) listBootstrapPlans() []string {
+	out := []string{}
+	if h == nil || h.bootstrapRuntime == nil || h.bootstrapRuntime.GlobalScope() == nil {
+		return out
+	}
+	for name, value := range h.bootstrapRuntime.GlobalScope().AllVars() {
+		if _, ok := value.(*ch.Plan); ok {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func isChariotIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i, r := range value {
+		if i == 0 {
+			if !(r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z')) {
+				return false
+			}
+			continue
+		}
+		if !(r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')) {
+			return false
+		}
+	}
+	return true
 }
 
 func (h *Handlers) StartAgent(c echo.Context) error {
@@ -222,8 +293,8 @@ func (h *Handlers) RunPlanOnce(c echo.Context) error {
 	// Note: req.Plan is the plan variable name - retrieve it from bootstrap globals
 	var code strings.Builder
 	// First, get the plan object from the bootstrap runtime's global scope
-	code.WriteString("setq(__planToRun, getVariable(\"" + req.Plan + "\"))\n")
-	code.WriteString("runPlanOnceEx(__planToRun, \"" + req.Mode + "\"")
+	fmt.Fprintf(&code, "setq(__planToRun, getVariable(\"%s\"))\n", req.Plan)
+	fmt.Fprintf(&code, "runPlanOnceEx(__planToRun, \"%s\"", req.Mode)
 	if len(req.VarsMap) > 0 {
 		// Convert varsMap to Chariot map literal
 		code.WriteString(", map(")
@@ -270,11 +341,8 @@ func (h *Handlers) RunPlanOnce(c echo.Context) error {
 		}
 	}
 
-	// Get session from context to use its runtime (which has all bootstrap globals)
-	session := c.Get("session").(*ch.Session)
-
-	// Execute in the session's runtime (where the plan is defined)
-	res, err := session.Runtime.ExecProgram(code.String())
+	// Execute in the bootstrap runtime where plan creation/save APIs register plans.
+	res, err := h.bootstrapRuntime.ExecProgram(code.String())
 	if err != nil {
 		cfg.ChariotLogger.Error("RunPlanOnce error", zap.String("plan", req.Plan), zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "error", Data: err.Error()})

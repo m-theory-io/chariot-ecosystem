@@ -8,6 +8,10 @@
         "CHARIOT_MCP_TRANSPORT": "stdio"
       },
       "workingDirectory": "${repoRoot}"
+    },
+    "chariotHttp": {
+      "type": "http",
+      "url": "http://localhost:8087/mcp"
     }
   }
 }

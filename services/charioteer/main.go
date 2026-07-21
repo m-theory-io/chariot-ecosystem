@@ -559,6 +559,7 @@ var editorTemplate = template.Must(template.ParseFiles("templates/editor.html"))
 
 type EditorData struct {
 	InitialCode string
+	LocalMCPURL string
 }
 
 type DashboardData struct {
@@ -582,6 +583,7 @@ func editorHandler(w http.ResponseWriter, r *http.Request) {
     declare(x, 'N', 100)
     setq(result, add(x, 100))
     result`,
+		LocalMCPURL: defaultLocalChariotMCPURL(),
 	}
 
 	// Execute template
@@ -1794,6 +1796,18 @@ func main() {
 	http.HandleFunc("/charioteer/api/agents", authMiddleware(agentsListHandler))
 
 	// Agent management proxy routes -> go-chariot backend
+	http.HandleFunc("/charioteer/api/agents/plans", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			proxyToBackendJSON(w, r, http.MethodGet, "/api/agents/plans", nil)
+		case http.MethodPost:
+			body, _ := io.ReadAll(r.Body)
+			proxyToBackendJSON(w, r, http.MethodPost, "/api/agents/plans", body)
+		default:
+			sendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	}))
+
 	http.HandleFunc("/charioteer/api/agents/create", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			sendError(w, http.StatusMethodNotAllowed, "method not allowed")

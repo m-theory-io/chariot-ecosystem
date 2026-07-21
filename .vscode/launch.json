@@ -35,7 +35,10 @@
                 "CHARIOT_TREE_PATH": "${workspaceFolder}/data/trees",
                 "CHARIOT_DIAGRAM_PATH": "${workspaceFolder}/data/diagrams",
                 "CHARIOT_SANDBOX_ROOT": "${workspaceFolder}/data/sandboxes",
-                "CHARIOT_SANDBOX_DEFAULT_SCOPE": "sandbox"
+                "CHARIOT_SANDBOX_DEFAULT_SCOPE": "sandbox",
+                "CHARIOT_MCP_ENABLED": "true",
+                "CHARIOT_MCP_TRANSPORT": "http",
+                "CHARIOT_MCP_WS_PATH": "/mcp"
             },
             "args": [],
             "showLog": true,

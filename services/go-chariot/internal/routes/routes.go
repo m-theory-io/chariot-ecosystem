@@ -63,6 +63,8 @@ func RegisterRoutes(e *echo.Echo, h *handlers.Handlers) {
 	// Agents APIs
 	agents := api.Group("/agents")
 	agents.GET("", h.ListAgents)
+	agents.GET("/plans", h.ListPlans)          // GET /api/agents/plans
+	agents.POST("/plans", h.SavePlan)          // POST /api/agents/plans
 	agents.POST("/create", h.CreateAgent)      // POST /api/agents/create
 	agents.POST("/stop", h.StopAgent)          // POST /api/agents/stop
 	agents.POST("/publish", h.PublishAgent)    // POST /api/agents/publish
