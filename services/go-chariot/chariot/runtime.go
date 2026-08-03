@@ -973,6 +973,7 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 		document:          rt.document.Clone(),
 		defaultDocPath:    rt.defaultDocPath,
 		timeOffset:        rt.timeOffset,
+		logWriter:         rt.logWriter,
 		Parser:            NewParser(""),
 	}
 

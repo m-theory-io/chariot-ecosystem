@@ -30,7 +30,9 @@ var (
 	insecureSkipVerify = flag.Bool("insecure", true, "Skip TLS certificate verification for backend (dev only)")
 	certPath           = flag.String("certpath", ".certs", "cert file folder")
 	useSSL             = flag.Bool("ssl", false, "Use HTTPS with TLS certs (default false for dev)")
+	mcpDataDir         = flag.String("mcp-data", "", "Directory for MCP settings and fixtures")
 	mcpStore           *MCPStore
+	agentFixtureStore  *AgentFixtureStore
 )
 
 // ResultJSON provides a standardized JSON response format
@@ -78,6 +80,16 @@ func getBackendURL() string {
 		return env
 	}
 	return "https://localhost:8087"
+}
+
+func getMCPDataDir() string {
+	if *mcpDataDir != "" {
+		return *mcpDataDir
+	}
+	if env := os.Getenv("CHARIOTEER_MCP_DATA_DIR"); env != "" {
+		return env
+	}
+	return "data"
 }
 
 // getPort returns the port from flag, environment variable, or default
@@ -1722,9 +1734,13 @@ func main() {
 	cleanupMetadataFiles("files")
 
 	var err error
-	mcpStore, err = newMCPStore("data")
+	mcpStore, err = newMCPStore(getMCPDataDir())
 	if err != nil {
 		log.Fatalf("failed to initialize MCP store: %v", err)
+	}
+	agentFixtureStore, err = newAgentFixtureStore(getMCPDataDir())
+	if err != nil {
+		log.Fatalf("failed to initialize agent fixture store: %v", err)
 	}
 
 	// Protected routes -- proxy file operations to backend
@@ -1753,6 +1769,8 @@ func main() {
 	http.HandleFunc("/api/mcp/fixtures/", authMiddleware(mcpFixtureItemHandler))
 	http.HandleFunc("/api/mcp/tools", authMiddleware(mcpListToolsHandler))
 	http.HandleFunc("/api/mcp/execute", authMiddleware(mcpExecuteHandler))
+	http.HandleFunc("/api/agents/fixtures", authMiddleware(agentFixturesHandler))
+	http.HandleFunc("/api/agents/fixtures/", authMiddleware(agentFixtureItemHandler))
 
 	// Prefixed API routes for proxy path support
 	http.HandleFunc("/charioteer/api/session/profile", authMiddleware(sessionProfileHandler))
@@ -1779,6 +1797,8 @@ func main() {
 	http.HandleFunc("/charioteer/api/mcp/fixtures/", authMiddleware(mcpFixtureItemHandler))
 	http.HandleFunc("/charioteer/api/mcp/tools", authMiddleware(mcpListToolsHandler))
 	http.HandleFunc("/charioteer/api/mcp/execute", authMiddleware(mcpExecuteHandler))
+	http.HandleFunc("/charioteer/api/agents/fixtures", authMiddleware(agentFixturesHandler))
+	http.HandleFunc("/charioteer/api/agents/fixtures/", authMiddleware(agentFixtureItemHandler))
 
 	// Public routes
 	http.HandleFunc("/charioteer/health", healthHandler)

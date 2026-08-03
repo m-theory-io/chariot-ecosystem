@@ -20,7 +20,7 @@ func initMySQLConfig() {
 		// Initialize configuration similar to cmd/main.go
 		// Set the env vars in the os
 		os.Setenv("CHARIOT_SQL_DRIVER", "mysql")
-		os.Setenv("CHARIOT_SQL_URL", "localhost")
+		os.Setenv("CHARIOT_SQL_HOST", "localhost")
 		os.Setenv("CHARIOT_SQL_USER", "chariot")
 		os.Setenv("CHARIOT_SQL_PASSWORD", "chariot123")
 		os.Setenv("CHARIOT_SQL_DATABASE", "testsql")

@@ -42,26 +42,29 @@ services:
       - CHARIOT_CERT_PATH=/tmp/ssl
       - CHARIOT_SSL=false
       - CHARIOT_VERBOSE=true
-      - COUCHBASE_URL=couchbase://db
-      - COUCHBASE_USERNAME=${LOCAL_COUCHBASE_USERNAME:-Administrator}
-      - COUCHBASE_PASSWORD=${LOCAL_COUCHBASE_PASSWORD:-chariot123}
-      - COUCHBASE_BUCKET=${LOCAL_COUCHBASE_BUCKET:-chariot}
-      - MYSQL_HOST=mysql-server
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=${LOCAL_MYSQL_DATABASE:-chariot}
-      - MYSQL_USERNAME=${LOCAL_MYSQL_USERNAME:-chariot}
-      - MYSQL_PASSWORD=${LOCAL_MYSQL_PASSWORD:-chariot123}
+      - CHARIOT_COUCHBASE_URL=${CHARIOT_COUCHBASE_URL:-couchbase://db}
+      - CHARIOT_COUCHBASE_USER=${CHARIOT_COUCHBASE_USER:-Administrator}
+      - CHARIOT_COUCHBASE_PASSWORD=${CHARIOT_COUCHBASE_PASSWORD:-chariot123}
+      - CHARIOT_COUCHBASE_BUCKET=${CHARIOT_COUCHBASE_BUCKET:-chariot}
+      - CHARIOT_SQL_HOST=${CHARIOT_SQL_HOST:-mysql-server}
+      - CHARIOT_SQL_PORT=${CHARIOT_SQL_PORT:-3306}
+      - CHARIOT_SQL_DATABASE=${CHARIOT_SQL_DATABASE:-chariot}
+      - CHARIOT_SQL_USER=${CHARIOT_SQL_USER:-chariot}
+      - CHARIOT_SQL_PASSWORD=${CHARIOT_SQL_PASSWORD:-chariot123}
       - CHARIOT_SECRET_PROVIDER=${CHARIOT_SECRET_PROVIDER:-file}
       - CHARIOT_SECRET_FILE_PATH=${CHARIOT_SECRET_FILE_PATH:-/app/config/secrets.local.json}
+      - CHARIOT_FUNCTION_LIB=${CHARIOT_FUNCTION_LIB:-stlib.json}
       - CHARIOTEER_URL=http://charioteer:8080
       - CHARIOT_NSQ_ENABLED=${CHARIOT_NSQ_ENABLED:-true}
       - CHARIOT_NSQ_ADDR=${CHARIOT_NSQ_ADDR:-host.docker.internal:4150}
-      - CHARIOT_NSQ_TOPIC_IN=${CHARIOT_NSQ_TOPIC_IN:-test_requests}
-      - CHARIOT_NSQ_TOPIC_OUT=${CHARIOT_NSQ_TOPIC_OUT:-test_responses}
+      - CHARIOT_NSQ_TOPIC=${CHARIOT_NSQ_TOPIC:-test_requests}
+      - CHARIOT_NSQ_RESPONSE_TOPICS=${CHARIOT_NSQ_RESPONSE_TOPICS:-default:test_responses}
       - CHARIOT_NSQ_CHANNEL=${CHARIOT_NSQ_CHANNEL:-chariot_channel}
       - CHARIOT_MCP_ENABLED=${CHARIOT_MCP_ENABLED:-true}
+      - CHARIOT_MCP_EXECUTE_ENABLED=${CHARIOT_MCP_EXECUTE_ENABLED:-true}
       - CHARIOT_MCP_TRANSPORT=${CHARIOT_MCP_TRANSPORT:-http}
       - CHARIOT_MCP_WS_PATH=${CHARIOT_MCP_WS_PATH:-/mcp}
+      - CHARIOT_BOOTSTRAP_EDIT_ENABLED=${CHARIOT_BOOTSTRAP_EDIT_ENABLED:-true}
       - AZURE_TENANT_ID=${AZURE_TENANT_ID:-82fbfa53-3046-4f39-a182-f5e0082313d4}
       - AZURE_KEY_VAULT_URL=${AZURE_KEY_VAULT_URL:-https://chariot-vault.vault.azure.net}
       - AZURE_CONFIG_DIR=/home/gochariot/.azure
@@ -92,10 +95,12 @@ services:
       - ssl-certs:/app/ssl
       - ./config/charioteer:/app/config:ro
       - ./logs/charioteer:/app/logs
+      - ./data/charioteer:/app/data
       - ./services/charioteer/files:/app/files
     environment:
       - NODE_ENV=development
       - CHARIOT_BACKEND_URL=http://go-chariot:8087
+      - CHARIOTEER_MCP_DATA_DIR=/app/data
     depends_on:
       go-chariot:
         condition: service_healthy

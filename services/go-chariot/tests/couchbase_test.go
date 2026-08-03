@@ -30,7 +30,7 @@ func initCouchbaseConfig() {
 		os.Setenv("CHARIOT_COUCHBASE_PASSWORD", "Borg12731273")
 		os.Setenv("CHARIOT_COUCHBASE_BUCKET", "chariot")
 		os.Setenv("CHARIOT_COUCHBASE_SCOPE", "_default")
-		os.Setenv("CHARIOT_CBDL", "true")
+		os.Setenv("CHARIOT_COUCHBASE_CBDL", "true")
 
 		kissflag.SetPrefix("CHARIOT_")
 		_ = kissflag.BindAllEVars(cfg.ChariotConfig)

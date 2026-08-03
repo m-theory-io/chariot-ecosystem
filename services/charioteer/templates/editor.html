@@ -57,6 +57,7 @@
             background: #1a1b1f;
             color: #e2e2e2;
             box-sizing: border-box;
+            min-height: 0;
         }
 
         .mcp-sidebar {
@@ -67,6 +68,9 @@
             padding: 16px;
             overflow-y: auto;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .mcp-main {
@@ -75,10 +79,22 @@
             flex-direction: column;
             gap: 16px;
             min-width: 0;
+            min-height: 0;
         }
 
         .mcp-section {
             margin-bottom: 18px;
+        }
+
+        .mcp-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .mcp-section.fixtures {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .mcp-section-header {
@@ -134,7 +150,8 @@
         }
 
         .mcp-fixtures-list {
-            max-height: 240px;
+            flex: 1;
+            min-height: 0;
             overflow-y: auto;
             border: 1px solid #34343a;
             border-radius: 6px;
@@ -151,6 +168,36 @@
             border-bottom: 1px solid #2b2b30;
             font-size: 13px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .mcp-fixture-row-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mcp-fixture-row-delete {
+            border: 1px solid #5d3030;
+            background: #3a2020;
+            color: #ffb5b5;
+            border-radius: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            line-height: 20px;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        .mcp-fixture-row-delete:hover {
+            background: #5a2525;
+            border-color: #d65a5a;
         }
 
         .mcp-fixture-row:last-child {
@@ -172,6 +219,17 @@
             border: 1px solid #2f2f34;
             border-radius: 8px;
             padding: 16px;
+        }
+
+        .mcp-tools-panel {
+            flex: 0 0 auto;
+        }
+
+        .mcp-console {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .mcp-tools-list {
@@ -215,9 +273,33 @@
             margin-bottom: 12px;
         }
 
+        .mcp-response-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mcp-response-toggle {
+            background: #2b2c31;
+            border: 1px solid #3c3c42;
+            color: #d8d8dc;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .mcp-response-toggle.active,
+        .mcp-response-toggle:hover {
+            background: #3c4f69;
+            color: #ffffff;
+            border-color: #5f8fc7;
+        }
+
         .mcp-response-block {
-            min-height: 140px;
-            max-height: 280px;
+            flex: 1;
+            min-height: 0;
             background: #111114;
             border: 1px solid #35353c;
             border-radius: 6px;
@@ -236,6 +318,7 @@
             z-index: 10020;
             max-height: none;
             height: auto;
+            min-height: 0;
             margin: 0;
             box-shadow: 0 18px 64px rgba(0, 0, 0, 0.55);
         }
@@ -1425,9 +1508,12 @@
 
                 </div>
                 <div id="functionsToolbar" class="toolbar-section">
-                    <select id="functionSelect" disabled>
-                        <option value="">Select a function...</option>
-                    </select>
+                    <div class="file-selector">
+                        <label for="functionSelect">Function:</label>
+                        <select id="functionSelect" disabled>
+                            <option value="">Select a function...</option>
+                        </select>
+                    </div>
                     <button id="newFunctionButton" class="toolbar-button" disabled>📄 New</button>
                     <button id="saveFunctionButton" class="toolbar-button" disabled>💾 Save</button>
                     <button id="saveAsFunctionButton" class="toolbar-button" disabled>💾 Save As...</button>
@@ -1531,6 +1617,7 @@
         const CHARIOT_FILES_FOLDER = 'files';
         const LISTENER_SCRIPTS_API = '/charioteer/api/listener-scripts';
         const FILE_SCOPE_LISTENERS = 'listeners';
+        const FILE_SCOPE_BOOTSTRAP = 'bootstrap';
         const FUNCTION_LIBRARY_SCOPE = 'function-library';
         const SESSION_DURATION_MINUTES = 30; // 30 minutes session duration
         const WARNING_BEFORE_MINUTES = 3; // Show warning 3 minutes before expiration
@@ -1560,7 +1647,7 @@
             // Chariot specific functions (only when followed by parens)
             [/\b(findUser|createUser|updateUser|deleteUser|authenticateUser|setUserPassword|generateToken|validateDisplayName)\b(?=\s*\()/, 'keyword.auth'],
             [/\b(addTo|array|lastIndex|range|removeAt|reverse|setAt|slice)\b(?=\s*\()/, 'keyword.chariot.array'],
-            [/\b(agentBelief|agentNew|agentRegister|agentStart|agentStartNamed|agentStopNamed|agentList|agentPublish|agentStop|belief|plan|runPlanOnce|runPlanOnceBDI|runPlanOnceEx)\b(?=\s*\()/, 'keyword.chariot.bdi'],
+            [/\b(agentBelief|agentNew|agentRegister|agentStart|agentStartNamed|agentStopNamed|agentList|agentPublish|agentStop|belief|plan|runPlanOnce|runPlanOnceBDI|runPlanOnceEx|setPlanResult|setStepResult|signalRegister|signalRead|signalList|signalStartBeliefFeed|signalStopBeliefFeed|signalFeedList)\b(?=\s*\()/, 'keyword.chariot.bdi'],
             [/\b(and|bigger|biggerEq|equal|iif|not|or|unequal|smaller|smallerEq)\b(?=\s*\()/, 'keyword.chariot.comparison'],
             [/\b(cbClose|cbConnect|cbGet|cbInsert|cbOpenBucket|cbQuery|cbRemove|cbReplace|cbSetScope|cbUpsert|newID)\b(?=\s*\()/, 'keyword.chariot.couchbase'],
             [/\b(date|dateAdd|dateDiff|dateSchedule|day|dayCount|dayOfWeek|endOfMonth|formatDate|isBusinessDay|isDate|isEndOfMonth|julianDay|month|nextBusinessDay|now|today|utcTime|year|yearFraction)\b(?=\s*\()/, 'keyword.chariot.date'],
@@ -1578,7 +1665,7 @@
             [/\b(addChild|childCount|clear|cloneNode|create|csvNode|findByName|firstChild|getAttribute|getChildAt|getChildByName|getDepth|getLevel|getName|getParent|getPath|getRoot|getSiblings|getText|hasAttribute|isLeaf|isRoot|jsonNode|lastChild|list|mapNode|nodeToString|queryNode|removeAttribute|removeChild|setAttribute|setAttributes|setChildByName|setName|setText|traverseNode|xmlNode|yamlNode)\b(?=\s*\()/, 'keyword.chariot.node'],
             [/\b(csvHeaders|csvRowCount|csvColumnCount|csvGetRow|csvGetCell|csvToCSV|csvLoad)\b(?=\s*\()/, 'keyword.chariot.csv'],
             [/\b(generateCreateTable|sqlBegin|sqlConnect|sqlClose|sqlCommit|sqlExecute|sqlListTables|sqlQuery|sqlRollback)\b(?=\s*\()/, 'keyword.chariot.sql'],
-            [/\b(append|ascii|atPos|char|charAt|concat|digits|format|hasPrefix|hasSuffix|interpolate|join|lastPos|lower|occurs|padLeft|padRight|repeat|replace|right|split|sprintf|string|strlen|substr|substring|trim|trimLeft|trimRight|upper)\b(?=\s*\()/, 'keyword.chariot.string'],
+            [/\b(append|ascii|atPos|char|charAt|concat|digits|format|formatAs|hasPrefix|hasSuffix|interpolate|join|lastPos|lower|occurs|padLeft|padRight|repeat|replace|right|split|sprintf|string|strlen|substr|substring|trim|trimLeft|trimRight|upper)\b(?=\s*\()/, 'keyword.chariot.string'],
             [/\b(exit|getEnv|hasEnv|listen|listenNSQ|listResponseTopics|logPrint|mcpCallTool|mcpConnect|mcpClose|mcpListTools|platform|registerResponseTopic|sleep|timeFormat|timestamp)\b(?=\s*\()/, 'keyword.chariot.system'],
             [/\b(newTree|treeFind|treeGetMetadata|treeLoad|treeLoadSecure|treeSave|treeSaveSecure|treeSearch||treeToYAML|treeToXML|treeValidateSecure|treeWalk)\b(?=\s*\()/, 'keyword.chariot.tree'],
             [/\b(boolean|call|declare|declareGlobal|deleteFunction|destroy|empty|exists|func|function|getFunction|getVariable|hasMeta|inspectRuntime|isNull|isNumeric|listFunctions|loadFunctions|mapValue|merge|offerVar|offerVariable|registerFunction|saveFunctions|setValue|setq|symbol|toBool|toMapValue|toNumber|toString|typeOf|valueOf)\b(?=\s*\()/, 'keyword.chariot.value'],
@@ -1637,10 +1724,14 @@
             selectedTool: '',
             selectedFixtureId: null,
             toolDrafts: {},
+            toolResponses: {},
+            lastResponse: null,
+            responseView: 'result',
             busy: false,
             viewReady: false
         };
         const defaultLocalChariotMCPURL = '{{ .LocalMCPURL }}' || 'http://localhost:8087/mcp';
+        const mcpFixturesStorageKey = 'charioteer.mcp.fixtures.v1';
         let mcpToolbarReady = false;
         // Throttle WS updates to avoid overwhelming UI
         let dashboardWSUpdateTimer = null;
@@ -1660,6 +1751,7 @@
         let currentUser = null;
         let isFileModified = false;
         let originalContent = '';
+        let suppressEditorChangeTracking = 0;
         // Ensure toolbar handlers for Function Library are only initialized once across editor rebuilds
         let functionsToolbarInitialized = false;
         let diagramsToolbarInitialized = false;
@@ -1769,42 +1861,78 @@
             return !!(tab && isFunctionScope(tab.scope));
         }
 
+        function isDiagramTab(tab) {
+            return !!(tab && (tab.sourceType === 'diagram' || tab.diagramSourceName));
+        }
+
+        function getTabWorkspaceView(tab) {
+            if (isFunctionTab(tab)) {
+                return 'functions';
+            }
+            if (isDiagramTab(tab)) {
+                return 'diagrams';
+            }
+            return 'files';
+        }
+
+        function setToolbarActiveState(view) {
+            const toolbarMap = {
+                files: ['filesTab', 'fileToolbar'],
+                functions: ['functionsTab', 'functionsToolbar'],
+                diagrams: ['diagramsTab', 'diagramsToolbar']
+            };
+            ['filesTab', 'functionsTab', 'diagramsTab', 'dashboardTab', 'agentsTab', 'mcpTab'].forEach(id => {
+                document.getElementById(id)?.classList.remove('active');
+            });
+            ['fileToolbar', 'functionsToolbar', 'diagramsToolbar', 'dashboardToolbar', 'agentsToolbar', 'mcpToolbar'].forEach(id => {
+                document.getElementById(id)?.classList.remove('active');
+            });
+            const activeIds = toolbarMap[view] || toolbarMap.files;
+            activeIds.forEach(id => document.getElementById(id)?.classList.add('active'));
+            currentTab = view;
+        }
+
         function createWorkspaceTabs() {
             const state = {
                 files: { lastTabId: null, name: '', content: '' },
-                functions: { lastTabId: null, name: '', content: '' }
+                functions: { lastTabId: null, name: '', content: '' },
+                diagrams: { lastTabId: null, name: '', content: '' }
             };
 
             function bucketForTab(tab) {
-                return isFunctionTab(tab) ? state.functions : state.files;
+                return state[getTabWorkspaceView(tab)] || state.files;
             }
 
             function snapshotBucket(bucket, tab) {
                 if (!bucket) return;
                 if (tab) {
                     bucket.lastTabId = tab.id || bucket.lastTabId;
-                    bucket.name = tab.fileName || tab.displayName || bucket.name || '';
+                    bucket.name = tab.diagramSourceName || tab.fileName || tab.displayName || bucket.name || '';
                     bucket.content = typeof tab.content === 'string' ? tab.content : bucket.content || '';
                 }
             }
 
             function applyStandaloneSnapshot(view, payload) {
-                const bucket = view === 'functions' ? state.functions : state.files;
+                const bucket = state[view] || state.files;
                 bucket.lastTabId = payload?.tabId || null;
                 bucket.name = payload?.name || payload?.fileName || bucket.name || '';
                 bucket.content = typeof payload?.content === 'string' ? payload.content : bucket.content || '';
             }
 
             function restoreView(view, options) {
-                const bucket = view === 'functions' ? state.functions : state.files;
+                const bucket = state[view] || state.files;
                 const opts = options || {};
                 const candidateId = bucket.lastTabId;
                 if (candidateId && openFileTabs.get(candidateId)) {
-                    activateFileTab(candidateId, { force: true });
+                    activateFileTab(candidateId, { force: true, skipPersist: true });
                     return true;
                 }
                 if (opts.editor && bucket.content) {
-                    opts.editor.setValue(bucket.content);
+                    if (opts.editor === editor) {
+                        setPrimaryEditorValue(bucket.content);
+                    } else {
+                        opts.editor.setValue(bucket.content);
+                    }
                     originalContent = bucket.content;
                     isFileModified = false;
                     if (view === 'functions') {
@@ -1816,6 +1944,13 @@
                             fnSelect.value = functionEditorFunctionName || '';
                         }
                         debugContext.remember(FUNCTION_LIBRARY_SCOPE, functionEditorFunctionName);
+                    } else if (view === 'diagrams') {
+                        currentDiagramName = bucket.name;
+                        const diagramSelect = document.getElementById('diagramSelect');
+                        if (diagramSelect) {
+                            diagramSelect.value = currentDiagramName || '';
+                        }
+                        toggleDiagramActionButtons(!!currentDiagramName);
                     } else {
                         currentFileName = bucket.name;
                         currentFileScope = currentFileBrowserScope;
@@ -1839,7 +1974,7 @@
                     if (!tab) return;
                     const bucket = bucketForTab(tab);
                     bucket.lastTabId = tab.id;
-                    bucket.name = tab.fileName || tab.displayName || bucket.name || '';
+                    bucket.name = tab.diagramSourceName || tab.fileName || tab.displayName || bucket.name || '';
                     bucket.content = typeof tab.content === 'string' ? tab.content : bucket.content || '';
                     debugContext.rememberFromTab(tab);
                 },
@@ -1856,16 +1991,23 @@
                     if (state.functions.lastTabId === tabId) {
                         state.functions = { lastTabId: null, name: '', content: '' };
                     }
+                    if (state.diagrams.lastTabId === tabId) {
+                        state.diagrams = { lastTabId: null, name: '', content: '' };
+                    }
                 },
                 reset() {
                     state.files = { lastTabId: null, name: '', content: '' };
                     state.functions = { lastTabId: null, name: '', content: '' };
+                    state.diagrams = { lastTabId: null, name: '', content: '' };
                 },
                 getLastFileTabId() {
                     return state.files.lastTabId;
                 },
                 getLastFunctionTabId() {
                     return state.functions.lastTabId;
+                },
+                getLastDiagramTabId() {
+                    return state.diagrams.lastTabId;
                 }
             };
         }
@@ -1920,8 +2062,24 @@
             return workspaceTabs.getLastFunctionTabId() || findMostRecentTabId(isFunctionTab);
         }
 
+        function getLastDiagramTabId() {
+            return workspaceTabs.getLastDiagramTabId() || findMostRecentTabId(isDiagramTab);
+        }
+
         function getLastFileTabId() {
-            return workspaceTabs.getLastFileTabId() || findMostRecentTabId(tab => tab && !isFunctionTab(tab));
+            return workspaceTabs.getLastFileTabId() || findMostRecentTabId(tab => tab && getTabWorkspaceView(tab) === 'files');
+        }
+
+        function detachActiveTabForView(view) {
+            const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
+            if (!activeTab) {
+                return;
+            }
+            const shouldDetach = getTabWorkspaceView(activeTab) !== view;
+            if (shouldDetach) {
+                activeFileTabId = null;
+                refreshTabVisualState();
+            }
         }
 
         function findMostRecentTabId(predicate) {
@@ -2102,14 +2260,46 @@
             });
         }
 
+        function setPrimaryEditorValue(value) {
+            if (!editor) {
+                return;
+            }
+            suppressEditorChangeTracking++;
+            try {
+                editor.setValue(value || '');
+            } finally {
+                suppressEditorChangeTracking--;
+            }
+        }
+
+        function getTabContentForEditor(tab) {
+            if (!tab) {
+                return '';
+            }
+            const content = typeof tab.content === 'string' ? tab.content : '';
+            const original = typeof tab.originalContent === 'string' ? tab.originalContent : '';
+            if (content !== '' || tab.isDirty || original === '') {
+                return content;
+            }
+            if (tab.loaded && original !== '') {
+                tab.content = original;
+                tab.isDirty = false;
+                return original;
+            }
+            return content;
+        }
+
         function persistActiveTabContent() {
             if (!editor) {
                 return;
             }
+            if (currentTab !== 'files' && currentTab !== 'functions' && currentTab !== 'diagrams') {
+                return;
+            }
             if (!activeFileTabId) {
-                workspaceTabs.rememberStandalone(currentTab === 'functions' ? 'functions' : 'files', {
+                workspaceTabs.rememberStandalone(currentTab, {
                     content: editor.getValue(),
-                    name: currentTab === 'functions' ? functionEditorFunctionName : currentFileName,
+                    name: currentTab === 'functions' ? functionEditorFunctionName : (currentTab === 'diagrams' ? currentDiagramName : currentFileName),
                     scope: currentFileScope
                 });
                 return;
@@ -2118,37 +2308,46 @@
             if (!tab) {
                 return;
             }
-            const tabIsFunction = isFunctionTab(tab);
-            const editingFunctions = currentTab === 'functions';
-            const editingFiles = currentTab === 'files';
-            if ((tabIsFunction && !editingFunctions) || (!tabIsFunction && !editingFiles)) {
-                return;
-            }
+            const tabView = getTabWorkspaceView(tab);
             tab.content = editor.getValue();
             tab.isDirty = tab.content !== tab.originalContent;
             workspaceTabs.rememberContent(tab);
-            if (tabIsFunction) {
+            if (tabView === 'functions') {
                 functionEditorContent = tab.content;
                 functionEditorFunctionName = tab.fileName || '';
+            } else if (tabView === 'diagrams') {
+                currentDiagramName = tab.diagramSourceName || currentDiagramName || '';
             }
         }
 
         function activateFileTab(tabId, options) {
             if (!tabId) return;
-            if (activeFileTabId === tabId && !options?.force) {
-                refreshTabVisualState();
-                return;
-            }
             const targetTab = openFileTabs.get(tabId);
             if (!targetTab) {
                 return;
             }
-            persistActiveTabContent();
+            const targetView = getTabWorkspaceView(targetTab);
+            if (activeFileTabId === tabId && !options?.force) {
+                setToolbarActiveState(targetView);
+                refreshTabVisualState();
+                updateSaveButtonStates();
+                if (targetView === 'functions') {
+                    refreshFunctionToolbarButtons();
+                } else if (targetView === 'diagrams') {
+                    toggleDiagramActionButtons(!!(targetTab.diagramSourceName || currentDiagramName));
+                }
+                return;
+            }
+            if (!options?.skipPersist) {
+                persistActiveTabContent();
+            }
+            setToolbarActiveState(targetView);
             activeFileTabId = tabId;
             workspaceTabs.rememberActivation(targetTab);
             debugContext.rememberFromTab(targetTab);
             const functionTab = isFunctionTab(targetTab);
-            if (targetTab.scope && !functionTab) {
+            const diagramTab = isDiagramTab(targetTab);
+            if (targetTab.scope && !functionTab && !diagramTab) {
                 currentFileScope = targetTab.scope;
                 currentFileBrowserScope = targetTab.scope;
                 const scopeSelect = document.getElementById('fileScopeSelect');
@@ -2159,22 +2358,24 @@
             if (functionTab) {
                 currentFileScope = FUNCTION_LIBRARY_SCOPE;
                 currentFileName = targetTab.fileName || targetTab.displayName || '';
+            } else if (diagramTab) {
+                currentDiagramName = targetTab.diagramSourceName || currentDiagramName || '';
+                if (targetTab.diagramJSON) {
+                    currentDiagramJSON = targetTab.diagramJSON;
+                }
+                currentFileName = '';
             } else {
                 currentFileName = targetTab.fileName || targetTab.displayName || '';
             }
             originalContent = targetTab.originalContent || '';
             isFileModified = !!targetTab.isDirty;
             if (targetTab.loaded) {
-                if (editor) {
-                    editor.setValue(targetTab.content || '');
-                }
+                setPrimaryEditorValue(getTabContentForEditor(targetTab));
             } else if (targetTab.fileName && !functionTab) {
-                if (editor) {
-                    editor.setValue('// Loading ' + targetTab.fileName + '...');
-                }
+                setPrimaryEditorValue('// Loading ' + targetTab.fileName + '...');
                 loadFile(targetTab.fileName, { suppressTabActivation: true, targetTabId: targetTab.id });
-            } else if (editor) {
-                editor.setValue(targetTab.content || '');
+            } else {
+                setPrimaryEditorValue(getTabContentForEditor(targetTab));
             }
             if (functionTab) {
                 functionEditorFunctionName = targetTab.fileName || '';
@@ -2183,6 +2384,13 @@
                 if (fnSelect) {
                     fnSelect.value = targetTab.fileName || '';
                 }
+                refreshFunctionToolbarButtons();
+            } else if (diagramTab) {
+                const diagramSelect = document.getElementById('diagramSelect');
+                if (diagramSelect) {
+                    diagramSelect.value = currentDiagramName || '';
+                }
+                toggleDiagramActionButtons(!!currentDiagramName);
             }
             refreshTabVisualState();
             updateSaveButtonStates();
@@ -2208,7 +2416,7 @@
             if (!activeFileTabId && tabOrder.length > 0) {
                 activateFileTab(tabOrder[tabOrder.length - 1], { force: true });
             } else if (tabOrder.length === 0 && editor) {
-                editor.setValue('');
+                setPrimaryEditorValue('');
                 currentFileName = '';
                 originalContent = '';
                 isFileModified = false;
@@ -2227,7 +2435,7 @@
             renderPrimaryTabs();
             updateReferencePane();
             if (editor) {
-                editor.setValue('');
+                setPrimaryEditorValue('');
             }
             currentFileName = '';
             originalContent = '';
@@ -2412,7 +2620,7 @@
                 if (tabOrder.length > 0) {
                     activateFileTab(tabOrder[tabOrder.length - 1], { force: true });
                 } else if (editor) {
-                    editor.setValue('');
+                    setPrimaryEditorValue('');
                     currentFileName = '';
                     originalContent = '';
                     isFileModified = false;
@@ -3729,17 +3937,6 @@
             const deleteFunctionButton = document.getElementById('deleteFunctionButton');
             const saveLibraryButton = document.getElementById('saveLibraryButton');
 
-            // Populate dropdown when Function Library tab is activated
-            document.getElementById('functionsTab').addEventListener('click', async function () {
-                await loadFunctionList();
-                // Restore previous selection if available
-                const select = document.getElementById('functionSelect');
-                if (functionEditorFunctionName && select) {
-                    select.value = functionEditorFunctionName;
-                }
-                refreshFunctionToolbarButtons();
-            });
-
             // New function handler
             newFunctionButton.addEventListener('click', newFunction);
 
@@ -3785,7 +3982,7 @@
                         await loadFunctionList();
                         functionSelect.value = ''; // Clear selection
                         if (editor && currentTab === 'functions') {
-                            editor.setValue('');
+                            setPrimaryEditorValue('');
                         }
                         functionEditorFunctionName = '';
                         functionEditorContent = '';
@@ -3901,22 +4098,30 @@
         // Load function list from backend and populate dropdown
         async function loadFunctionList() {
             const functionSelect = document.getElementById('functionSelect');
+            if (!functionSelect) {
+                return [];
+            }
             functionSelect.innerHTML = '<option value="">Select a function...</option>';
             functionSelect.disabled = true;
+            let functionNames = [];
 
             try {
                 const response = await fetch('/charioteer/api/functions', { headers: getAuthHeaders() });
                 if (response.ok) {
                     const result = await response.json();
-                    if (result.result === "OK" && Array.isArray(result.data)) {
-                        const unique = Array.from(new Set(result.data));
+                    if (result.result === "OK") {
+                        const rawFunctions = Array.isArray(result.data)
+                            ? result.data
+                            : (Array.isArray(result.data?.functions) ? result.data.functions : []);
+                        const unique = Array.from(new Set(rawFunctions.map(fn => String(fn || '').trim()).filter(Boolean)));
+                        functionNames = unique;
                         unique.forEach(fn => {
                             const option = document.createElement('option');
                             option.value = fn;
                             option.textContent = fn;
                             functionSelect.appendChild(option);
                         });
-                        functionSelect.disabled = false;
+                        functionSelect.disabled = unique.length === 0;
                     }
                 }
             } catch (e) {
@@ -3924,6 +4129,7 @@
             } finally {
                 refreshFunctionToolbarButtons();
             }
+            return functionNames;
         }
 
         // Fetch and display the selected function's source code
@@ -4264,7 +4470,7 @@
 
             // Clear editor and reset cached editors
             if (editor) {
-                editor.setValue('');
+                setPrimaryEditorValue('');
             }
             currentFileName = '';
             functionEditorContent = '';
@@ -4523,6 +4729,7 @@
                         currentFileScope = nextScope;
                     }
                     await refreshFilesForCurrentScope();
+                    updateSaveButtonStates();
                 });
                 console.log('DEBUG: File scope select handler added');
             }
@@ -4730,15 +4937,14 @@
                             setupMonacoEditor();
                         }
                         currentTab = 'files';
+                        detachActiveTabForView('files');
                         // Restore file editor state
                         fileToolbar.classList.add('active');
                         filesTab.classList.add('active');
                         const restoredFileView = workspaceTabs.restoreView('files', {
                             editor,
                             onEmpty: () => {
-                                if (editor) {
-                                    editor.setValue('');
-                                }
+                                setPrimaryEditorValue('');
                                 currentFileName = '';
                                 originalContent = '';
                                 isFileModified = false;
@@ -4747,7 +4953,7 @@
                         if (!restoredFileView) {
                             const fallbackFileTab = getLastFileTabId();
                             if (fallbackFileTab) {
-                                activateFileTab(fallbackFileTab, { force: true });
+                                activateFileTab(fallbackFileTab, { force: true, skipPersist: true });
                             }
                         }
                         updateSaveButtonStates();
@@ -4785,24 +4991,32 @@
                             editorContainer.innerHTML = '';
                             setupMonacoEditor();
                         }
+                        const fallbackFunctionTab = getLastFunctionTabId();
+                        const hasFunctionEditorState = !!(fallbackFunctionTab || functionEditorContent || functionEditorFunctionName);
                         currentTab = 'functions';
+                        if (hasFunctionEditorState) {
+                            detachActiveTabForView('functions');
+                        }
                         // Restore function editor state
                         functionsToolbar.classList.add('active');
                         functionsTab.classList.add('active');
+                        loadFunctionList().then(() => {
+                            const functionSelect = document.getElementById('functionSelect');
+                            if (functionSelect) {
+                                functionSelect.value = functionEditorFunctionName || '';
+                            }
+                            refreshFunctionToolbarButtons();
+                        }).catch(e => console.error('Failed to load function list:', e));
                         const restoredFunctionView = workspaceTabs.restoreView('functions', {
                             editor,
                             onEmpty: () => {
-                                if (editor) {
-                                    editor.setValue('');
-                                }
                                 functionEditorContent = '';
                                 functionEditorFunctionName = '';
                             }
                         });
                         if (!restoredFunctionView) {
-                            const fallbackFunctionTab = getLastFunctionTabId();
                             if (fallbackFunctionTab) {
-                                activateFileTab(fallbackFunctionTab, { force: true });
+                                activateFileTab(fallbackFunctionTab, { force: true, skipPersist: true });
                             }
                         }
                         const functionSelect = document.getElementById('functionSelect');
@@ -4894,22 +5108,9 @@
                                 editor = null;
                             }
                             editorElement.innerHTML = agentsContent;
-                            // Re-bind UI handlers for restored DOM
-                            const clearBtn = document.getElementById('clearAgentsStreamButton');
-                            if (clearBtn) {
-                                clearBtn.addEventListener('click', function () {
-                                    const s = document.getElementById('agentsStream');
-                                    if (s) s.textContent = '';
-                                });
-                            }
-                            const hbToggle = document.getElementById('toggleHeartbeats');
-                            if (hbToggle) {
-                                hbToggle.checked = agentsShowHeartbeats;
-                                hbToggle.addEventListener('change', function () {
-                                    agentsShowHeartbeats = hbToggle.checked;
-                                });
-                            }
+                            bindAgentsWorkspaceHandlers();
                             try { fetchAndRenderAgents(); } catch (e) { }
+                            try { loadAgentFixtures().then(renderAgentFixturesList); } catch (e) { }
                             connectAgentsWS();
                         } else {
                             // Ensure content is loaded before connecting WS to avoid races with DOM elements
@@ -4969,10 +5170,28 @@
                                 setupMonacoEditor();
                             }
                         }
+                        const fallbackDiagramTab = getLastDiagramTabId();
+                        const hasDiagramEditorState = !!(fallbackDiagramTab || currentDiagramName || currentDiagramJSON);
                         currentTab = 'diagrams';
+                        if (hasDiagramEditorState) {
+                            detachActiveTabForView('diagrams');
+                        }
                         // Show diagrams toolbar and set active tab
                         diagramsToolbar.classList.add('active');
                         diagramsTab.classList.add('active');
+                        const restoredDiagramView = workspaceTabs.restoreView('diagrams', {
+                            editor,
+                            onEmpty: () => {
+                                currentDiagramName = '';
+                                currentDiagramJSON = null;
+                                toggleDiagramActionButtons(false);
+                            }
+                        });
+                        if (!restoredDiagramView) {
+                            if (fallbackDiagramTab) {
+                                activateFileTab(fallbackDiagramTab, { force: true, skipPersist: true });
+                            }
+                        }
                         // Ensure buttons reflect current editor state
                         updateSaveButtonStates();
                         updateRunButtonState();
@@ -5042,7 +5261,7 @@
                         if (hasSelection) {
                             await generateFromSelectedDiagram();
                         } else if (editor) {
-                            editor.setValue('');
+                            setPrimaryEditorValue('');
                         }
                     });
                 }
@@ -5056,7 +5275,7 @@
                         currentDiagramJSON = null;
                         toggleDiagramActionButtons(false);
                         if (editor) {
-                            editor.setValue('');
+                            setPrimaryEditorValue('');
                         }
                     });
                 }
@@ -5138,7 +5357,7 @@
         async function loadDiagramsList(retainSelection = true) {
             const select = document.getElementById('diagramSelect');
             if (!select) return;
-            const previousSelection = retainSelection ? select.value : '';
+            const previousSelection = retainSelection ? (select.value || currentDiagramName || '') : '';
             select.innerHTML = '<option value="">Select a diagram...</option>';
             select.disabled = true;
             toggleDiagramActionButtons(false);
@@ -5184,6 +5403,69 @@
             }
             select.disabled = false;
         }
+        function getDefaultEditableFileScope() {
+            const preferred = normalizeScopeValue(sandboxProfile.defaultScope || sandboxProfile.currentScope || currentFileBrowserScope || 'global');
+            if (preferred && !isBootstrapScope(preferred)) {
+                return preferred;
+            }
+            const scopes = (sandboxProfile.scopes || []).map(normalizeScopeValue).filter(scope => scope && !isBootstrapScope(scope));
+            if (scopes.includes('sandbox')) {
+                return 'sandbox';
+            }
+            if (scopes.includes('global')) {
+                return 'global';
+            }
+            return scopes[0] || 'global';
+        }
+
+        function makeDiagramCodeDisplayName(name) {
+            const base = String(name || 'diagram').trim().replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram';
+            return base.toLowerCase().endsWith('.ch') ? base : base + '.ch';
+        }
+
+        function openGeneratedDiagramCodeTab(name, code, diagram) {
+            const displayName = makeDiagramCodeDisplayName(name);
+            let tab = Array.from(openFileTabs.values()).find(item => item && item.isUntitled && item.diagramSourceName === name);
+            if (tab) {
+                tab.displayName = displayName;
+                tab.content = code;
+                tab.originalContent = '';
+                tab.isDirty = true;
+                tab.loaded = true;
+                tab.sourceType = 'diagram';
+                tab.diagramJSON = diagram || null;
+                ensureTabOrder(tab.id);
+                workspaceTabs.rememberContent(tab);
+            } else {
+                tab = createTabRecord({
+                    scope: getDefaultEditableFileScope(),
+                    fileName: '',
+                    displayName,
+                    content: code,
+                    originalContent: '',
+                    isDirty: true,
+                    isUntitled: true,
+                    loaded: true
+                });
+                tab.sourceType = 'diagram';
+                tab.diagramSourceName = name || '';
+                tab.diagramJSON = diagram || null;
+                registerTab(tab);
+            }
+            renderPrimaryTabs();
+            setToolbarActiveState('diagrams');
+            activateFileTab(tab.id, { force: true, skipPersist: true });
+            currentFileName = '';
+            originalContent = '';
+            isFileModified = true;
+            const fileSelect = document.getElementById('fileSelect');
+            if (fileSelect) {
+                fileSelect.value = '';
+            }
+            updateSaveButtonStates();
+            updateRunButtonState();
+            return tab;
+        }
 
         // Fetch selected diagram JSON and generate Chariot code using shared codegen
         async function generateFromSelectedDiagram() {
@@ -5217,8 +5499,8 @@
                 }
                 code = stripEmbeddedDiagramMarker(code);
                 if (editor) {
-                    editor.setValue(code);
-                    showOutput('Generated code from diagram: ' + name, 'success');
+                    openGeneratedDiagramCodeTab(name, code, diagram);
+                    showOutput('Generated code from diagram in a new editor tab: ' + name, 'success');
                     updateRunButtonState();
                 }
             } catch (e) {
@@ -5257,7 +5539,7 @@
                             <label class="mcp-label" for="mcpTimeoutInput">Timeout (ms)</label>
                             <input id="mcpTimeoutInput" class="mcp-input" type="number" min="1000" step="500" placeholder="30000" />
                         </div>
-                        <div class="mcp-section">
+                        <div class="mcp-section fixtures">
                             <div class="mcp-section-header">Fixtures <button id="mcpNewFixtureButton" class="mcp-icon-button" title="New fixture">＋</button></div>
                             <div class="mcp-fixtures-list" id="mcpFixturesList">
                                 <div style="padding:10px;color:#888;font-size:12px;">No fixtures yet</div>
@@ -5287,7 +5569,14 @@
                                 <button id="mcpSaveFixtureButton" class="toolbar-button" disabled>💾 Save Fixture</button>
                                 <button id="mcpDeleteFixtureButton" class="toolbar-button file-action delete" disabled>🗑️ Delete Fixture</button>
                             </div>
-                            <div class="mcp-section-header">Response <button id="mcpResponseFullscreenButton" class="mcp-icon-button" title="Toggle response fullscreen">⛶</button></div>
+                            <div class="mcp-section-header">
+                                <span>Response</span>
+                                <div class="mcp-response-actions">
+                                    <button id="mcpResponseResultButton" class="mcp-response-toggle active" title="Show caller result">Result</button>
+                                    <button id="mcpResponseRawButton" class="mcp-response-toggle" title="Show raw MCP response">Raw</button>
+                                    <button id="mcpResponseFullscreenButton" class="mcp-icon-button" title="Toggle response fullscreen">⛶</button>
+                                </div>
+                            </div>
                             <pre id="mcpResponseOutput" class="mcp-response-block">// Run a tool to see the response</pre>
                         </div>
                     </div>
@@ -5368,6 +5657,14 @@
             if (responseFullscreenBtn) {
                 responseFullscreenBtn.addEventListener('click', toggleMCPResponseFullscreen);
             }
+            const responseResultBtn = document.getElementById('mcpResponseResultButton');
+            if (responseResultBtn) {
+                responseResultBtn.addEventListener('click', () => setMCPResponseView('result'));
+            }
+            const responseRawBtn = document.getElementById('mcpResponseRawButton');
+            if (responseRawBtn) {
+                responseRawBtn.addEventListener('click', () => setMCPResponseView('raw'));
+            }
             const toolInput = document.getElementById('mcpToolInput');
             if (toolInput) {
                 toolInput.addEventListener('input', function () {
@@ -5377,7 +5674,10 @@
                         mcpState.selectedTool = nextTool;
                         if (!mcpState.toolDrafts[nextTool]) {
                             restoreMCPDraftForTool(nextTool, { preserveToolInput: true });
+                        } else {
+                            restoreMCPResponseForTool(nextTool);
                         }
+                        renderMCPToolsList();
                     }
                     refreshMCPActionStates();
                 });
@@ -5552,13 +5852,86 @@
         }
 
         async function loadMCPFixtures() {
+            const localFixtures = normalizeMCPFixtures(loadMCPFixturesFromBrowserStorage());
             const resp = await fetch('/charioteer/api/mcp/fixtures', { headers: getAuthHeaders() });
             if (resp.status === 401) { logout(); return; }
             if (!resp.ok) {
+                if (localFixtures.length) {
+                    mcpState.fixtures = localFixtures;
+                    saveMCPFixturesToBrowserStorage(mcpState.fixtures);
+                    return;
+                }
                 throw new Error(await resp.text());
             }
             const payload = await resp.json();
-            mcpState.fixtures = Array.isArray(payload?.data) ? payload.data : [];
+            const serverFixtures = normalizeMCPFixtures(Array.isArray(payload?.data) ? payload.data : []);
+            mcpState.fixtures = normalizeMCPFixtures(mergeMCPFixtures(serverFixtures, localFixtures));
+            saveMCPFixturesToBrowserStorage(mcpState.fixtures);
+        }
+
+        function loadMCPFixturesFromBrowserStorage() {
+            try {
+                const raw = window.localStorage ? window.localStorage.getItem(mcpFixturesStorageKey) : '';
+                if (!raw) {
+                    return [];
+                }
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.filter(item => item && item.id) : [];
+            } catch (err) {
+                return [];
+            }
+        }
+
+        function saveMCPFixturesToBrowserStorage(fixtures) {
+            try {
+                if (window.localStorage) {
+                    window.localStorage.setItem(mcpFixturesStorageKey, JSON.stringify(normalizeMCPFixtures(fixtures)));
+                }
+            } catch (err) {
+                // Browser storage can be unavailable or full; server persistence still applies.
+            }
+        }
+
+        function mergeMCPFixtures(primary, secondary) {
+            const byId = new Map();
+            [...(secondary || []), ...(primary || [])].forEach(item => {
+                if (item && item.id) {
+                    byId.set(item.id, item);
+                }
+            });
+            return Array.from(byId.values()).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+        }
+
+        function upsertMCPFixtureInBrowserStorage(fixture) {
+            const normalizedFixture = normalizeMCPFixtureTool(fixture);
+            if (!normalizedFixture || !normalizedFixture.id) {
+                return;
+            }
+            const fixtures = loadMCPFixturesFromBrowserStorage();
+            const idx = fixtures.findIndex(item => item.id === normalizedFixture.id);
+            if (idx >= 0) {
+                fixtures[idx] = normalizedFixture;
+            } else {
+                fixtures.unshift(normalizedFixture);
+            }
+            saveMCPFixturesToBrowserStorage(mergeMCPFixtures(fixtures, []));
+        }
+
+        function deleteMCPFixtureFromBrowserStorage(id) {
+            const fixtures = loadMCPFixturesFromBrowserStorage().filter(item => item.id !== id);
+            saveMCPFixturesToBrowserStorage(fixtures);
+        }
+
+        function createLocalMCPFixture({ id = '', name, tool, payload }) {
+            const now = new Date().toISOString();
+            return {
+                id: id || 'local-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+                name,
+                tool,
+                payload,
+                createdAt: now,
+                updatedAt: now
+            };
         }
 
         function getCurrentMCPDraft() {
@@ -5569,12 +5942,94 @@
             };
         }
 
+        function getDefaultMCPPayloadForTool(toolName) {
+            switch ((toolName || '').trim()) {
+                case 'ping':
+                    return { message: 'hello' };
+                case 'execute':
+                    return { code: 'setq(x, add(5,5))\nx' };
+                case 'codeToDiagram':
+                    return { code: '' };
+                case 'registryList':
+                case 'agentList':
+                case 'treeList':
+                    return {};
+                case 'registryDescribe':
+                    return { id: 'agent:thermostat' };
+                case 'registryCall':
+                    return { id: 'agent:thermostat', action: 'info' };
+                case 'treeDescribe':
+                    return { name: 'decisionAgent1' };
+                case 'treeCall':
+                    return {
+                        id: 'tree:decisionAgent1.handlers.onDecisionRequest',
+                        args: {
+                            req: {
+                                profile: {
+                                    age: 30,
+                                    debt: 7000.25,
+                                    is_employed: true
+                                }
+                            }
+                        }
+                    };
+                case 'agentCall':
+                    return {
+                        name: 'thermostat',
+                        action: 'runPlanOnce',
+                        input: {
+                            plan: 'pThermostat',
+                            beliefs: {
+                                currentTemp: 85
+                            }
+                        }
+                    };
+                default:
+                    return null;
+            }
+        }
+
+        function getDefaultMCPDraftForTool(toolName) {
+            const payload = getDefaultMCPPayloadForTool(toolName);
+            if (payload === null) {
+                return null;
+            }
+            return {
+                fixtureId: null,
+                fixtureName: '',
+                payloadText: serializeMCPPayloadForEditor(payload)
+            };
+        }
+
+        function shouldAutoExecuteMCPTool(toolName) {
+            return ['ping', 'registryList', 'registryDescribe', 'agentList', 'treeList', 'treeDescribe'].includes((toolName || '').trim());
+        }
+
+        function inferMCPToolFromPayloadText(payloadText) {
+            const raw = (payloadText || '').trim();
+            if (!raw) {
+                return '';
+            }
+            try {
+                return inferMCPToolFromPayload(JSON.parse(raw));
+            } catch (err) {
+                return '';
+            }
+        }
+
         function storeMCPDraftForTool(toolName) {
             const key = (toolName || '').trim();
             if (!key || !mcpState.viewReady) {
                 return;
             }
-            mcpState.toolDrafts[key] = getCurrentMCPDraft();
+            const draft = getCurrentMCPDraft();
+            const inferredTool = inferMCPToolFromPayloadText(draft.payloadText);
+            if (inferredTool && inferredTool !== key && isMCPToolKnown(inferredTool)) {
+                mcpState.toolDrafts[inferredTool] = draft;
+                delete mcpState.toolDrafts[key];
+                return;
+            }
+            mcpState.toolDrafts[key] = draft;
         }
 
         function getLatestMCPFixtureForTool(toolName) {
@@ -5606,12 +6061,21 @@
             }
             if (!key) {
                 setMCPDraftFields(null);
+                restoreMCPResponseForTool('');
                 renderMCPFixturesList();
                 refreshMCPActionStates();
                 return;
             }
 
             let draft = mcpState.toolDrafts[key];
+            if (draft) {
+                const inferredTool = inferMCPToolFromPayloadText(draft.payloadText);
+                if (inferredTool && inferredTool !== key && isMCPToolKnown(inferredTool)) {
+                    mcpState.toolDrafts[inferredTool] = draft;
+                    delete mcpState.toolDrafts[key];
+                    draft = null;
+                }
+            }
             if (!draft) {
                 const fixture = getLatestMCPFixtureForTool(key);
                 if (fixture) {
@@ -5622,7 +6086,11 @@
                     };
                 }
             }
+            if (!draft || !(draft.payloadText || '').trim()) {
+                draft = getDefaultMCPDraftForTool(key) || draft;
+            }
             setMCPDraftFields(draft || null);
+            restoreMCPResponseForTool(key);
             renderMCPFixturesList();
             refreshMCPActionStates();
         }
@@ -5630,6 +6098,10 @@
         function selectMCPTool(toolName) {
             const nextTool = (toolName || '').trim();
             if (nextTool === mcpState.selectedTool) {
+                const currentPayload = document.getElementById('mcpPayloadInput')?.value || '';
+                if (!currentPayload.trim()) {
+                    restoreMCPDraftForTool(nextTool);
+                }
                 return;
             }
             storeMCPDraftForTool(mcpState.selectedTool);
@@ -5648,20 +6120,58 @@
                 return;
             }
             mcpState.fixtures.forEach(fixture => {
-                const row = document.createElement('button');
-                row.type = 'button';
+                const row = document.createElement('div');
                 row.className = 'mcp-fixture-row' + (fixture.id === mcpState.selectedFixtureId ? ' selected' : '');
-                row.textContent = fixture.name + (fixture.tool ? ' · ' + fixture.tool : '');
+                row.setAttribute('role', 'button');
+                row.tabIndex = 0;
+                const label = document.createElement('span');
+                label.className = 'mcp-fixture-row-label';
+                label.textContent = fixture.name + (fixture.tool ? ' · ' + fixture.tool : '');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'mcp-fixture-row-delete';
+                deleteBtn.title = 'Delete fixture';
+                deleteBtn.textContent = '×';
+                deleteBtn.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    deleteMCPFixture(fixture.id);
+                });
+                row.appendChild(label);
+                row.appendChild(deleteBtn);
                 row.addEventListener('click', () => selectMCPFixture(fixture.id));
+                row.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectMCPFixture(fixture.id);
+                    }
+                });
                 listEl.appendChild(row);
             });
         }
 
+        function normalizeMCPFixtureTool(fixture) {
+            if (!fixture || typeof fixture !== 'object') {
+                return fixture;
+            }
+            const inferredTool = inferMCPToolFromPayload(fixture.payload);
+            if (!inferredTool || inferredTool === fixture.tool || !isMCPToolKnown(inferredTool)) {
+                return fixture;
+            }
+            return Object.assign({}, fixture, { tool: inferredTool });
+        }
+
+        function normalizeMCPFixtures(fixtures) {
+            return (Array.isArray(fixtures) ? fixtures : []).map(normalizeMCPFixtureTool);
+        }
+
         function selectMCPFixture(id) {
-            const fixture = mcpState.fixtures.find(item => item.id === id);
+            const fixture = normalizeMCPFixtureTool(mcpState.fixtures.find(item => item.id === id));
             if (!fixture) {
                 return;
             }
+            mcpState.fixtures = mergeMCPFixtures([fixture], mcpState.fixtures.filter(item => item.id !== fixture.id));
+            upsertMCPFixtureInBrowserStorage(fixture);
             storeMCPDraftForTool(mcpState.selectedTool);
             mcpState.selectedFixtureId = fixture.id;
             const nameInput = document.getElementById('mcpFixtureNameInput');
@@ -5677,6 +6187,7 @@
             renderMCPFixturesList();
             refreshMCPActionStates();
             updateMCPSelectedToolDisplay();
+            restoreMCPResponseForTool(mcpState.selectedTool);
         }
 
         function newMCPFixtureDraft() {
@@ -5698,13 +6209,9 @@
                 return;
             }
             const name = document.getElementById('mcpFixtureNameInput')?.value.trim();
-            const tool = document.getElementById('mcpToolInput')?.value.trim();
+            let tool = document.getElementById('mcpToolInput')?.value.trim();
             if (!name) {
                 showOutput('Enter a fixture name before saving.', 'error');
-                return;
-            }
-            if (!tool) {
-                showOutput('Select a tool before saving a fixture.', 'error');
                 return;
             }
             let payload;
@@ -5714,27 +6221,46 @@
                 showOutput('Fixture payload must be valid JSON: ' + err.message, 'error');
                 return;
             }
+            tool = reconcileMCPToolWithPayload(tool, payload);
+            if (!tool) {
+                showOutput('Select a tool before saving a fixture.', 'error');
+                return;
+            }
+            const localFixture = createLocalMCPFixture({ id: mcpState.selectedFixtureId || '', name, tool, payload });
+            upsertMCPFixtureInBrowserStorage(localFixture);
+            mcpState.selectedFixtureId = localFixture.id;
             setMCPBusy(true);
             let resp;
             try {
                 resp = await fetch('/charioteer/api/mcp/fixtures', {
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
-                    body: JSON.stringify({ fixture: { id: mcpState.selectedFixtureId || '', name, tool, payload } })
+                    body: JSON.stringify({ fixture: { id: localFixture.id.startsWith('local-') ? '' : localFixture.id, name, tool, payload } })
                 });
             } catch (err) {
-                showOutput('Failed to save fixture: ' + err.message, 'error');
+                mcpState.fixtures = mergeMCPFixtures([localFixture], mcpState.fixtures);
+                storeMCPDraftForTool(tool);
+                renderMCPFixturesList();
+                refreshMCPActionStates();
+                showOutput('Fixture saved in this browser. Server save failed: ' + err.message, 'info');
                 return;
             } finally {
                 setMCPBusy(false);
             }
             if (resp.status === 401) { logout(); return; }
             if (!resp.ok) {
-                showOutput('Failed to save fixture: ' + await resp.text(), 'error');
+                mcpState.fixtures = mergeMCPFixtures([localFixture], mcpState.fixtures);
+                renderMCPFixturesList();
+                refreshMCPActionStates();
+                showOutput('Fixture saved in this browser. Server save failed: ' + await resp.text(), 'info');
                 return;
             }
             const payloadResp = await resp.json();
-            const saved = payloadResp?.data;
+            const saved = payloadResp?.data || localFixture;
+            if (localFixture.id !== saved.id) {
+                deleteMCPFixtureFromBrowserStorage(localFixture.id);
+            }
+            upsertMCPFixtureInBrowserStorage(saved);
             mcpState.selectedFixtureId = saved?.id || null;
             await loadMCPFixtures();
             storeMCPDraftForTool(tool);
@@ -5748,7 +6274,22 @@
                 showOutput('Select a fixture to delete.', 'info');
                 return;
             }
-            const id = mcpState.selectedFixtureId;
+            await deleteMCPFixture(mcpState.selectedFixtureId);
+        }
+
+        async function deleteMCPFixture(id) {
+            if (!id) {
+                showOutput('Select a fixture to delete.', 'info');
+                return;
+            }
+            const wasSelected = id === mcpState.selectedFixtureId;
+            deleteMCPFixtureFromBrowserStorage(id);
+            mcpState.fixtures = mcpState.fixtures.filter(item => item.id !== id);
+            if (wasSelected) {
+                mcpState.selectedFixtureId = null;
+            }
+            renderMCPFixturesList();
+            refreshMCPActionStates();
             setMCPBusy(true);
             let resp;
             try {
@@ -5757,20 +6298,27 @@
                     headers: getAuthHeadersWithJSON()
                 });
             } catch (err) {
-                showOutput('Failed to delete fixture: ' + err.message, 'error');
+                if (wasSelected) {
+                    newMCPFixtureDraft();
+                }
+                showOutput('Fixture deleted in this browser. Server delete failed: ' + err.message, 'info');
                 return;
             } finally {
                 setMCPBusy(false);
             }
             if (resp.status === 401) { logout(); return; }
             if (!resp.ok) {
-                showOutput('Failed to delete fixture: ' + await resp.text(), 'error');
+                if (wasSelected) {
+                    newMCPFixtureDraft();
+                }
+                showOutput('Fixture deleted in this browser. Server delete failed: ' + await resp.text(), 'info');
                 return;
             }
-            mcpState.selectedFixtureId = null;
             await loadMCPFixtures();
             renderMCPFixturesList();
-            newMCPFixtureDraft();
+            if (wasSelected) {
+                newMCPFixtureDraft();
+            }
             showOutput('Fixture deleted.', 'success');
         }
 
@@ -5806,6 +6354,39 @@
                 return null;
             }
             return JSON.parse(raw);
+        }
+
+        function isMCPToolKnown(toolName) {
+            const key = (toolName || '').trim();
+            return !!key && (!mcpState.tools.length || mcpState.tools.some(tool => tool.name === key));
+        }
+
+        function inferMCPToolFromPayload(payload) {
+            if (!payload || Array.isArray(payload) || typeof payload !== 'object') {
+                return '';
+            }
+            if (typeof payload.name === 'string' && typeof payload.action === 'string') {
+                return 'agentCall';
+            }
+            if (typeof payload.id === 'string' && payload.id.startsWith('tree:') && payload.args && typeof payload.args === 'object') {
+                return 'treeCall';
+            }
+            if (typeof payload.id === 'string' && (payload.action || payload.args || payload.input)) {
+                return 'registryCall';
+            }
+            return '';
+        }
+
+        function reconcileMCPToolWithPayload(currentTool, payload) {
+            const inferred = inferMCPToolFromPayload(payload);
+            if (!inferred || inferred === currentTool || !isMCPToolKnown(inferred)) {
+                return currentTool;
+            }
+            mcpState.selectedTool = inferred;
+            updateMCPSelectedToolDisplay();
+            renderMCPToolsList();
+            showOutput('Selected MCP tool changed to ' + inferred + ' based on the payload shape.', 'info');
+            return inferred;
         }
 
         async function triggerMCPToolRefresh(options = {}) {
@@ -5850,6 +6431,7 @@
                 restoreMCPDraftForTool(mcpState.tools[0].name);
             } else {
                 updateMCPSelectedToolDisplay();
+                restoreMCPResponseForTool(mcpState.selectedTool);
             }
             renderMCPToolsList();
             if (!options.skipAlert) {
@@ -5874,6 +6456,9 @@
                     '<div class="mcp-tool-description">' + (tool.description || 'No description provided') + '</div>';
                 card.addEventListener('click', () => {
                     selectMCPTool(tool.name);
+                    if (shouldAutoExecuteMCPTool(tool.name)) {
+                        executeCurrentMCPTool();
+                    }
                 });
                 listEl.appendChild(card);
             });
@@ -5891,16 +6476,17 @@
             if (!mcpState.viewReady) {
                 return;
             }
-            const tool = document.getElementById('mcpToolInput')?.value.trim();
-            if (!tool) {
-                showOutput('Select a tool before executing.', 'error');
-                return;
-            }
+            let tool = document.getElementById('mcpToolInput')?.value.trim();
             let payload;
             try {
                 payload = getMCPPayloadFromEditor();
             } catch (err) {
                 showOutput('Payload must be valid JSON: ' + err.message, 'error');
+                return;
+            }
+            tool = reconcileMCPToolWithPayload(tool, payload);
+            if (!tool) {
+                showOutput('Select a tool before executing.', 'error');
                 return;
             }
             const settings = collectMCPSettingsFromForm();
@@ -5918,6 +6504,7 @@
                     body: JSON.stringify({ tool, payload, settings })
                 });
             } catch (err) {
+                renderMCPResponse({ error: err.message || String(err) }, tool);
                 showOutput('Execution failed: ' + err.message, 'error');
                 return;
             } finally {
@@ -5925,23 +6512,98 @@
             }
             if (resp.status === 401) { logout(); return; }
             if (!resp.ok) {
-                showOutput('Execution failed: ' + await resp.text(), 'error');
+                const message = await resp.text();
+                renderMCPResponse({ error: message || resp.statusText, status: resp.status }, tool);
+                showOutput('Execution failed: ' + (message || resp.statusText), 'error');
                 return;
             }
             const payloadResp = await resp.json();
-            renderMCPResponse(payloadResp?.data);
+            renderMCPResponse(payloadResp?.data, tool);
         }
 
-        function renderMCPResponse(result) {
+        function renderMCPResponse(result, toolName) {
             const output = document.getElementById('mcpResponseOutput');
             if (!output) {
                 return;
             }
+            if (arguments.length > 0) {
+                mcpState.lastResponse = result || null;
+                const key = (toolName || mcpState.selectedTool || '').trim();
+                if (key) {
+                    if (result) {
+                        mcpState.toolResponses[key] = result;
+                    } else {
+                        delete mcpState.toolResponses[key];
+                    }
+                }
+            } else {
+                result = mcpState.lastResponse;
+            }
             if (!result) {
                 output.textContent = '// No response received';
+                updateMCPResponseViewButtons();
                 return;
             }
-            output.textContent = prettyJSONString(result);
+            const response = mcpState.responseView === 'raw' ? result : compactMCPResponse(result);
+            output.textContent = prettyJSONString(response);
+            updateMCPResponseViewButtons();
+        }
+
+        function restoreMCPResponseForTool(toolName) {
+            const key = (toolName || '').trim();
+            mcpState.lastResponse = key ? (mcpState.toolResponses[key] || null) : null;
+            renderMCPResponse();
+        }
+
+        function setMCPResponseView(view) {
+            mcpState.responseView = view === 'raw' ? 'raw' : 'result';
+            if (mcpState.lastResponse) {
+                renderMCPResponse();
+            } else {
+                updateMCPResponseViewButtons();
+            }
+        }
+
+        function updateMCPResponseViewButtons() {
+            const resultButton = document.getElementById('mcpResponseResultButton');
+            const rawButton = document.getElementById('mcpResponseRawButton');
+            if (resultButton) {
+                resultButton.classList.toggle('active', mcpState.responseView !== 'raw');
+            }
+            if (rawButton) {
+                rawButton.classList.toggle('active', mcpState.responseView === 'raw');
+            }
+        }
+
+        function compactMCPResponse(result) {
+            const call = result?.structuredContent?.call;
+            const planResult = call?.result;
+            if (planResult && typeof planResult === 'object' && !Array.isArray(planResult)) {
+                const compact = {};
+                if ('executed' in planResult || 'executed' in call) {
+                    compact.executed = 'executed' in planResult ? planResult.executed : call.executed;
+                }
+                if ('status' in planResult) {
+                    compact.status = planResult.status;
+                }
+                if ('output' in planResult) {
+                    compact.output = planResult.output;
+                }
+                if ('steps' in planResult) {
+                    compact.steps = planResult.steps;
+                }
+                if (Object.keys(compact).length) {
+                    return compact;
+                }
+                return planResult;
+            }
+            if (call) {
+                return call;
+            }
+            if (result?.structuredContent) {
+                return result.structuredContent;
+            }
+            return result;
         }
 
         function setMCPResponseFullscreen(expanded) {
@@ -6082,11 +6744,16 @@
             return (scope || '').toLowerCase() === FILE_SCOPE_LISTENERS;
         }
 
+        function isBootstrapScope(scope) {
+            return (scope || '').toLowerCase() === FILE_SCOPE_BOOTSTRAP;
+        }
+
         function getScopeLabel(scope) {
             const normalized = (scope || '').toLowerCase();
             if (normalized === 'sandbox') return 'Sandbox';
             if (normalized === 'global' || normalized === '') return 'Global';
             if (isListenerScope(normalized)) return 'Listeners';
+            if (isBootstrapScope(normalized)) return 'Bootstrap';
             return normalized.charAt(0).toUpperCase() + normalized.slice(1);
         }
 
@@ -6151,6 +6818,9 @@
             if (!scopes.includes(FILE_SCOPE_LISTENERS)) {
                 scopes.push(FILE_SCOPE_LISTENERS);
             }
+            if (!scopes.includes(FILE_SCOPE_BOOTSTRAP)) {
+                scopes.push(FILE_SCOPE_BOOTSTRAP);
+            }
             select.innerHTML = '';
             scopes.forEach(scope => {
                 const opt = document.createElement('option');
@@ -6166,6 +6836,7 @@
             select.disabled = !authToken;
             // Always show scope controls when logged in
             controls.style.display = authToken ? 'flex' : 'none';
+            updateSaveButtonStates();
         }
 
         function buildDiagramURL(pathname, scopeOverride) {
@@ -6220,6 +6891,19 @@
                     const sel = document.getElementById('diagramSelect');
                     if (sel) sel.value = name;
                     currentDiagramName = name;
+                    currentDiagramJSON = contentJSON;
+                    const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
+                    if (isDiagramTab(activeTab)) {
+                        activeTab.sourceType = 'diagram';
+                        activeTab.diagramSourceName = name;
+                        activeTab.diagramJSON = contentJSON;
+                        activeTab.displayName = makeDiagramCodeDisplayName(name);
+                        activeTab.content = editor ? editor.getValue() : activeTab.content;
+                        activeTab.originalContent = activeTab.content;
+                        activeTab.isDirty = false;
+                        workspaceTabs.rememberContent(activeTab);
+                        renderPrimaryTabs();
+                    }
                     resetDiagramShareOverride();
                 } else {
                     const t = await resp.text();
@@ -6249,7 +6933,7 @@
                     if (sel) sel.value = '';
                     currentDiagramName = '';
                     currentDiagramJSON = null;
-                    if (editor) editor.setValue('');
+                    if (editor) setPrimaryEditorValue('');
                     toggleDiagramActionButtons(false);
                 } else {
                     const t = await resp.text();
@@ -6690,7 +7374,7 @@
                     "concat(\"Updated function '" + attributeName + "' in node\")";
 
                 if (editor) {
-                    editor.setValue(wrapperCode);
+                    setPrimaryEditorValue(wrapperCode);
                     currentFileName = ''; // Not a file
                     originalContent = wrapperCode;
                     isFileModified = false;
@@ -6872,6 +7556,10 @@
                 return;
             }
             editor.onDidChangeModelContent(() => {
+                if (suppressEditorChangeTracking > 0) {
+                    updateRunButtonState();
+                    return;
+                }
                 persistActiveTabContent();
                 const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
                 if (activeTab) {
@@ -6893,6 +7581,7 @@
         function updateSaveButtonStates() {
             const saveButton = document.getElementById('saveButton');
             const saveAsButton = document.getElementById('saveAsButton');
+            const newButton = document.getElementById('newButton');
             const renameButton = document.getElementById('renameButton');
             const deleteButton = document.getElementById('deleteButton');
 
@@ -6907,32 +7596,44 @@
             }
 
             const hasAuth = authToken !== null;
-            const hasFile = currentFileName !== '';
+            const activeFileTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
+            const activeFileName = activeFileTab?.fileName || currentFileName;
+            const hasFile = activeFileName !== '';
             const hasContent = editor && editor.getValue().trim() !== '';
             const activeTab = document.querySelector('.toolbar-tab.active')?.textContent;
+            const activeFileScope = activeFileTab?.scope || currentFileScope || currentFileBrowserScope || 'global';
+            const isBootstrapFile = isBootstrapScope(activeFileScope);
+            const editorContent = editor ? editor.getValue() : '';
+            const fileIsModified = activeFileTab
+                ? editorContent !== (activeFileTab.originalContent || '')
+                : isFileModified;
 
             // Debug logging
-            console.log('updateSaveButtonStates - activeTab:', activeTab, 'hasAuth:', hasAuth, 'hasContent:', hasContent, 'isFileModified:', isFileModified);
+            console.log('updateSaveButtonStates - activeTab:', activeTab, 'hasAuth:', hasAuth, 'hasContent:', hasContent, 'isFileModified:', fileIsModified);
 
             // Files tab buttons
             if (activeTab === 'Files') {
                 // Save button: enabled if authenticated, has current file, and content is modified
-                saveButton.disabled = !(hasAuth && hasFile && isFileModified);
-                if (isFileModified && hasFile) {
+                saveButton.disabled = !(hasAuth && hasFile && fileIsModified);
+                if (fileIsModified && hasFile) {
                     saveButton.classList.add('modified');
                 } else {
                     saveButton.classList.remove('modified');
                 }
 
                 // Save As button: enabled if authenticated and has content
-                saveAsButton.disabled = !(hasAuth && hasContent);
+                if (newButton) {
+                    newButton.disabled = isBootstrapScope(currentFileBrowserScope);
+                }
+
+                saveAsButton.disabled = isBootstrapFile || !(hasAuth && hasContent);
 
                 // Rename and Delete buttons: enabled only if authenticated and a file is loaded
                 if (renameButton) {
-                    renameButton.disabled = !(hasAuth && hasFile);
+                    renameButton.disabled = isBootstrapFile || !(hasAuth && hasFile);
                 }
                 if (deleteButton) {
-                    deleteButton.disabled = !(hasAuth && hasFile);
+                    deleteButton.disabled = isBootstrapFile || !(hasAuth && hasFile);
                 }
             }
 
@@ -6968,14 +7669,15 @@
                 return;
             }
 
-            if (!currentFileName) {
+            const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
+            const targetFileName = activeTab?.fileName || currentFileName;
+            if (!targetFileName) {
                 showOutput('No file selected to save', 'error');
                 return;
             }
 
             const content = editor.getValue();
             const saveButton = document.getElementById('saveButton');
-            const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
             const tabScope = activeTab?.scope || currentFileScope || currentFileBrowserScope || 'global';
 
             saveButton.disabled = true;
@@ -6988,7 +7690,7 @@
                     method: 'POST',
                     headers: getAuthHeadersWithJSON(),
                     body: JSON.stringify({
-                        name: currentFileName,
+                        name: targetFileName,
                         content: content
                     })
                 });
@@ -7005,16 +7707,17 @@
                         activeTab.originalContent = content;
                         activeTab.content = content;
                         activeTab.isDirty = false;
-                        if (!activeTab.fileName && currentFileName) {
-                            activeTab.fileName = currentFileName;
-                            activeTab.displayName = currentFileName;
+                        if (!activeTab.fileName && targetFileName) {
+                            activeTab.fileName = targetFileName;
+                            activeTab.displayName = targetFileName;
                             activeTab.isUntitled = false;
-                            indexTabByFile(activeTab, tabScope, currentFileName);
+                            indexTabByFile(activeTab, tabScope, targetFileName);
                         }
                         activeTab.scope = tabScope;
                         workspaceTabs.rememberContent(activeTab);
                         debugContext.rememberFromTab(activeTab);
                     }
+                    currentFileName = targetFileName;
                     currentFileScope = tabScope;
                     currentFileBrowserScope = tabScope;
                     const scopeSelect = document.getElementById('fileScopeSelect');
@@ -7024,7 +7727,7 @@
                     refreshTabVisualState();
                     updateReferencePane();
                     updateSaveButtonStates();
-                    showOutput('File saved successfully: ' + currentFileName, 'success');
+                    showOutput('File saved successfully: ' + targetFileName, 'success');
                 } else {
                     const error = await response.text();
                     showOutput('Save failed: ' + error, 'error');
@@ -7042,6 +7745,10 @@
         function newFile() {
             if (!authToken) {
                 showOutput('Please log in first', 'error');
+                return;
+            }
+            if (isBootstrapScope(currentFileBrowserScope)) {
+                showOutput('Bootstrap scope contains only the configured bootstrap file.', 'warning');
                 return;
             }
 
@@ -7066,7 +7773,7 @@
             originalContent = '';
             isFileModified = true;
             if (editor) {
-                editor.setValue(template);
+                setPrimaryEditorValue(template);
             }
             const fileSelect = document.getElementById('fileSelect');
             if (fileSelect) {
@@ -7106,6 +7813,10 @@
             const saveAsButton = document.getElementById('saveAsButton');
             const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
             const targetScope = activeTab?.scope || currentFileBrowserScope || 'global';
+            if (isBootstrapScope(targetScope)) {
+                showOutput('Bootstrap scope saves only the configured bootstrap file. Use Save.', 'warning');
+                return;
+            }
             saveAsButton.disabled = true;
             saveAsButton.textContent = '💾 Saving...';
 
@@ -7349,9 +8060,7 @@
                         }
                         workspaceTabs.rememberContent(tab);
                         if (!opts.suppressTabActivation || activeFileTabId === (opts.targetTabId || tab.id)) {
-                            if (editor) {
-                                editor.setValue(content);
-                            }
+                            setPrimaryEditorValue(content);
                             activeFileTabId = opts.targetTabId || tab.id;
                             currentFileName = fileName;
                             currentFileScope = scope;
@@ -7413,6 +8122,10 @@
             const renameButton = document.getElementById('renameButton');
             const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
             const tabScope = activeTab?.scope || currentFileScope || currentFileBrowserScope || 'global';
+            if (isBootstrapScope(tabScope)) {
+                showOutput('Bootstrap file cannot be renamed from Charioteer.', 'warning');
+                return;
+            }
             renameButton.disabled = true;
             renameButton.textContent = '📝 Renaming...';
 
@@ -7514,6 +8227,10 @@
             const deleteButton = document.getElementById('deleteButton');
             const activeTab = activeFileTabId ? openFileTabs.get(activeFileTabId) : null;
             const tabScope = activeTab?.scope || currentFileScope || currentFileBrowserScope || 'global';
+            if (isBootstrapScope(tabScope)) {
+                showOutput('Bootstrap file cannot be deleted from Charioteer.', 'warning');
+                return;
+            }
             deleteButton.disabled = true;
             deleteButton.textContent = '🗑️ Deleting...';
 
@@ -7534,7 +8251,7 @@
 
                     // Clear editor and file selection
                     if (editor) {
-                        editor.setValue('');
+                        setPrimaryEditorValue('');
                     }
                     currentFileName = '';
                     originalContent = '';
@@ -7669,6 +8386,9 @@
         // Agents UI state and helpers
         let agentsContent = '';
         let agentsLoaded = false;
+        let agentFixtures = [];
+        let selectedAgentFixtureId = null;
+        let agentFixturesBusy = false;
         let runOnceAgentNames = [];
         let runOnceAgentUserTouched = false;
         let agentsWS = null;
@@ -7678,6 +8398,8 @@
         let agentsWSReconnectTimer = null;    // pending reconnect timer id
         let agentsWSConnecting = false;       // prevent concurrent connect attempts
         let agentsShowHeartbeats = false;     // UI toggle to show/hide heartbeat messages
+        let agentsShowLifecycle = false;      // UI toggle to show/hide plan/step start/finish messages
+        const agentFixturesStorageKey = 'charioteer.agent.fixtures.v1';
 
         function stopAgentsWS() {
             // Disable reconnects and close any existing socket
@@ -7686,6 +8408,137 @@
             try { if (agentsWS) { agentsWS.onclose = null; agentsWS.onerror = null; agentsWS.close(); } } catch (e) { }
             agentsWS = null;
             agentsWSConnecting = false;
+        }
+
+        function bindAgentsWorkspaceHandlers() {
+            const clearBtn = document.getElementById('clearAgentsStreamButton');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function () {
+                    const stream = document.getElementById('agentsStream');
+                    if (stream) stream.textContent = '';
+                });
+            }
+            const hbToggle = document.getElementById('toggleHeartbeats');
+            if (hbToggle) {
+                hbToggle.checked = agentsShowHeartbeats;
+                hbToggle.addEventListener('change', function () {
+                    agentsShowHeartbeats = hbToggle.checked;
+                });
+            }
+            const lifecycleToggle = document.getElementById('toggleLifecycleEvents');
+            if (lifecycleToggle) {
+                lifecycleToggle.checked = agentsShowLifecycle;
+                lifecycleToggle.addEventListener('change', function () {
+                    agentsShowLifecycle = lifecycleToggle.checked;
+                });
+            }
+            const createPlanBtn = document.getElementById('createPlanBtn');
+            if (createPlanBtn) {
+                createPlanBtn.addEventListener('click', showCreatePlanModal);
+            }
+            const createAgentBtn = document.getElementById('createAgentBtn');
+            if (createAgentBtn) {
+                createAgentBtn.addEventListener('click', showCreateAgentModal);
+            }
+            const cancelPlanBtn = document.getElementById('cancelCreatePlan');
+            if (cancelPlanBtn) {
+                cancelPlanBtn.addEventListener('click', () => {
+                    document.getElementById('createPlanModal').style.display = 'none';
+                });
+            }
+            const confirmPlanBtn = document.getElementById('confirmCreatePlan');
+            if (confirmPlanBtn) {
+                confirmPlanBtn.addEventListener('click', saveAgentPlan);
+            }
+            const cancelCreateBtn = document.getElementById('cancelCreateAgent');
+            if (cancelCreateBtn) {
+                cancelCreateBtn.addEventListener('click', () => {
+                    document.getElementById('createAgentModal').style.display = 'none';
+                });
+            }
+            const confirmCreateBtn = document.getElementById('confirmCreateAgent');
+            if (confirmCreateBtn) {
+                confirmCreateBtn.addEventListener('click', createAgent);
+            }
+            const runOnceBtn = document.getElementById('runOnceBtn');
+            if (runOnceBtn) {
+                runOnceBtn.addEventListener('click', runPlanOnce);
+            }
+            const runOncePlanSelect = document.getElementById('planSelectRunOnce');
+            if (runOncePlanSelect) {
+                runOncePlanSelect.addEventListener('change', handleRunOncePlanChange);
+            }
+            const newFixtureBtn = document.getElementById('agentNewFixtureButton');
+            if (newFixtureBtn) {
+                newFixtureBtn.addEventListener('click', newAgentFixtureDraft);
+            }
+            const saveFixtureBtn = document.getElementById('agentSaveFixtureButton');
+            if (saveFixtureBtn) {
+                saveFixtureBtn.addEventListener('click', saveCurrentAgentFixture);
+            }
+            const deleteFixtureBtn = document.getElementById('agentDeleteFixtureButton');
+            if (deleteFixtureBtn) {
+                deleteFixtureBtn.addEventListener('click', deleteCurrentAgentFixture);
+            }
+            const varsInput = document.getElementById('runOnceVarsInput');
+            if (varsInput) {
+                varsInput.addEventListener('input', validateAgentVarsMapEditor);
+            }
+            const runOnceAgentSelect = document.getElementById('agentSelectRunOnce');
+            if (runOnceAgentSelect) {
+                runOnceAgentSelect.addEventListener('change', () => {
+                    runOnceAgentUserTouched = true;
+                });
+            }
+            const beliefsModal = document.getElementById('beliefsModal');
+            const closeBeliefsBtn = document.getElementById('closeBeliefsModal');
+            if (closeBeliefsBtn) {
+                closeBeliefsBtn.addEventListener('click', hideBeliefsModal);
+            }
+            if (beliefsModal && !beliefsModal.dataset.dismissHandlerAttached) {
+                beliefsModal.dataset.dismissHandlerAttached = 'true';
+                beliefsModal.addEventListener('click', (event) => {
+                    if (event.target === beliefsModal) {
+                        hideBeliefsModal();
+                    }
+                });
+            }
+            if (!window.__beliefsEscHandlerAttached) {
+                window.__beliefsEscHandlerAttached = true;
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        const modal = document.getElementById('beliefsModal');
+                        if (modal && modal.style.display !== 'none') {
+                            hideBeliefsModal();
+                        }
+                    }
+                });
+            }
+            const addBeliefBtn = document.getElementById('addBeliefBtn');
+            if (addBeliefBtn) {
+                addBeliefBtn.addEventListener('click', addBelief);
+            }
+            refreshAgentFixtureActionStates();
+            validateAgentVarsMapEditor({ silent: true });
+        }
+
+        function appendToAgentsStream(entry) {
+            const stream = document.getElementById('agentsStream');
+            if (!stream) {
+                return;
+            }
+            let line;
+            if (typeof entry === 'string') {
+                line = entry;
+            } else {
+                try {
+                    line = JSON.stringify(entry, null, 2);
+                } catch (err) {
+                    line = String(entry);
+                }
+            }
+            stream.textContent += (stream.textContent ? '\n' : '') + line;
+            stream.scrollTop = stream.scrollHeight;
         }
 
         // Build and load the Agents UI into the editor area
@@ -7698,20 +8551,20 @@
                     editor.dispose();
                     editor = null;
                 }
-                const agentsHTML = '<div class="agents-container" style="padding: 20px; color: #d4d4d4; background-color: #1e1e1e; height: 100%; overflow-y: auto; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">' +
+                const agentsHTML = '<div class="agents-container" style="padding:20px; color:#d4d4d4; background-color:#1e1e1e; height:100%; box-sizing:border-box; overflow:hidden; font-family:\'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; display:flex; flex-direction:column; min-height:0;">' +
                     '<div id="agentsError" style="display: none; background-color: #f44747; color: white; padding: 15px; border-radius: 4px; margin-bottom: 20px;"></div>' +
                     '<div id="agentsLoading" style="text-align: center; padding: 40px; color: #569cd6;">' +
                     '<p>Loading agents…</p>' +
                     '</div>' +
-                    '<div id="agentsContent" style="display:none;">' +
-                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">' +
+                    '<div id="agentsContent" style="display:none; flex:1; flex-direction:column; min-height:0;">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex:0 0 auto;">' +
                     '<h2 style="margin:0; color:#569cd6;">BDI Agents</h2>' +
                     '<div style="display:flex; gap:8px;">' +
                     '<button id="createPlanBtn" class="toolbar-button" style="padding:8px 16px;">➕ Create Plan</button>' +
                     '<button id="createAgentBtn" class="toolbar-button" style="padding:8px 16px;">➕ Create Agent</button>' +
                     '</div>' +
                     '</div>' +
-                    '<div style="background:#252526; border:1px solid #333; border-radius:6px; padding:16px; margin-bottom:24px;">' +
+                    '<div style="background:#252526; border:1px solid #333; border-radius:6px; padding:16px; margin-bottom:24px; flex:0 0 auto;">' +
                     '<table style="width:100%; border-collapse:collapse; color:#d4d4d4; font-size:13px;">' +
                     '<thead>' +
                     '<tr style="border-bottom:2px solid #444;">' +
@@ -7727,11 +8580,17 @@
                     '</tbody>' +
                     '</table>' +
                     '</div>' +
-                    '<div style="display:flex; gap:24px;">' +
-                    '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:16px;">' +
+                    '<div style="display:flex; gap:24px; min-height:0; flex:1; align-items:stretch;">' +
+                    '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:16px; min-width:0; min-height:0; display:flex; flex-direction:column;">' +
                     '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">' +
                     '<h3 style="margin:0; color:#569cd6;">One-Shot Plan Execution</h3>' +
                     '</div>' +
+                    '<div style="display:flex; gap:16px; align-items:stretch; min-height:0; flex:1;">' +
+                    '<div style="flex:0 0 250px; display:flex; flex-direction:column; min-height:0;">' +
+                    '<div class="mcp-section-header">Fixtures <button id="agentNewFixtureButton" class="mcp-icon-button" title="New fixture">＋</button></div>' +
+                    '<div class="mcp-fixtures-list" id="agentFixturesList"><div style="padding:10px;color:#888;font-size:12px;">No fixtures saved</div></div>' +
+                    '</div>' +
+                    '<div style="flex:1; min-width:0; min-height:0; overflow:auto; padding-right:2px;">' +
                     '<div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">' +
                     '<select id="planSelectRunOnce" style="flex:1; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px;">' +
                     '<option value="">Select plan...</option>' +
@@ -7742,21 +8601,32 @@
                     '<select id="agentSelectRunOnce" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; margin-bottom:12px;">' +
                     '<option value="">Run without touching agent beliefs</option>' +
                     '</select>' +
-                    '<label for="runOnceVarsInput" style="display:block; font-size:12px; color:#bbb; margin-bottom:6px;">Optional varsMap JSON passed to the plan:</label>' +
-                    '<textarea id="runOnceVarsInput" style="width:100%; min-height:90px; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; resize:vertical; font-family:monospace;" placeholder="Example: {&quot;temperature&quot;:72, &quot;unit&quot;:&quot;F&quot;}"></textarea>' +
-                    '<div style="font-size:11px; color:#888; margin-top:6px;">Use JSON object syntax. If you selected an agent, these keys are applied to its beliefs before the plan runs and are also available as per-run vars.</div>' +
+                    '<label for="agentFixtureNameInput" style="display:block; font-size:12px; color:#bbb; margin-bottom:6px;">Fixture name:</label>' +
+                    '<input id="agentFixtureNameInput" style="width:100%; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; margin-bottom:12px;" placeholder="Thermostat high temp" />' +
+                    '<label for="runOnceVarsInput" style="display:block; font-size:12px; color:#bbb; margin-bottom:6px;">varsMap JSON object:</label>' +
+                    '<textarea id="runOnceVarsInput" style="width:100%; min-height:90px; padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #444; border-radius:4px; resize:vertical; font-family:monospace;" placeholder="Example: {&quot;currentTemp&quot;:80}"></textarea>' +
+                    '<div id="runOnceVarsValidation" style="font-size:11px; color:#888; margin-top:6px; min-height:16px;">Only belief/per-run variable keys are accepted here; wrapper keys such as plan, action, input, or beliefs are rejected.</div>' +
+                    '<div style="display:flex; gap:8px; margin-top:12px;">' +
+                    '<button id="agentSaveFixtureButton" class="toolbar-button" style="padding:8px 12px;">💾 Save Fixture</button>' +
+                    '<button id="agentDeleteFixtureButton" class="toolbar-button file-action delete" style="padding:8px 12px;" disabled>🗑️ Delete Fixture</button>' +
                     '</div>' +
-                    '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:16px;">' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div style="flex:1; background:#252526; border:1px solid #333; border-radius:6px; padding:16px; min-width:0; min-height:0; display:flex; flex-direction:column;">' +
                     '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">' +
                     '<h3 style="margin:0; color:#569cd6;">Agent Events</h3>' +
                     '<div style="display:flex; align-items:center; gap:10px;">' +
+                    '<label style="font-size:12px; color:#bbb; display:flex; align-items:center; gap:6px;">' +
+                    '<input type="checkbox" id="toggleLifecycleEvents" /> Show lifecycle' +
+                    '</label>' +
                     '<label style="font-size:12px; color:#bbb; display:flex; align-items:center; gap:6px;">' +
                     '<input type="checkbox" id="toggleHeartbeats" /> Show heartbeats' +
                     '</label>' +
                     '<button id="clearAgentsStreamButton" class="toolbar-button">🧹 Clear</button>' +
                     '</div>' +
                     '</div>' +
-                    '<pre id="agentsStream" style="height:30vh; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; border:1px solid #333; white-space:pre-wrap; word-break:break-word; font-size:11px;"></pre>' +
+                    '<pre id="agentsStream" style="flex:1; min-height:0; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; border:1px solid #333; white-space:pre-wrap; word-break:break-word; font-size:11px; margin:0;"></pre>' +
                     '</div>' +
                     '</div>' +
                     '</div>' +
@@ -7828,100 +8698,12 @@
                 agentsContent = agentsHTML;
                 agentsLoaded = true;
 
-                // Bind UI event handlers
-                const clearBtn = document.getElementById('clearAgentsStreamButton');
-                if (clearBtn) {
-                    clearBtn.addEventListener('click', function () {
-                        const s = document.getElementById('agentsStream');
-                        if (s) s.textContent = '';
-                    });
-                }
-                const hbToggle = document.getElementById('toggleHeartbeats');
-                if (hbToggle) {
-                    hbToggle.checked = agentsShowHeartbeats;
-                    hbToggle.addEventListener('change', function () {
-                        agentsShowHeartbeats = hbToggle.checked;
-                    });
-                }
-
-                // Create Agent button
-                const createPlanBtn = document.getElementById('createPlanBtn');
-                if (createPlanBtn) {
-                    createPlanBtn.addEventListener('click', showCreatePlanModal);
-                }
-
-                const createAgentBtn = document.getElementById('createAgentBtn');
-                if (createAgentBtn) {
-                    createAgentBtn.addEventListener('click', showCreateAgentModal);
-                }
-
-                const cancelPlanBtn = document.getElementById('cancelCreatePlan');
-                if (cancelPlanBtn) {
-                    cancelPlanBtn.addEventListener('click', () => {
-                        document.getElementById('createPlanModal').style.display = 'none';
-                    });
-                }
-                const confirmPlanBtn = document.getElementById('confirmCreatePlan');
-                if (confirmPlanBtn) {
-                    confirmPlanBtn.addEventListener('click', saveAgentPlan);
-                }
-
-                // Create Agent modal handlers
-                const cancelCreateBtn = document.getElementById('cancelCreateAgent');
-                if (cancelCreateBtn) {
-                    cancelCreateBtn.addEventListener('click', () => {
-                        document.getElementById('createAgentModal').style.display = 'none';
-                    });
-                }
-                const confirmCreateBtn = document.getElementById('confirmCreateAgent');
-                if (confirmCreateBtn) {
-                    confirmCreateBtn.addEventListener('click', createAgent);
-                }
-
-                // Run Once button
-                const runOnceBtn = document.getElementById('runOnceBtn');
-                if (runOnceBtn) {
-                    runOnceBtn.addEventListener('click', runPlanOnce);
-                }
-                const runOnceAgentSelect = document.getElementById('agentSelectRunOnce');
-                if (runOnceAgentSelect) {
-                    runOnceAgentSelect.addEventListener('change', () => {
-                        runOnceAgentUserTouched = true;
-                    });
-                }
-
-                // Beliefs modal handlers
-                const beliefsModal = document.getElementById('beliefsModal');
-                const closeBeliefsBtn = document.getElementById('closeBeliefsModal');
-                if (closeBeliefsBtn) {
-                    closeBeliefsBtn.addEventListener('click', hideBeliefsModal);
-                }
-                if (beliefsModal && !beliefsModal.dataset.dismissHandlerAttached) {
-                    beliefsModal.dataset.dismissHandlerAttached = 'true';
-                    beliefsModal.addEventListener('click', (event) => {
-                        if (event.target === beliefsModal) {
-                            hideBeliefsModal();
-                        }
-                    });
-                }
-                if (!window.__beliefsEscHandlerAttached) {
-                    window.__beliefsEscHandlerAttached = true;
-                    document.addEventListener('keydown', (event) => {
-                        if (event.key === 'Escape') {
-                            const modal = document.getElementById('beliefsModal');
-                            if (modal && modal.style.display !== 'none') {
-                                hideBeliefsModal();
-                            }
-                        }
-                    });
-                }
-                const addBeliefBtn = document.getElementById('addBeliefBtn');
-                if (addBeliefBtn) {
-                    addBeliefBtn.addEventListener('click', addBelief);
-                }
+                bindAgentsWorkspaceHandlers();
 
                 // Load available plans for dropdowns
                 await loadPlansForAgents();
+                await loadAgentFixtures();
+                renderAgentFixturesList();
 
                 // Initial list load
                 await fetchAndRenderAgents();
@@ -7967,25 +8749,23 @@
                     if (err) { err.style.display = 'none'; }
                 };
                 agentsWS.onmessage = (evt) => {
-                    const s = document.getElementById('agentsStream');
-                    if (!s) return;
                     try {
                         const msg = JSON.parse(evt.data);
                         // Filter heartbeats unless explicitly enabled
                         if (msg && msg.type === 'heartbeat' && !agentsShowHeartbeats) {
                             return;
                         }
-                        const line = (typeof msg === 'string') ? msg : JSON.stringify(msg);
-                        s.textContent += (s.textContent ? '\n' : '') + line;
-                        s.scrollTop = s.scrollHeight;
+                        if (msg && (msg.type === 'plan' || msg.type === 'step') && (msg.status === 'start' || msg.status === 'finish') && !agentsShowLifecycle) {
+                            return;
+                        }
+                        appendToAgentsStream(msg);
                     } catch (e) {
-                        s.textContent += (s.textContent ? '\n' : '') + evt.data;
-                        s.scrollTop = s.scrollHeight;
+                        appendToAgentsStream(evt.data);
                     }
                     const loading = document.getElementById('agentsLoading');
                     const content = document.getElementById('agentsContent');
                     if (loading) loading.style.display = 'none';
-                    if (content) content.style.display = 'block';
+                    if (content) content.style.display = 'flex';
                 };
                 agentsWS.onclose = (ev) => {
                     console.log('Agents WS closed', ev && ev.code, ev && ev.reason);
@@ -8082,7 +8862,7 @@
                 }
                 updateRunOnceAgentDropdown(agentNamesForDropdown);
                 if (loading) loading.style.display = 'none';
-                if (content) content.style.display = 'block';
+                if (content) content.style.display = 'flex';
             } catch (e) {
                 console.error('Agents API error:', e);
                 if (err) { err.textContent = e.message; err.style.display = 'block'; }
@@ -8152,6 +8932,426 @@
                 console.log('[loadPlansForAgents] Completed successfully');
             } catch (e) {
                 console.error('[loadPlansForAgents] Error:', e);
+            }
+        }
+
+        function loadAgentFixturesFromBrowserStorage() {
+            try {
+                const raw = window.localStorage ? window.localStorage.getItem(agentFixturesStorageKey) : '';
+                if (!raw) {
+                    return [];
+                }
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.filter(item => item && item.id) : [];
+            } catch (err) {
+                return [];
+            }
+        }
+
+        function saveAgentFixturesToBrowserStorage(fixtures) {
+            try {
+                if (window.localStorage) {
+                    window.localStorage.setItem(agentFixturesStorageKey, JSON.stringify(normalizeAgentFixtures(fixtures)));
+                }
+            } catch (err) {
+                // Browser storage can be unavailable or full; server persistence still applies.
+            }
+        }
+
+        function normalizeAgentFixture(fixture) {
+            if (!fixture || typeof fixture !== 'object') {
+                return null;
+            }
+            return {
+                id: fixture.id || '',
+                name: fixture.name || '',
+                plan: fixture.plan || '',
+                agentName: fixture.agentName || '',
+                varsMap: (fixture.varsMap && typeof fixture.varsMap === 'object' && !Array.isArray(fixture.varsMap)) ? fixture.varsMap : {},
+                createdAt: fixture.createdAt || '',
+                updatedAt: fixture.updatedAt || ''
+            };
+        }
+
+        function normalizeAgentFixtures(fixtures) {
+            return (Array.isArray(fixtures) ? fixtures : []).map(normalizeAgentFixture).filter(Boolean);
+        }
+
+        function mergeAgentFixtures(primary, secondary) {
+            const byId = new Map();
+            [...(secondary || []), ...(primary || [])].forEach(item => {
+                const normalized = normalizeAgentFixture(item);
+                if (normalized && normalized.id) {
+                    byId.set(normalized.id, normalized);
+                }
+            });
+            return Array.from(byId.values()).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+        }
+
+        function createLocalAgentFixture({ id = '', name, plan, agentName, varsMap }) {
+            const now = new Date().toISOString();
+            return {
+                id: id || 'local-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+                name,
+                plan,
+                agentName,
+                varsMap: varsMap || {},
+                createdAt: now,
+                updatedAt: now
+            };
+        }
+
+        function upsertAgentFixtureInBrowserStorage(fixture) {
+            const normalized = normalizeAgentFixture(fixture);
+            if (!normalized || !normalized.id) {
+                return;
+            }
+            const fixtures = loadAgentFixturesFromBrowserStorage();
+            const idx = fixtures.findIndex(item => item.id === normalized.id);
+            if (idx >= 0) {
+                fixtures[idx] = normalized;
+            } else {
+                fixtures.unshift(normalized);
+            }
+            saveAgentFixturesToBrowserStorage(mergeAgentFixtures(fixtures, []));
+        }
+
+        function deleteAgentFixtureFromBrowserStorage(id) {
+            const fixtures = loadAgentFixturesFromBrowserStorage().filter(item => item.id !== id);
+            saveAgentFixturesToBrowserStorage(fixtures);
+        }
+
+        async function loadAgentFixtures() {
+            const localFixtures = normalizeAgentFixtures(loadAgentFixturesFromBrowserStorage());
+            const resp = await fetch('/charioteer/api/agents/fixtures', { headers: getAuthHeaders() });
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                agentFixtures = localFixtures;
+                saveAgentFixturesToBrowserStorage(agentFixtures);
+                return;
+            }
+            const payload = await resp.json();
+            const serverFixtures = normalizeAgentFixtures(Array.isArray(payload?.data) ? payload.data : []);
+            agentFixtures = mergeAgentFixtures(serverFixtures, localFixtures);
+            saveAgentFixturesToBrowserStorage(agentFixtures);
+        }
+
+        function renderAgentFixturesList() {
+            const listEl = document.getElementById('agentFixturesList');
+            if (!listEl) {
+                return;
+            }
+            listEl.innerHTML = '';
+            if (!agentFixtures.length) {
+                listEl.innerHTML = '<div style="padding:10px;color:#888;font-size:12px;">No fixtures saved</div>';
+                refreshAgentFixtureActionStates();
+                return;
+            }
+            agentFixtures.forEach(fixture => {
+                const row = document.createElement('div');
+                row.className = 'mcp-fixture-row' + (fixture.id === selectedAgentFixtureId ? ' selected' : '');
+                row.setAttribute('role', 'button');
+                row.tabIndex = 0;
+                const label = document.createElement('span');
+                label.className = 'mcp-fixture-row-label';
+                label.textContent = fixture.name + (fixture.plan ? ' · ' + fixture.plan : '');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'mcp-fixture-row-delete';
+                deleteBtn.title = 'Delete fixture';
+                deleteBtn.textContent = '×';
+                deleteBtn.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    deleteAgentFixture(fixture.id);
+                });
+                row.appendChild(label);
+                row.appendChild(deleteBtn);
+                row.addEventListener('click', () => selectAgentFixture(fixture.id));
+                row.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectAgentFixture(fixture.id);
+                    }
+                });
+                listEl.appendChild(row);
+            });
+            refreshAgentFixtureActionStates();
+        }
+
+        function setRunOncePlanValue(plan) {
+            const select = document.getElementById('planSelectRunOnce');
+            if (!select) {
+                return;
+            }
+            const value = plan || '';
+            if (value && !Array.from(select.options).some(option => option.value === value)) {
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = value;
+                select.appendChild(opt);
+            }
+            select.value = value;
+        }
+
+        function setRunOnceAgentValue(agentName) {
+            const select = document.getElementById('agentSelectRunOnce');
+            if (!select) {
+                return;
+            }
+            const value = agentName || '';
+            if (value && !Array.from(select.options).some(option => option.value === value)) {
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = value + ' (not currently listed)';
+                select.appendChild(opt);
+            }
+            select.value = value;
+            runOnceAgentUserTouched = !!value;
+        }
+
+        function findLatestAgentFixtureForPlan(plan) {
+            const planName = plan || '';
+            if (!planName) {
+                return null;
+            }
+            return normalizeAgentFixture(agentFixtures.find(item => item && item.plan === planName));
+        }
+
+        function clearAgentFixtureEditorForPlan(plan) {
+            selectedAgentFixtureId = null;
+            const nameInput = document.getElementById('agentFixtureNameInput');
+            const varsInput = document.getElementById('runOnceVarsInput');
+            if (nameInput) {
+                nameInput.value = '';
+            }
+            setRunOncePlanValue(plan || '');
+            setRunOnceAgentValue('');
+            runOnceAgentUserTouched = true;
+            if (varsInput) {
+                varsInput.value = '';
+            }
+            validateAgentVarsMapEditor({ silent: true });
+            renderAgentFixturesList();
+        }
+
+        function handleRunOncePlanChange(event) {
+            const plan = event && event.target ? event.target.value : (document.getElementById('planSelectRunOnce')?.value || '');
+            const fixture = findLatestAgentFixtureForPlan(plan);
+            if (fixture) {
+                selectAgentFixture(fixture.id);
+            } else {
+                clearAgentFixtureEditorForPlan(plan);
+            }
+        }
+
+        function selectAgentFixture(id) {
+            const fixture = normalizeAgentFixture(agentFixtures.find(item => item.id === id));
+            if (!fixture) {
+                return;
+            }
+            selectedAgentFixtureId = fixture.id;
+            agentFixtures = mergeAgentFixtures([fixture], agentFixtures.filter(item => item.id !== fixture.id));
+            upsertAgentFixtureInBrowserStorage(fixture);
+            const nameInput = document.getElementById('agentFixtureNameInput');
+            const varsInput = document.getElementById('runOnceVarsInput');
+            if (nameInput) {
+                nameInput.value = fixture.name || '';
+            }
+            setRunOncePlanValue(fixture.plan || '');
+            setRunOnceAgentValue(fixture.agentName || '');
+            if (varsInput) {
+                varsInput.value = serializeMCPPayloadForEditor(fixture.varsMap || {});
+            }
+            validateAgentVarsMapEditor({ silent: true });
+            renderAgentFixturesList();
+        }
+
+        function newAgentFixtureDraft() {
+            selectedAgentFixtureId = null;
+            const nameInput = document.getElementById('agentFixtureNameInput');
+            const varsInput = document.getElementById('runOnceVarsInput');
+            if (nameInput) {
+                nameInput.value = '';
+            }
+            if (varsInput) {
+                varsInput.value = '';
+            }
+            validateAgentVarsMapEditor({ silent: true });
+            renderAgentFixturesList();
+        }
+
+        function getAgentVarsMapFromEditor() {
+            const input = document.getElementById('runOnceVarsInput');
+            const raw = input ? input.value.trim() : '';
+            if (!raw) {
+                return {};
+            }
+            const parsed = JSON.parse(raw);
+            validateAgentVarsMap(parsed);
+            return parsed;
+        }
+
+        function validateAgentVarsMap(value) {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) {
+                throw new Error('varsMap must be a JSON object.');
+            }
+            const reservedKeys = ['plan', 'mode', 'agentName', 'varsMap', 'name', 'action', 'input', 'beliefs'];
+            const present = reservedKeys.filter(key => Object.prototype.hasOwnProperty.call(value, key));
+            if (present.length) {
+                throw new Error('varsMap may only contain belief/per-run variable keys. Remove reserved payload key(s): ' + present.join(', ') + '.');
+            }
+        }
+
+        function validateAgentVarsMapEditor(options = {}) {
+            const validationEl = document.getElementById('runOnceVarsValidation');
+            if (!validationEl) {
+                return true;
+            }
+            try {
+                getAgentVarsMapFromEditor();
+                validationEl.style.color = '#888';
+                validationEl.textContent = 'Only belief/per-run variable keys are accepted here; wrapper keys such as plan, action, input, or beliefs are rejected.';
+                return true;
+            } catch (err) {
+                validationEl.style.color = '#f48771';
+                validationEl.textContent = err.message;
+                if (!options.silent) {
+                    showProblem('Invalid Agent varsMap: ' + err.message, 'error');
+                }
+                return false;
+            }
+        }
+
+        function collectCurrentAgentFixture() {
+            const name = document.getElementById('agentFixtureNameInput')?.value.trim() || '';
+            const plan = document.getElementById('planSelectRunOnce')?.value || '';
+            const agentName = document.getElementById('agentSelectRunOnce')?.value.trim() || '';
+            const varsMap = getAgentVarsMapFromEditor();
+            return { name, plan, agentName, varsMap };
+        }
+
+        async function saveCurrentAgentFixture() {
+            let fixture;
+            try {
+                fixture = collectCurrentAgentFixture();
+            } catch (err) {
+                showOutput('Fixture varsMap must be valid JSON: ' + err.message, 'error');
+                return;
+            }
+            if (!fixture.name) {
+                showOutput('Enter a fixture name before saving.', 'error');
+                return;
+            }
+            if (!fixture.plan) {
+                showOutput('Select a plan before saving a fixture.', 'error');
+                return;
+            }
+            const localFixture = createLocalAgentFixture(Object.assign({ id: selectedAgentFixtureId || '' }, fixture));
+            upsertAgentFixtureInBrowserStorage(localFixture);
+            selectedAgentFixtureId = localFixture.id;
+            agentFixtures = mergeAgentFixtures([localFixture], agentFixtures);
+            renderAgentFixturesList();
+            setAgentFixturesBusy(true);
+            let resp;
+            try {
+                resp = await fetch('/charioteer/api/agents/fixtures', {
+                    method: 'POST',
+                    headers: getAuthHeadersWithJSON(),
+                    body: JSON.stringify({ fixture: Object.assign({}, fixture, { id: localFixture.id.startsWith('local-') ? '' : localFixture.id }) })
+                });
+            } catch (err) {
+                showOutput('Agent fixture saved in this browser. Server save failed: ' + err.message, 'info');
+                return;
+            } finally {
+                setAgentFixturesBusy(false);
+            }
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                showOutput('Agent fixture saved in this browser. Server save failed: ' + await resp.text(), 'info');
+                return;
+            }
+            const payload = await resp.json();
+            const saved = normalizeAgentFixture(payload?.data || localFixture);
+            if (localFixture.id !== saved.id) {
+                deleteAgentFixtureFromBrowserStorage(localFixture.id);
+            }
+            upsertAgentFixtureInBrowserStorage(saved);
+            selectedAgentFixtureId = saved.id;
+            await loadAgentFixtures();
+            renderAgentFixturesList();
+            showOutput('Agent fixture saved.', 'success');
+        }
+
+        async function deleteCurrentAgentFixture() {
+            if (!selectedAgentFixtureId) {
+                showOutput('Select an Agent fixture to delete.', 'info');
+                return;
+            }
+            await deleteAgentFixture(selectedAgentFixtureId);
+        }
+
+        async function deleteAgentFixture(id) {
+            if (!id) {
+                showOutput('Select an Agent fixture to delete.', 'info');
+                return;
+            }
+            const wasSelected = id === selectedAgentFixtureId;
+            deleteAgentFixtureFromBrowserStorage(id);
+            agentFixtures = agentFixtures.filter(item => item.id !== id);
+            if (wasSelected) {
+                selectedAgentFixtureId = null;
+            }
+            renderAgentFixturesList();
+            setAgentFixturesBusy(true);
+            let resp;
+            try {
+                resp = await fetch('/charioteer/api/agents/fixtures/' + encodeURIComponent(id), {
+                    method: 'DELETE',
+                    headers: getAuthHeadersWithJSON()
+                });
+            } catch (err) {
+                if (wasSelected) {
+                    newAgentFixtureDraft();
+                }
+                showOutput('Agent fixture deleted in this browser. Server delete failed: ' + err.message, 'info');
+                return;
+            } finally {
+                setAgentFixturesBusy(false);
+            }
+            if (resp.status === 401) { logout(); return; }
+            if (!resp.ok) {
+                if (wasSelected) {
+                    newAgentFixtureDraft();
+                }
+                showOutput('Agent fixture deleted in this browser. Server delete failed: ' + await resp.text(), 'info');
+                return;
+            }
+            await loadAgentFixtures();
+            renderAgentFixturesList();
+            if (wasSelected) {
+                newAgentFixtureDraft();
+            }
+            showOutput('Agent fixture deleted.', 'success');
+        }
+
+        function setAgentFixturesBusy(isBusy) {
+            agentFixturesBusy = !!isBusy;
+            refreshAgentFixtureActionStates();
+        }
+
+        function refreshAgentFixtureActionStates() {
+            const saveBtn = document.getElementById('agentSaveFixtureButton');
+            if (saveBtn) {
+                saveBtn.disabled = agentFixturesBusy;
+            }
+            const deleteBtn = document.getElementById('agentDeleteFixtureButton');
+            if (deleteBtn) {
+                deleteBtn.disabled = agentFixturesBusy || !selectedAgentFixtureId;
+            }
+            const newBtn = document.getElementById('agentNewFixtureButton');
+            if (newBtn) {
+                newBtn.disabled = agentFixturesBusy;
             }
         }
 
@@ -8397,6 +9597,12 @@
             });
             if (previous && names.includes(previous)) {
                 select.value = previous;
+            } else if (previous) {
+                const opt = document.createElement('option');
+                opt.value = previous;
+                opt.textContent = previous + ' (not currently listed)';
+                select.appendChild(opt);
+                select.value = previous;
             } else if (!runOnceAgentUserTouched && names.length > 0) {
                 select.value = names[0];
             } else {
@@ -8488,25 +9694,16 @@
             const agentName = agentSelectEl ? (agentSelectEl.value || '').trim() : '';
 
             let varsMap = {};
-            const varsInputEl = document.getElementById('runOnceVarsInput');
-            if (varsInputEl) {
-                const raw = varsInputEl.value.trim();
-                if (raw.length > 0) {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-                            throw new Error('Vars map must be a JSON object.');
-                        }
-                        varsMap = parsed;
-                    } catch (err) {
-                        alert('Invalid vars map JSON: ' + err.message);
-                        return;
-                    }
-                }
+            try {
+                varsMap = getAgentVarsMapFromEditor();
+            } catch (err) {
+                validateAgentVarsMapEditor({ silent: true });
+                alert('Invalid varsMap JSON: ' + err.message);
+                return;
             }
 
             try {
-                const payload = { plan, mode: 'bdi', varsMap };
+                const payload = { plan, mode: 'plain', varsMap };
                 if (agentName) {
                     payload.agentName = agentName;
                 }
@@ -8523,8 +9720,23 @@
 
                 const result = await resp.json();
                 const agentBlurb = agentName ? (' using agent "' + agentName + '"') : '';
+                appendToAgentsStream({
+                    type: 'planRunOnceResult',
+                    plan,
+                    agentName: agentName || null,
+                    varsMap,
+                    result: result.data,
+                    timestamp: new Date().toISOString()
+                });
                 showOutput('Plan "' + plan + '" executed' + agentBlurb + ': ' + JSON.stringify(result.data), 'success');
             } catch (e) {
+                appendToAgentsStream({
+                    type: 'planRunOnceError',
+                    plan,
+                    agentName: agentName || null,
+                    error: e.message,
+                    timestamp: new Date().toISOString()
+                });
                 alert('Failed to run plan: ' + e.message);
             }
         }

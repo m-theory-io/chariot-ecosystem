@@ -134,9 +134,9 @@ const FunctionNodePropertiesDialog: React.FC<FunctionNodePropertiesProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-800 dark:border-gray-200 shadow-xl max-w-2xl w-full mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-800 dark:border-gray-200 shadow-xl max-w-4xl w-full mx-4">
         <div className="bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-800 dark:border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Function Properties</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">func() Properties</h3>
           <button
             onClick={handleCancel}
             className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold w-6 h-6 flex items-center justify-center border border-gray-800 dark:border-gray-200"
@@ -183,8 +183,8 @@ const FunctionNodePropertiesDialog: React.FC<FunctionNodePropertiesProps> = ({
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              className="w-full h-48 p-2 border border-gray-800 dark:border-gray-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded"
-              placeholder={'// Chariot code\n// Example:\n// return add(x, y)'}
+              className="w-full h-80 p-2 border border-gray-800 dark:border-gray-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded font-mono text-sm leading-5"
+              placeholder={'equal(1, 1)'}
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter Chariot code statements. The body will be parsed and stored as a function value.</p>
           </div>

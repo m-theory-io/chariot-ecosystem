@@ -130,6 +130,7 @@ Go‑Chariot includes a lightweight Listener Registry for managing long‑runnin
 ### Configuration
 
 - CHARIOT_DEV_REST_ENABLED (bool, default true): Enables the Dev REST API server. Can run with or without headless mode.
+- CHARIOT_MCP_EXECUTE_ENABLED (bool, default false): Enables the MCP `execute` tool for local development. Leave disabled outside local dev.
 - CHARIOT_LISTENERS_FILE (string, default "listeners.json"): Filename (under CHARIOT_DATA_PATH) where the registry is persisted.
 - CHARIOT_DATA_PATH (string, default "./data"): Base path for persisted data.
 

@@ -11,7 +11,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
   // Reorder categories to prioritize structure over procedural details
   const categories = [
     // Structural/Architectural functions first
-    'tree', 'node', 'control', 'array', 
+    'tree', 'node', 'control', 'bdi', 'array', 
     // Data manipulation and construction
     'value', 'json', 'csv', 'file', 'couchbase', 'sql',
     // Machine Learning
@@ -43,6 +43,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
   const getCategoryDisplayName = (category: string) => {
     const names: Record<string, string> = {
       'control': 'Control Flow',
+      'bdi': 'BDI / Signals',
       'array': 'Array',
       'comparison': 'Logic',
       'math': 'Math',

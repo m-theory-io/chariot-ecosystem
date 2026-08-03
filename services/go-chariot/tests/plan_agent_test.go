@@ -1,8 +1,14 @@
 package tests
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 )
@@ -52,7 +58,7 @@ func TestPlan_DropCondition(t *testing.T) {
 		"declare(name,'S','Dropper')",
 		"declare(params,'A', array())",
 		"declare(trig,'F', func(){ True })",
-		"declare(guard,'F', func(){ True })",
+		"declare(guard,'F', func(){ equal(1,1) })",
 		"declare(step1,'F', func(){ setq(flag,1); True })",
 		"declare(step2,'F', func(){ setq(flag, add(flag,1)); True })",
 		"declare(steps,'A', array(step1, step2))",
@@ -165,5 +171,149 @@ func TestPlan_RunOnce_WithAgentBeliefs(t *testing.T) {
 	}
 	if b, ok := val.(ch.Bool); !ok || !bool(b) {
 		t.Fatalf("expected true from runPlanOnceBDI, got %v (%T)", val, val)
+	}
+}
+
+func TestAgentLifecycleModesAndActivationResults(t *testing.T) {
+	ch.DefaultAgentStop("eventtester")
+	ch.DefaultAgentStop("calltester")
+	t.Cleanup(func() {
+		ch.DefaultAgentStop("eventtester")
+		ch.DefaultAgentStop("calltester")
+	})
+
+	rt := createNamedRuntime("plan_lifecycle")
+	defer ch.UnregisterRuntime("plan_lifecycle")
+
+	setup := strings.Join([]string{
+		"declare(name,'S','LifecyclePlan')",
+		"declare(params,'A', array())",
+		"declare(trig,'F', func(){ belief('eventtester','ready') })",
+		"declare(guard,'F', func(){ equal(1,1) })",
+		"declare(step,'F', func(){ setStepResult(map('status','ran','source','activation')) })",
+		"declare(steps,'A', array(step))",
+		"declare(drop,'F', func(){ equal(1,0) })",
+		"declareGlobal(pLifecycle,'P', plan(name, params, trig, guard, steps, drop))",
+		"agentStartNamed('eventtester', pLifecycle, 1, 0, 'eventOnly')",
+		"agentStartNamed('calltester', pLifecycle, 1, 0, 'callOnly')",
+	}, "\n")
+	if _, err := rt.ExecProgram(setup); err != nil {
+		t.Fatalf("setup exec: %v", err)
+	}
+
+	info := ch.DefaultAgentGetInfo("eventtester")
+	if info["lifecycle"] != ch.AgentLifecycleEvent || info["running"] != true || info["pollSeconds"] != float64(0) {
+		t.Fatalf("unexpected event lifecycle info: %#v", info)
+	}
+	callInfo := ch.DefaultAgentGetInfo("calltester")
+	if callInfo["lifecycle"] != ch.AgentLifecycleCallOnly || callInfo["running"] != false {
+		t.Fatalf("unexpected call-only lifecycle info: %#v", callInfo)
+	}
+
+	if !ch.DefaultAgentSetBeliefQuiet("eventtester", "ready", ch.Bool(true)) {
+		t.Fatal("failed to set eventtester belief")
+	}
+	beliefs := ch.DefaultAgentGetBeliefs("eventtester")
+	if got, ok := beliefs["ready"].(ch.Bool); !ok || !bool(got) {
+		t.Fatalf("expected ready belief true before activation, got %#v", beliefs["ready"])
+	}
+	results, ok := ch.DefaultAgentActivate("eventtester")
+	if !ok || len(results) != 1 {
+		t.Fatalf("expected one activation result, ok=%v results=%#v", ok, results)
+	}
+	if results[0]["status"] != "completed" || results[0]["executed"] != true {
+		t.Fatalf("unexpected activation payload: %#v", results[0])
+	}
+	output, ok := results[0]["output"].(map[string]interface{})
+	if !ok || output["status"] != "ran" || output["source"] != "activation" {
+		t.Fatalf("unexpected activation output: %#v", results[0]["output"])
+	}
+
+	info = ch.DefaultAgentGetInfo("eventtester")
+	last, ok := info["lastResult"].(map[string]interface{})
+	if !ok || last["status"] != "completed" {
+		t.Fatalf("expected lastResult in agent info, got %#v", info["lastResult"])
+	}
+
+	callResults, ok := ch.DefaultAgentActivate("calltester")
+	if !ok || len(callResults) != 0 {
+		t.Fatalf("call-only activation should not schedule, ok=%v results=%#v", ok, callResults)
+	}
+}
+
+func TestSignalBeliefFeedActivatesEventOnlyAgent(t *testing.T) {
+	ch.DefaultAgentStop("signaltester")
+	t.Cleanup(func() { ch.DefaultAgentStop("signaltester") })
+
+	rt := createNamedRuntime("signal_feed")
+	defer ch.UnregisterRuntime("signal_feed")
+	t.Cleanup(func() { _, _ = rt.ExecProgram("signalStopBeliefFeed('signalTempFeed')") })
+
+	setup := strings.Join([]string{
+		"declare(name,'S','SignalTemperaturePlan')",
+		"declare(params,'A', array())",
+		"declare(trig,'F', func(){ bigger(belief('signaltester','currentTemp'), belief('signaltester','upper')) })",
+		"declare(guard,'F', func(){ equal(1,1) })",
+		"declare(step,'F', func(){ setStepResult(map('action','cooling_on','source','signalFeed','temperature', belief('signaltester','currentTemp'))) })",
+		"declare(steps,'A', array(step))",
+		"declare(drop,'F', func(){ equal(1,0) })",
+		"declareGlobal(pSignalTemperature,'P', plan(name, params, trig, guard, steps, drop))",
+		"agentStartNamed('signaltester', pSignalTemperature, 1, 0, 'eventOnly')",
+		"agentBelief('signaltester', 'upper', 72)",
+		"signalRegister('signalTemp', 'static', map('value', 85))",
+		"signalStartBeliefFeed('signalTempFeed', 'signalTemp', 'signaltester', 'currentTemp', 0.05)",
+	}, "\n")
+	if _, err := rt.ExecProgram(setup); err != nil {
+		t.Fatalf("setup exec: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		info := ch.DefaultAgentGetInfo("signaltester")
+		if last, ok := info["lastResult"].(map[string]interface{}); ok && last["status"] == "completed" {
+			output, ok := last["output"].(map[string]interface{})
+			if !ok || output["action"] != "cooling_on" || output["source"] != "signalFeed" || output["temperature"] != float64(85) {
+				t.Fatalf("unexpected signal feed output: %#v", last["output"])
+			}
+			beliefs := ch.DefaultAgentGetBeliefs("signaltester")
+			if got, ok := beliefs["currentTemp"].(ch.Number); !ok || float64(got) != 85 {
+				t.Fatalf("expected currentTemp belief 85, got %#v", beliefs["currentTemp"])
+			}
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for signal feed activation; info=%#v", ch.DefaultAgentGetInfo("signaltester"))
+}
+
+func TestSignalReadProviders(t *testing.T) {
+	rt := createNamedRuntime("signal_providers")
+	defer ch.UnregisterRuntime("signal_providers")
+
+	tempPath := filepath.Join(t.TempDir(), "temp_input")
+	if err := os.WriteFile(tempPath, []byte("21345\n"), 0o644); err != nil {
+		t.Fatalf("write temp fixture: %v", err)
+	}
+	sysfsProgram := fmt.Sprintf("signalRegister('sysTemp', 'sysfs', map('path', '%s', 'scale', 0.001))\nsignalRead('sysTemp')", tempPath)
+	value, err := rt.ExecProgram(sysfsProgram)
+	if err != nil {
+		t.Fatalf("sysfs signal exec: %v", err)
+	}
+	if got, ok := value.(ch.Number); !ok || float64(got) != 21.345 {
+		t.Fatalf("expected sysfs temp 21.345, got %#v (%T)", value, value)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"rate":5.25}]}`))
+	}))
+	t.Cleanup(server.Close)
+	httpProgram := fmt.Sprintf("signalRegister('fedRate', 'httpJson', map('url', '%s', 'path', 'data.0.rate'))\nsignalRead('fedRate')", server.URL)
+	value, err = rt.ExecProgram(httpProgram)
+	if err != nil {
+		t.Fatalf("httpJson signal exec: %v", err)
+	}
+	if got, ok := value.(ch.Number); !ok || float64(got) != 5.25 {
+		t.Fatalf("expected httpJson rate 5.25, got %#v (%T)", value, value)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
@@ -242,8 +243,8 @@ func (s *RegistryService) callAgent(name string, input RegistryCallInput) (*Regi
 		result.Result = beliefs
 		return result, nil
 	case "publish", "nudge":
-		ok := chariot.DefaultAgentPublish(name)
-		result.Result = map[string]any{"published": ok}
+		executions, ok := chariot.DefaultAgentActivate(name)
+		result.Result = map[string]any{"published": ok, "executions": executions}
 		return result, nil
 	case "setbelief", "setbeliefs":
 		payload := firstNonNilMap(input.Input, input.Args)
@@ -256,16 +257,165 @@ func (s *RegistryService) callAgent(name string, input RegistryCallInput) (*Regi
 			if err != nil {
 				return nil, fmt.Errorf("convert belief %q: %w", key, err)
 			}
-			if !chariot.DefaultAgentBelief(name, key, value) {
+			if !chariot.DefaultAgentSetBeliefQuiet(name, key, value) {
 				return nil, fmt.Errorf("agent %q not found", name)
 			}
 			set[key] = raw
 		}
-		result.Result = map[string]any{"set": set}
+		executions, _ := chariot.DefaultAgentActivate(name)
+		result.Result = map[string]any{"set": set, "executions": executions}
+		return result, nil
+	case "runplanonce", "runonce", "execute":
+		payload := firstNonNilMap(input.Input, input.Args)
+		planName, err := stringFromMap(payload, "plan", "planVar", "planName")
+		if err != nil {
+			return nil, err
+		}
+		mode, _ := stringFromMap(payload, "mode")
+		if mode == "" {
+			mode = "plain"
+		}
+
+		beliefs := mapFromMap(payload, "beliefs")
+		beliefsSet := map[string]any{}
+		for key, raw := range beliefs {
+			value, err := chariot.JSONToValue(raw)
+			if err != nil {
+				return nil, fmt.Errorf("convert belief %q: %w", key, err)
+			}
+			if !chariot.DefaultAgentBelief(name, key, value) {
+				return nil, fmt.Errorf("agent %q not found", name)
+			}
+			beliefsSet[key] = raw
+		}
+
+		rt := s.runtime()
+		planValue, ok := rt.GetVariable(planName)
+		if !ok {
+			return nil, fmt.Errorf("plan variable %q not found", planName)
+		}
+		plan, ok := planValue.(*chariot.Plan)
+		if !ok {
+			return nil, fmt.Errorf("variable %q is not a plan", planName)
+		}
+		vars := mapFromMap(payload, "vars")
+		if len(vars) == 0 && len(beliefs) > 0 {
+			vars = beliefs
+		}
+		planVars, err := mapToChariotValues(vars)
+		if err != nil {
+			return nil, err
+		}
+
+		logs := newMCPLogBuffer()
+		rt.SetLogWriter(logs)
+		defer rt.SetLogWriter(nil)
+		rt.WriteLog("INFO", "=== Execution started ===")
+		planResult, err := chariot.RunPlanOnceResult(rt, name, plan, planVars, mode)
+		if err != nil {
+			rt.WriteLog("ERROR", fmt.Sprintf("=== Execution failed: %v ===", err))
+			return nil, err
+		}
+		rt.WriteLog("INFO", "=== Execution completed successfully ===")
+		logEntries := logs.GetAll()
+		result.Executed = boolPtr(planResult.Executed)
+		resultPayload := planResult.ToJSON()
+		resultPayload["planVariable"] = planName
+		resultPayload["beliefsSet"] = beliefsSet
+		resultPayload["diagnostics"] = map[string]any{
+			"logs":        logEntries,
+			"logMessages": logMessages(logEntries),
+		}
+		result.Result = resultPayload
 		return result, nil
 	default:
 		return nil, fmt.Errorf("unsupported agent action %q", input.Action)
 	}
+}
+
+type mcpLogBuffer struct {
+	mu      sync.RWMutex
+	entries []chariot.LogEntry
+}
+
+func newMCPLogBuffer() *mcpLogBuffer {
+	return &mcpLogBuffer{entries: []chariot.LogEntry{}}
+}
+
+func (b *mcpLogBuffer) Append(entry chariot.LogEntry) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.entries = append(b.entries, entry)
+}
+
+func (b *mcpLogBuffer) GetAll() []chariot.LogEntry {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	out := make([]chariot.LogEntry, len(b.entries))
+	copy(out, b.entries)
+	return out
+}
+
+func logMessages(entries []chariot.LogEntry) []string {
+	messages := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		messages = append(messages, entry.Message)
+	}
+	return messages
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func stringFromMap(payload map[string]any, keys ...string) (string, error) {
+	for _, key := range keys {
+		if raw, ok := payload[key]; ok {
+			value, ok := raw.(string)
+			if !ok || strings.TrimSpace(value) == "" {
+				return "", fmt.Errorf("%s must be a non-empty string", key)
+			}
+			return strings.TrimSpace(value), nil
+		}
+	}
+	if len(keys) > 1 {
+		return "", fmt.Errorf("one of %s is required", strings.Join(keys, ", "))
+	}
+	return "", nil
+}
+
+func mapFromMap(payload map[string]any, key string) map[string]any {
+	if payload == nil {
+		return nil
+	}
+	raw, ok := payload[key]
+	if !ok || raw == nil {
+		return nil
+	}
+	if typed, ok := raw.(map[string]any); ok {
+		return typed
+	}
+	return nil
+}
+
+func mapToChariotValues(payload map[string]any) (map[string]chariot.Value, error) {
+	values := map[string]chariot.Value{}
+	for key, raw := range payload {
+		value, err := chariot.JSONToValue(raw)
+		if err != nil {
+			return nil, fmt.Errorf("convert var %q: %w", key, err)
+		}
+		values[key] = value
+	}
+	return values, nil
+}
+
+func mapToChariotMap(payload map[string]any) (*chariot.MapValue, error) {
+	values, err := mapToChariotValues(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &chariot.MapValue{Values: values}, nil
 }
 
 func (s *RegistryService) callTree(parsed registryID, input RegistryCallInput) (*RegistryCallResult, error) {

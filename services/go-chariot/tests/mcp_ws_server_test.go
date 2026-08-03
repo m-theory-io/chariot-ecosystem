@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
 	mcpspec "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 	"github.com/gorilla/websocket"
@@ -42,6 +43,15 @@ func startEchoWith(path string, handler echo.HandlerFunc) (addr string, shutdown
 		<-done
 	}
 	return ln.Addr().String(), shutdown, nil
+}
+
+func setMCPExecuteEnabledForTest(t *testing.T, enabled bool) {
+	t.Helper()
+	previous := cfg.ChariotConfig.MCPExecuteEnabled
+	cfg.ChariotConfig.MCPExecuteEnabled = enabled
+	t.Cleanup(func() {
+		cfg.ChariotConfig.MCPExecuteEnabled = previous
+	})
 }
 
 // wsRWC adapts a WebSocket to io.ReadWriteCloser for sdkmcp.IOTransport on the client side.
@@ -120,6 +130,8 @@ func (w *wsRWC) Close() error {
 }
 
 func TestMCP_WebSocket_Server_ListAndExecute(t *testing.T) {
+	setMCPExecuteEnabledForTest(t, true)
+
 	path := "/mcp"
 	addr, shutdown, err := startEchoWith(path, mcp.HandleWS)
 	if err != nil {
@@ -179,7 +191,47 @@ func TestMCP_WebSocket_Server_ListAndExecute(t *testing.T) {
 	_ = rwc.Close()
 }
 
+func TestMCP_WebSocket_Server_HidesExecuteByDefault(t *testing.T) {
+	setMCPExecuteEnabledForTest(t, false)
+
+	path := "/mcp"
+	addr, shutdown, err := startEchoWith(path, mcp.HandleWS)
+	if err != nil {
+		t.Fatalf("start server: %v", err)
+	}
+	defer shutdown()
+
+	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "test-client", Version: "0"}, nil)
+	url := "ws://" + addr + path
+	dialer := *websocket.DefaultDialer
+	dialer.Subprotocols = []string{mcpspec.WebsocketSubprotocol}
+	conn, _, err := dialer.Dial(url, nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	rwc := newWSRWC(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	sess, err := client.Connect(ctx, &sdkmcp.IOTransport{Reader: rwc, Writer: rwc}, nil)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+
+	lt, err := sess.ListTools(ctx, &sdkmcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("list tools: %v", err)
+	}
+	for _, tl := range lt.Tools {
+		if tl.Name == "execute" {
+			t.Fatalf("execute tool should be hidden when CHARIOT_MCP_EXECUTE_ENABLED is false")
+		}
+	}
+	_ = rwc.Close()
+}
+
 func TestMCP_HTTP_SSE_Server_ListAndExecute(t *testing.T) {
+	setMCPExecuteEnabledForTest(t, true)
+
 	path := "/mcp"
 	handler := echo.WrapHandler(mcp.NewHTTPHandler())
 	addr, shutdown, err := startEchoWith(path, handler)

@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -90,5 +93,97 @@ func TestNormalizeSettingsMigratesEmptySTDIO(t *testing.T) {
 	}
 	if settings.URL == "" {
 		t.Fatal("expected migrated settings URL to be filled")
+	}
+}
+
+func TestMCPStorePersistsFixtures(t *testing.T) {
+	dir := t.TempDir()
+	store, err := newMCPStore(dir)
+	if err != nil {
+		t.Fatalf("newMCPStore: %v", err)
+	}
+
+	saved, err := store.SaveFixture(MCPFixture{
+		Name:    "Thermostat high temp",
+		Tool:    "agentCall",
+		Payload: json.RawMessage(`{"name":"thermostat"}`),
+	})
+	if err != nil {
+		t.Fatalf("SaveFixture: %v", err)
+	}
+	if saved.ID == "" {
+		t.Fatal("expected generated fixture id")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "mcp_fixtures.json")); err != nil {
+		t.Fatalf("expected fixture file: %v", err)
+	}
+
+	reloaded, err := newMCPStore(dir)
+	if err != nil {
+		t.Fatalf("reload store: %v", err)
+	}
+	fixtures := reloaded.ListFixtures()
+	if len(fixtures) != 1 || fixtures[0].ID != saved.ID || fixtures[0].Name != saved.Name {
+		t.Fatalf("expected persisted fixture, got %#v", fixtures)
+	}
+
+	if err := reloaded.DeleteFixture(saved.ID); err != nil {
+		t.Fatalf("DeleteFixture: %v", err)
+	}
+	reloadedAfterDelete, err := newMCPStore(dir)
+	if err != nil {
+		t.Fatalf("reload after delete: %v", err)
+	}
+	if got := reloadedAfterDelete.ListFixtures(); len(got) != 0 {
+		t.Fatalf("expected deleted fixture to stay deleted, got %#v", got)
+	}
+}
+
+func TestAgentFixtureStorePersistsFixtures(t *testing.T) {
+	dir := t.TempDir()
+	store, err := newAgentFixtureStore(dir)
+	if err != nil {
+		t.Fatalf("newAgentFixtureStore: %v", err)
+	}
+
+	saved, err := store.SaveFixture(AgentFixture{
+		Name:      "Thermostat high temp",
+		Plan:      "pThermostat",
+		AgentName: "thermostat",
+		VarsMap: map[string]any{
+			"currentTemp": float64(80),
+		},
+	})
+	if err != nil {
+		t.Fatalf("SaveFixture: %v", err)
+	}
+	if saved.ID == "" {
+		t.Fatal("expected generated fixture id")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "agent_fixtures.json")); err != nil {
+		t.Fatalf("expected fixture file: %v", err)
+	}
+
+	reloaded, err := newAgentFixtureStore(dir)
+	if err != nil {
+		t.Fatalf("reload store: %v", err)
+	}
+	fixtures := reloaded.ListFixtures()
+	if len(fixtures) != 1 || fixtures[0].ID != saved.ID || fixtures[0].Plan != "pThermostat" {
+		t.Fatalf("expected persisted agent fixture, got %#v", fixtures)
+	}
+	if fixtures[0].VarsMap["currentTemp"] != float64(80) {
+		t.Fatalf("expected currentTemp 80, got %#v", fixtures[0].VarsMap)
+	}
+
+	if err := reloaded.DeleteFixture(saved.ID); err != nil {
+		t.Fatalf("DeleteFixture: %v", err)
+	}
+	reloadedAfterDelete, err := newAgentFixtureStore(dir)
+	if err != nil {
+		t.Fatalf("reload after delete: %v", err)
+	}
+	if got := reloadedAfterDelete.ListFixtures(); len(got) != 0 {
+		t.Fatalf("expected deleted fixture to stay deleted, got %#v", got)
 	}
 }

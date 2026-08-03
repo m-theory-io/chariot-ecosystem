@@ -4,7 +4,7 @@
     "serializer_version": "1.0"
   },
   "attributes": {
-    "thermostat": {
+    "leasedecision": {
       "_value_type": "plan",
       "drop": {
         "_value_type": "function",
@@ -27,11 +27,653 @@
           "stmts": [
             {
               "_node_type": "VarRef",
-              "name": "True"
+              "name": "true"
             }
           ]
         },
         "parameters": null,
+        "source": "func()"
+      },
+      "name": "LeaseDecision",
+      "params": null,
+      "steps": [
+        {
+          "_value_type": "function",
+          "body": {
+            "_node_type": "Block",
+            "stmts": [
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "ageOk"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "applicantAge"
+                          }
+                        ],
+                        "name": "belief"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "minAge"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "biggerEq"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "debtOk"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "applicantDebt"
+                          }
+                        ],
+                        "name": "belief"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "maxDebt"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "smallerEq"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "employmentOk"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "applicantEmployed"
+                          }
+                        ],
+                        "name": "belief"
+                      },
+                      {
+                        "_node_type": "VarRef",
+                        "name": "true"
+                      }
+                    ],
+                    "name": "equal"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "FuncCall",
+                "args": [
+                  {
+                    "_node_type": "VarRef",
+                    "name": "approved"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "ageOk"
+                      },
+                      {
+                        "_node_type": "VarRef",
+                        "name": "debtOk"
+                      },
+                      {
+                        "_node_type": "VarRef",
+                        "name": "employmentOk"
+                      }
+                    ],
+                    "name": "and"
+                  }
+                ],
+                "name": "setq"
+              },
+              {
+                "_node_type": "IfNode",
+                "condition": {
+                  "_node_type": "VarRef",
+                  "name": "approved"
+                },
+                "falseBranch": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "reasons"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [],
+                        "name": "array"
+                      }
+                    ],
+                    "name": "setq"
+                  },
+                  {
+                    "_node_type": "IfNode",
+                    "condition": {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "VarRef",
+                          "name": "ageOk"
+                        }
+                      ],
+                      "name": "not"
+                    },
+                    "falseBranch": [],
+                    "position": 0,
+                    "trueBranch": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "reasons"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "age_below_minimum"
+                          }
+                        ],
+                        "name": "addTo"
+                      }
+                    ]
+                  },
+                  {
+                    "_node_type": "IfNode",
+                    "condition": {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "VarRef",
+                          "name": "debtOk"
+                        }
+                      ],
+                      "name": "not"
+                    },
+                    "falseBranch": [],
+                    "position": 0,
+                    "trueBranch": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "reasons"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "debt_exceeds_limit"
+                          }
+                        ],
+                        "name": "addTo"
+                      }
+                    ]
+                  },
+                  {
+                    "_node_type": "IfNode",
+                    "condition": {
+                      "_node_type": "FuncCall",
+                      "args": [
+                        {
+                          "_node_type": "VarRef",
+                          "name": "employmentOk"
+                        }
+                      ],
+                      "name": "not"
+                    },
+                    "falseBranch": [],
+                    "position": 0,
+                    "trueBranch": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "VarRef",
+                            "name": "reasons"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "employment_required"
+                          }
+                        ],
+                        "name": "addTo"
+                      }
+                    ]
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "decision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "denied"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "agent"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "LeaseDecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "reason"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "Profile does not meet requirements."
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "reasons"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "reasons"
+                          }
+                        ],
+                        "name": "map"
+                      }
+                    ],
+                    "name": "setStepResult"
+                  }
+                ],
+                "position": 0,
+                "trueBranch": [
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "deposit"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "employedDeposit"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "setq"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "rent"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "monthlyRent"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "setq"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "term"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "leasedecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "leaseTerm"
+                          }
+                        ],
+                        "name": "belief"
+                      }
+                    ],
+                    "name": "setq"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "startDate"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "FuncCall",
+                            "args": [
+                              {
+                                "_node_type": "FuncCall",
+                                "args": [],
+                                "name": "now"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "day"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": 15
+                              }
+                            ],
+                            "name": "dateAdd"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "YYYY-MM-DD"
+                          }
+                        ],
+                        "name": "formatDate"
+                      }
+                    ],
+                    "name": "setq"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "VarRef",
+                        "name": "offerText"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "Pay "
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "deposit"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": " deposit and "
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "rent"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": " 1st-month rent today, to start your lease on "
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "startDate"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": ". Remaining rent of "
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "rent"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": " for "
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "term"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": " months, to be paid on the 1st of every month."
+                          }
+                        ],
+                        "name": "concat"
+                      }
+                    ],
+                    "name": "setq"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "decision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "approved"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "agent"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "LeaseDecision"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "offerName"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "Green Lease Plan"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "offer"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "offerText"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "monthly"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "rent"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "term"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "term"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "deposit"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "deposit"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "startDate"
+                          },
+                          {
+                            "_node_type": "VarRef",
+                            "name": "startDate"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "reasons"
+                          },
+                          {
+                            "_node_type": "FuncCall",
+                            "args": [
+                              {
+                                "_node_type": "Literal",
+                                "val": "age_ok"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "debt_ok"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "employment_ok"
+                              }
+                            ],
+                            "name": "array"
+                          }
+                        ],
+                        "name": "map"
+                      }
+                    ],
+                    "name": "setStepResult"
+                  }
+                ]
+              }
+            ]
+          },
+          "parameters": null,
+          "source": "func()"
+        }
+      ],
+      "trigger": {
+        "_value_type": "function",
+        "body": {
+          "_node_type": "Block",
+          "stmts": [
+            {
+              "_node_type": "VarRef",
+              "name": "true"
+            }
+          ]
+        },
+        "parameters": null,
+        "source": "func()"
+      }
+    },
+    "thermostat": {
+      "_value_type": "plan",
+      "drop": {
+        "_value_type": "function",
+        "body": {
+          "_node_type": "Block",
+          "stmts": [
+            {
+              "_node_type": "VarRef",
+              "name": "false"
+            }
+          ]
+        },
+        "parameters": [],
+        "source": "func()"
+      },
+      "guard": {
+        "_value_type": "function",
+        "body": {
+          "_node_type": "Block",
+          "stmts": [
+            {
+              "_node_type": "VarRef",
+              "name": "true"
+            }
+          ]
+        },
+        "parameters": [],
         "source": "func()"
       },
       "name": "Thermostat",
@@ -163,6 +805,34 @@
                           }
                         ],
                         "name": "logPrint"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "FuncCall",
+                            "args": [
+                              {
+                                "_node_type": "Literal",
+                                "val": "action"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "none"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "message"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "temp OK"
+                              }
+                            ],
+                            "name": "map"
+                          }
+                        ],
+                        "name": "setStepResult"
                       }
                     ],
                     "position": 0,
@@ -176,6 +846,34 @@
                           }
                         ],
                         "name": "logPrint"
+                      },
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "FuncCall",
+                            "args": [
+                              {
+                                "_node_type": "Literal",
+                                "val": "action"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "cooling_on"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "message"
+                              },
+                              {
+                                "_node_type": "Literal",
+                                "val": "turn A/C on"
+                              }
+                            ],
+                            "name": "map"
+                          }
+                        ],
+                        "name": "setStepResult"
                       }
                     ]
                   }
@@ -191,12 +889,40 @@
                       }
                     ],
                     "name": "logPrint"
+                  },
+                  {
+                    "_node_type": "FuncCall",
+                    "args": [
+                      {
+                        "_node_type": "FuncCall",
+                        "args": [
+                          {
+                            "_node_type": "Literal",
+                            "val": "action"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "heating_on"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "message"
+                          },
+                          {
+                            "_node_type": "Literal",
+                            "val": "turn A/C off"
+                          }
+                        ],
+                        "name": "map"
+                      }
+                    ],
+                    "name": "setStepResult"
                   }
                 ]
               }
             ]
           },
-          "parameters": null,
+          "parameters": [],
           "source": "func()"
         }
       ],
@@ -281,7 +1007,7 @@
             }
           ]
         },
-        "parameters": null,
+        "parameters": [],
         "source": "func()"
       }
     }

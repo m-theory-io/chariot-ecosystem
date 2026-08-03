@@ -136,6 +136,48 @@ func TestStringFunctions(t *testing.T) {
 			},
 			ExpectedValue: chariot.Str("12300"),
 		},
+		{
+			Name: "FormatAs Currency Number",
+			Script: []string{
+				`formatAs('currency', 1234.5)`,
+			},
+			ExpectedValue: chariot.Str("$1,234.50"),
+		},
+		{
+			Name: "FormatAs Currency String",
+			Script: []string{
+				`formatAs('currency', '1234.5')`,
+			},
+			ExpectedValue: chariot.Str("$1,234.50"),
+		},
+		{
+			Name: "FormatAs Number",
+			Script: []string{
+				`formatAs('number', 1234567.89)`,
+			},
+			ExpectedValue: chariot.Str("1,234,567.89"),
+		},
+		{
+			Name: "FormatAs Integer",
+			Script: []string{
+				`formatAs('integer', 1234.56)`,
+			},
+			ExpectedValue: chariot.Str("1,235"),
+		},
+		{
+			Name: "FormatAs Percent",
+			Script: []string{
+				`formatAs('percent', 0.875)`,
+			},
+			ExpectedValue: chariot.Str("87.5%"),
+		},
+		{
+			Name: "FormatAs String",
+			Script: []string{
+				`formatAs('string', 1234.56)`,
+			},
+			ExpectedValue: chariot.Str("1234.56"),
+		},
 	}
 
 	RunTestCases(t, tests)
@@ -170,6 +212,22 @@ func TestStringErrorHandling(t *testing.T) {
 				`replace(123, 'old', 'new')`,
 			},
 			ExpectedError: true,
+		},
+		{
+			Name: "FormatAs - Unsupported Format",
+			Script: []string{
+				`formatAs('phone', '1234567890')`,
+			},
+			ExpectedError:  true,
+			ErrorSubstring: "unsupported targetFormat",
+		},
+		{
+			Name: "FormatAs - Invalid Numeric Source",
+			Script: []string{
+				`formatAs('currency', 'abc')`,
+			},
+			ExpectedError:  true,
+			ErrorSubstring: "requires a numeric source",
 		},
 	}
 

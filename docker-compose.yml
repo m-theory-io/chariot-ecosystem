@@ -81,9 +81,11 @@ services:
       - ssl-certs:/app/ssl
       - ./config/charioteer:/app/config:ro
       - ./logs/charioteer:/app/logs
+      - ./data/charioteer:/app/data
     environment:
       - NODE_ENV=production
       - CHARIOT_BACKEND_URL=http://localhost:8087
+      - CHARIOTEER_MCP_DATA_DIR=/app/data
     depends_on:
       go-chariot:
         condition: service_healthy
@@ -118,15 +120,15 @@ services:
       - CHARIOT_CERT_PATH=/tmp/ssl
       - CHARIOT_SSL=false
       - CHARIOT_VERBOSE=true
-      - COUCHBASE_URL=couchbase://localhost
-      - COUCHBASE_USERNAME=Administrator
-      - COUCHBASE_PASSWORD=chariot123
-      - COUCHBASE_BUCKET=chariot
-      - MYSQL_HOST=localhost
-      - MYSQL_PORT=3307
-      - MYSQL_DATABASE=chariot
-      - MYSQL_USERNAME=chariot
-      - MYSQL_PASSWORD=chariot123
+      - CHARIOT_COUCHBASE_URL=couchbase://localhost
+      - CHARIOT_COUCHBASE_USER=Administrator
+      - CHARIOT_COUCHBASE_PASSWORD=chariot123
+      - CHARIOT_COUCHBASE_BUCKET=chariot
+      - CHARIOT_SQL_HOST=localhost
+      - CHARIOT_SQL_PORT=3307
+      - CHARIOT_SQL_DATABASE=chariot
+      - CHARIOT_SQL_USER=chariot
+      - CHARIOT_SQL_PASSWORD=chariot123
       - CHARIOTEER_URL=http://localhost:8080
       - AZURE_TENANT_ID=82fbfa53-3046-4f39-a182-f5e0082313d4
       - AZURE_KEY_VAULT_URL=https://chariot-vault.vault.azure.net

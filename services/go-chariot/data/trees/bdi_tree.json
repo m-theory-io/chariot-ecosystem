@@ -27,7 +27,7 @@
           "stmts": [
             {
               "_node_type": "VarRef",
-              "name": "True"
+              "name": "true"
             }
           ]
         },
