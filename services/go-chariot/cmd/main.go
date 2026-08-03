@@ -71,12 +71,14 @@ func init() {
 	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stdlib.json")
 	// Bootstrap script
 	cfg.ChariotConfig.StringVar("bootstrap", &cfg.ChariotConfig.Bootstrap, "bootstrap.ch")
+	cfg.ChariotConfig.BoolVar("bootstrap_edit_enabled", &cfg.ChariotConfig.BootstrapEditEnabled, false)
 	// Listeners registry file (under data path by default)
 	cfg.ChariotConfig.StringVar("listeners_file", &cfg.ChariotConfig.ListenersFile, "listeners.json")
 	// Directory for dedicated listener scripts
 	cfg.ChariotConfig.StringVar("listener_scripts_dir", &cfg.ChariotConfig.ListenerScriptsDir, "listeners")
 	// MCP configuration
 	cfg.ChariotConfig.BoolVar("mcp_enabled", &cfg.ChariotConfig.MCPEnabled, false)
+	cfg.ChariotConfig.BoolVar("mcp_execute_enabled", &cfg.ChariotConfig.MCPExecuteEnabled, false)
 	cfg.ChariotConfig.StringVar("mcp_transport", &cfg.ChariotConfig.MCPTransport, "stdio")
 	cfg.ChariotConfig.StringVar("mcp_ws_path", &cfg.ChariotConfig.MCPWSPath, "/mcp")
 	// NSQ messaging
@@ -85,7 +87,7 @@ func init() {
 	cfg.ChariotConfig.StringVar("nsq_lookupd", &cfg.ChariotConfig.NSQLookupdAddress, "localhost:4160")
 	cfg.ChariotConfig.StringVar("nsq_topic", &cfg.ChariotConfig.NSQDefaultTopic, "chariot_requests")
 	cfg.ChariotConfig.StringVar("nsq_channel", &cfg.ChariotConfig.NSQDefaultChannel, "chariot_channel")
-	cfg.ChariotConfig.StringVar("nsq_response_topics", &cfg.ChariotConfig.NSQResponseTopics, "chariot_responses")
+	cfg.ChariotConfig.StringVar("nsq_response_topics", &cfg.ChariotConfig.NSQResponseTopics, "default:chariot_responses")
 
 	// Bind evars
 	_ = kissflag.BindAllEVars(cfg.ChariotConfig)
@@ -120,6 +122,8 @@ func main() {
 		zap.String("DiagramPath", cfg.ChariotConfig.DiagramPath),
 		zap.String("FunctionLib", cfg.ChariotConfig.FunctionLib),
 		zap.String("Bootstrap", cfg.ChariotConfig.Bootstrap),
+		zap.Bool("BootstrapEditEnabled", cfg.ChariotConfig.BootstrapEditEnabled),
+		zap.Bool("MCPExecuteEnabled", cfg.ChariotConfig.MCPExecuteEnabled),
 		zap.Bool("Headless", cfg.ChariotConfig.Headless),
 		zap.Bool("DevRESTEnabled", cfg.ChariotConfig.DevRESTEnabled),
 	)
@@ -235,12 +239,13 @@ func main() {
 
 		// Optionally mount MCP endpoint for network clients.
 		if cfg.ChariotConfig.MCPEnabled {
+			mcpOptions := mcpserver.ServerOptions{RuntimeProvider: h.BootstrapRuntime}
 			switch strings.ToLower(cfg.ChariotConfig.MCPTransport) {
 			case "ws":
-				e.GET(cfg.ChariotConfig.MCPWSPath, func(c echo.Context) error { return mcpserver.HandleWS(c) })
+				e.GET(cfg.ChariotConfig.MCPWSPath, func(c echo.Context) error { return mcpserver.HandleWSWithOptions(c, mcpOptions) })
 				cfg.ChariotLogger.Info("MCP WebSocket route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
 			case "http", "sse":
-				mcpHTTPHandler := echo.WrapHandler(mcpserver.NewHTTPHandler())
+				mcpHTTPHandler := echo.WrapHandler(mcpserver.NewHTTPHandler(mcpOptions))
 				e.GET(cfg.ChariotConfig.MCPWSPath, mcpHTTPHandler)
 				e.POST(cfg.ChariotConfig.MCPWSPath, mcpHTTPHandler)
 				cfg.ChariotLogger.Info("MCP HTTP/SSE route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))

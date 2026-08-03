@@ -14,6 +14,7 @@ Chariot provides a rich set of string functions for creation, formatting, manipu
 | `string(x)`        | Convert any value to a string                       |
 | `format(fmt, a, ...)` | Format string using Go-style formatting          |
 | `sprintf(fmt, a, ...)` | Alias for `format`                              |
+| `formatAs(targetFormat, source)` | Format a value for presentation as `currency`, `number`, `integer`, `percent`, or `string` |
 | `append(a, b, ...)`| Alias for `concat`                                  |
 
 ---
@@ -105,6 +106,12 @@ concat('Hello, ', 'world!')             // "Hello, world!"
 string(123)                             // "123"
 format("Value: %.2f", 3.14159)          // "Value: 3.14"
 sprintf("Value: %d", 42)                // "Value: 42"
+formatAs("currency", 1234.5)            // "$1,234.50"
+formatAs("currency", "1234.5")          // "$1,234.50"
+formatAs("number", 1234567.89)          // "1,234,567.89"
+formatAs("integer", 1234.56)            // "1,235"
+formatAs("percent", 0.875)              // "87.5%"
+formatAs("string", 1234.56)             // "1234.56"
 char("abc", 1)                          // "b"
 charAt("abc", 2)                        // "c"
 ascii("A")                              // 65
@@ -140,6 +147,7 @@ interpolate("Hello, ${name}!")          // If name="Alice", returns "Hello, Alic
 - `charAt` returns `DBNull` for out-of-bounds; `atPos` returns an error.
 - `replace` can limit the number of replacements with the optional `count` argument.
 - `interpolate` replaces `${var}` with the value of `var` from the current scope.
+- `formatAs` is deterministic and presentation-oriented. `currency` uses `$`, two decimal places, and comma grouping; numeric formats accept numbers or numeric strings and return errors for invalid numeric input.
 - `split` returns an array of strings; `join` expects an array as the first argument.
 - `strlen` is an alias for the generic `length` function.
 - `padLeft` and `padRight` pad with the specified character to the desired length.

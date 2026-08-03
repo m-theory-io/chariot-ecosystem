@@ -56,16 +56,18 @@ type Config struct {
 	SandboxRoot         string `evar:"sandbox_root"`          // Root directory for sandbox storage
 	SandboxDefaultScope string `evar:"sandbox_default_scope"` // Preferred default scope (sandbox or global)
 	// Function library
-	FunctionLib string `evar:"function_lib"` // Filename of the function library
-	Bootstrap   string `evar:"bootstrap"`    // Bootstrap script to run on startup
+	FunctionLib          string `evar:"function_lib"`           // Filename of the function library
+	Bootstrap            string `evar:"bootstrap"`              // Bootstrap script to run on startup
+	BootstrapEditEnabled bool   `evar:"bootstrap_edit_enabled"` // Enable editing bootstrap through authenticated file APIs
 	// Listeners registry persistence file (under data path)
 	ListenersFile string `evar:"listeners_file"`
 	// ListenerScriptsDir is the directory (under DataPath by default) that stores listener scripts
 	ListenerScriptsDir string `evar:"listener_scripts_dir"`
 	// MCP (Model Context Protocol) integration
-	MCPEnabled   bool   `evar:"mcp_enabled"`   // Enable MCP server
-	MCPTransport string `evar:"mcp_transport"` // stdio | http/sse | ws (websocket)
-	MCPWSPath    string `evar:"mcp_ws_path"`   // MCP path when using http/sse or ws
+	MCPEnabled        bool   `evar:"mcp_enabled"`         // Enable MCP server
+	MCPExecuteEnabled bool   `evar:"mcp_execute_enabled"` // Enable dev-only MCP execute tool
+	MCPTransport      string `evar:"mcp_transport"`       // stdio | http/sse | ws (websocket)
+	MCPWSPath         string `evar:"mcp_ws_path"`         // MCP path when using http/sse or ws
 	// NSQ messaging
 	NSQEnabled        bool   `evar:"nsq_enabled"`
 	NSQDAddress       string `evar:"nsq_addr"`

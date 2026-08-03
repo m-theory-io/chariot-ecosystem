@@ -153,6 +153,7 @@ import { RLSelectBestNodePropertiesDialog, RLSelectBestNodeProperties } from "..
 import { ExtractRLFeaturesNodePropertiesDialog, ExtractRLFeaturesNodeProperties } from "../components/dialogs/ExtractRLFeaturesNodeProperties";
 import { RLExploreNodePropertiesDialog, RLExploreNodeProperties } from "../components/dialogs/RLExploreNodeProperties";
 import { NBADecisionNodePropertiesDialog, NBADecisionNodeProperties } from "../components/dialogs/NBADecisionNodeProperties";
+import { BdiNodePropertiesDialog, BdiNodeProperties } from "../components/dialogs/BdiNodeProperties";
 import { ExistsNodePropertiesDialog, ExistsNodeProperties } from "../components/dialogs/ExistsNodeProperties";
 import { TypeOfNodePropertiesDialog, TypeOfNodeProperties } from "../components/dialogs/TypeOfNodeProperties";
 import { ValueOfNodePropertiesDialog, ValueOfNodeProperties } from "../components/dialogs/ValueOfNodeProperties";
@@ -184,6 +185,49 @@ interface DiagramData {
   groupCount: number;
   created: string;
   modified: string;
+}
+
+function getBdiDefaultProperties(label: string): BdiNodeProperties | null {
+  switch (label) {
+    case 'plan':
+      return { name: "'MyPlan'", parameters: 'array()', trigger: 'func(){ equal(1, 1) }', guard: 'func(){ equal(1, 1) }', steps: 'array(stepFn)', drop: 'func(){ equal(1, 0) }' };
+    case 'belief':
+      return { agentName: 'thermostat', beliefName: 'currentTemp' };
+    case 'agentBelief':
+      return { agentName: 'thermostat', beliefName: 'currentTemp', value: '72' };
+    case 'agentStartNamed':
+      return { agentName: 'thermostat', plan: 'pThermostat', maxConcurrent: '1', pollSeconds: '0', lifecycle: 'eventOnly' };
+    case 'agentStopNamed':
+    case 'agentPublish':
+      return { agentName: 'thermostat' };
+    case 'runPlanOnce':
+      return { plan: 'pThermostat', mode: 'manual' };
+    case 'setStepResult':
+      return { value: "map('action', 'ok')" };
+    case 'setPlanResult':
+      return { value: "map('status', 'complete')" };
+    case 'signalRegister':
+      return { sourceName: 'roomTemp', kind: 'static', config: "map('value', 65)" };
+    case 'signalRead':
+      return { sourceName: 'roomTemp' };
+    case 'signalStartBeliefFeed':
+      return { feedName: 'roomTempFeed', sourceName: 'roomTemp', agentName: 'thermostat', beliefName: 'currentTemp', intervalSeconds: '3' };
+    case 'signalStopBeliefFeed':
+      return { feedName: 'roomTempFeed' };
+    case 'agentList':
+    case 'signalList':
+    case 'signalFeedList':
+      return {};
+    default:
+      return null;
+  }
+}
+
+function getFunctionDefaultProperties(): FunctionNodeProperties {
+  return {
+    parameters: [],
+    body: 'equal(1, 1)'
+  };
 }
 
 interface EtlTransformDefinition {
@@ -1128,6 +1172,8 @@ export default function VisualDSLPrototype() {
         nodeType = 'typeOf';
       } else if ((label === 'Value Of' || label === 'valueOf') && category === 'value') {
         nodeType = 'valueOf';
+      } else if (category === 'bdi') {
+        nodeType = 'bdi';
       }
       
       console.log(`Node type determined: ${nodeType} for label: "${label}", category: "${category}"`); // Debug log
@@ -1614,6 +1660,14 @@ export default function VisualDSLPrototype() {
     }
 
     const branchIcon = branchKind === 'Then' ? '✅' : '🚫';
+    if (logicon.label === 'Function' || logicon.label === 'func') {
+      defaultProperties = getFunctionDefaultProperties();
+    }
+    const bdiDefaultProperties = getBdiDefaultProperties(logicon.label);
+    if (bdiDefaultProperties) {
+      defaultProperties = bdiDefaultProperties;
+    }
+
     const newNode: Node = {
       id: branchId,
       type: 'logicon',
@@ -2802,6 +2856,15 @@ export default function VisualDSLPrototype() {
         } as RegisterTransformNodeProperties;
       }
       
+      if (logicon.label === 'Function' || logicon.label === 'func') {
+        defaultProperties = getFunctionDefaultProperties();
+      }
+
+      const bdiDefaultProperties = getBdiDefaultProperties(logicon.label);
+      if (bdiDefaultProperties) {
+        defaultProperties = bdiDefaultProperties;
+      }
+
       const newNode: Node = {
         id,
         type: "logicon",
@@ -3169,6 +3232,15 @@ export default function VisualDSLPrototype() {
       } as CryptoRandomStringNodeProperties;
     }
 
+    if (logicon.label === 'Function' || logicon.label === 'func') {
+      defaultProperties = getFunctionDefaultProperties();
+    }
+
+    const bdiDefaultProperties = getBdiDefaultProperties(logicon.label);
+    if (bdiDefaultProperties) {
+      defaultProperties = bdiDefaultProperties;
+    }
+
     const newNode: Node = {
       id,
       type: "logicon",
@@ -3451,6 +3523,7 @@ export default function VisualDSLPrototype() {
               nodeColor={(node) => {
                 switch (node.data?.category) {
                   case 'control': return '#3b82f6';      // Blue
+                  case 'bdi': return '#0ea5e9';          // Sky
                   case 'array': return '#10b981';        // Green  
                   case 'comparison': return '#8b5cf6';   // Purple
                   case 'math': return '#f59e0b';         // Orange
@@ -3649,12 +3722,30 @@ export default function VisualDSLPrototype() {
                 deleteNode(propertiesDialog.nodeId);
                 setPropertiesDialog(null);
               }}
-              initialProperties={propertiesDialog.properties as FunctionNodeProperties || {
-                parameters: [],
-                body: ''
+              initialProperties={{
+                ...getFunctionDefaultProperties(),
+                ...((propertiesDialog.properties as Partial<FunctionNodeProperties>) || {})
               }}
             />
           )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'bdi' && (() => {
+            const selectedNode = nodes.find(n => n.id === propertiesDialog.nodeId);
+            const nodeLabel = selectedNode?.data?.label || '';
+            return (
+              <BdiNodePropertiesDialog
+                isOpen={true}
+                nodeLabel={nodeLabel}
+                onClose={() => setPropertiesDialog(null)}
+                onSave={(properties: BdiNodeProperties) => saveNodeProperties(propertiesDialog.nodeId, properties)}
+                onDelete={() => {
+                  deleteNode(propertiesDialog.nodeId);
+                  setPropertiesDialog(null);
+                }}
+                initialProperties={(propertiesDialog.properties as BdiNodeProperties) || getBdiDefaultProperties(nodeLabel) || {}}
+              />
+            );
+          })()}
 
           {propertiesDialog && propertiesDialog.nodeType === 'cbQuery' && (
             <CBQueryNodePropertiesDialog

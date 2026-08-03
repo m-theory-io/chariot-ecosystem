@@ -1,0 +1,78 @@
+[
+  {
+    "id": "fx_2a3fff324f1f8a0d2eec2a4b",
+    "name": "RunLeaseDecisionBDI",
+    "tool": "registryCall",
+    "payload": {
+      "id": "agent:leasedecision"
+    },
+    "createdAt": "2026-07-24T13:14:38.022062554Z",
+    "updatedAt": "2026-07-28T04:20:14.999302085Z"
+  },
+  {
+    "id": "fx_f024b3e0885f3d9dc179ff9e",
+    "name": "RunTreeDescribe",
+    "tool": "treeDescribe",
+    "payload": {
+      "name": "tree:decisionAgent1"
+    },
+    "createdAt": "2026-07-24T18:48:28.186904839Z",
+    "updatedAt": "2026-07-24T18:48:28.186904839Z"
+  },
+  {
+    "id": "fx_6cfad3be281f78e9a7401749",
+    "name": "RunDescribe",
+    "tool": "registryDescribe",
+    "payload": {
+      "id": "agent:thermostat"
+    },
+    "createdAt": "2026-07-24T02:21:02.092770085Z",
+    "updatedAt": "2026-07-24T18:46:58.640252755Z"
+  },
+  {
+    "id": "fx_6fea598be0f4df57a8de1e6c",
+    "name": "RunDecisionAgent2",
+    "tool": "treeCall",
+    "payload": {
+      "id": "tree:decisionAgent2.handlers.onDecisionRequest",
+      "args": {
+        "req": {
+          "profile": {
+            "age": 30,
+            "debt": 7000.25,
+            "is_employed": true
+          }
+        }
+      }
+    },
+    "createdAt": "2026-07-23T15:28:41.433786678Z",
+    "updatedAt": "2026-07-23T15:28:41.433786678Z"
+  },
+  {
+    "id": "fx_cb4cc7ef498950ca2beb5219",
+    "name": "RunThermostat",
+    "tool": "agentList",
+    "payload": {
+      "name": "thermostat",
+      "action": "runPlanOnce",
+      "input": {
+        "plan": "pThermostat",
+        "beliefs": {
+          "currentTemp": 85
+        }
+      }
+    },
+    "createdAt": "2026-07-23T13:53:36.613329635Z",
+    "updatedAt": "2026-07-23T13:53:36.613329635Z"
+  },
+  {
+    "id": "fx_0a33c2e934c40ff594b48ac1",
+    "name": "ExecCode",
+    "tool": "execute",
+    "payload": {
+      "code": "add(10,20)"
+    },
+    "createdAt": "2026-07-23T13:50:12.745976138Z",
+    "updatedAt": "2026-07-23T13:50:12.745976138Z"
+  }
+]

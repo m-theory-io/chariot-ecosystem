@@ -20,6 +20,7 @@ type agentStartReq struct {
 	PlanVar       string `json:"planVar"`
 	MaxConcurrent int    `json:"maxConcurrent"`
 	PollSeconds   int    `json:"pollSeconds"`
+	Lifecycle     string `json:"lifecycle"`
 }
 
 func (h *Handlers) ListAgents(c echo.Context) error {
@@ -116,7 +117,7 @@ func (h *Handlers) StartAgent(c echo.Context) error {
 	if poll <= 0 {
 		poll = 3
 	}
-	if err := ch.DefaultAgentStart(req.Name, h.bootstrapRuntime, pl, maxC, time.Duration(poll)*time.Second); err != nil {
+	if err := ch.DefaultAgentStartWithLifecycle(req.Name, h.bootstrapRuntime, pl, maxC, time.Duration(poll)*time.Second, req.Lifecycle); err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
 	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]any{"started": req.Name}})
@@ -167,6 +168,7 @@ func (h *Handlers) CreateAgent(c echo.Context) error {
 		Plan          string  `json:"plan"`
 		MaxConcurrent int     `json:"maxConcurrent"`
 		PollSeconds   float64 `json:"pollSeconds"`
+		Lifecycle     string  `json:"lifecycle"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "error", Data: "invalid request"})
@@ -195,7 +197,7 @@ func (h *Handlers) CreateAgent(c echo.Context) error {
 	}
 
 	pollEvery := time.Duration(req.PollSeconds * float64(time.Second))
-	err := ch.DefaultAgentStart(req.Name, h.bootstrapRuntime, plan, req.MaxConcurrent, pollEvery)
+	err := ch.DefaultAgentStartWithLifecycle(req.Name, h.bootstrapRuntime, plan, req.MaxConcurrent, pollEvery, req.Lifecycle)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "error", Data: err.Error()})
 	}
@@ -289,67 +291,58 @@ func (h *Handlers) RunPlanOnce(c echo.Context) error {
 		req.Mode = "bdi"
 	}
 
-	// Build the Chariot code to execute
-	// Note: req.Plan is the plan variable name - retrieve it from bootstrap globals
-	var code strings.Builder
-	// First, get the plan object from the bootstrap runtime's global scope
-	fmt.Fprintf(&code, "setq(__planToRun, getVariable(\"%s\"))\n", req.Plan)
-	fmt.Fprintf(&code, "runPlanOnceEx(__planToRun, \"%s\"", req.Mode)
-	if len(req.VarsMap) > 0 {
-		// Convert varsMap to Chariot map literal
-		code.WriteString(", map(")
-		first := true
-		for k, v := range req.VarsMap {
-			if !first {
-				code.WriteString(", ")
-			}
-			first = false
-			code.WriteString(fmt.Sprintf("'%s', ", k))
-			// Simple JSON value serialization
-			switch val := v.(type) {
-			case string:
-				code.WriteString(fmt.Sprintf("'%s'", val))
-			case float64:
-				code.WriteString(fmt.Sprintf("%v", val))
-			case bool:
-				if val {
-					code.WriteString("true")
-				} else {
-					code.WriteString("false")
-				}
-			default:
-				code.WriteString(fmt.Sprintf("'%v'", val))
-			}
-		}
-		code.WriteString(")")
+	planValue, ok := h.bootstrapRuntime.GlobalScope().Get(req.Plan)
+	if !ok || planValue == nil {
+		return c.JSON(http.StatusNotFound, ResultJSON{Result: "error", Data: fmt.Sprintf("plan '%s' not found", req.Plan)})
 	}
-	code.WriteString(")")
+	plan, ok := planValue.(*ch.Plan)
+	if !ok || plan == nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "error", Data: fmt.Sprintf("'%s' is not a plan", req.Plan)})
+	}
+
+	planVars := make(map[string]ch.Value, len(req.VarsMap))
+	beliefsSet := make(map[string]interface{}, len(req.VarsMap))
+	for key, raw := range req.VarsMap {
+		planVars[key] = toChariotValue(raw)
+		beliefsSet[key] = raw
+	}
 
 	// Optionally hydrate a named agent's beliefs before executing the plan
 	if req.AgentName != "" {
 		if info := ch.DefaultAgentGetInfo(req.AgentName); info == nil {
 			return c.JSON(http.StatusNotFound, ResultJSON{Result: "error", Data: fmt.Sprintf("agent '%s' not found", req.AgentName)})
 		}
-		if len(req.VarsMap) > 0 {
-			for k, v := range req.VarsMap {
-				val := toChariotValue(v)
-				if !ch.DefaultAgentBelief(req.AgentName, k, val) {
-					return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "error", Data: fmt.Sprintf("failed to set belief '%s' on agent '%s'", k, req.AgentName)})
+		if len(planVars) > 0 {
+			for key, value := range planVars {
+				if !ch.DefaultAgentBelief(req.AgentName, key, value) {
+					return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "error", Data: fmt.Sprintf("failed to set belief '%s' on agent '%s'", key, req.AgentName)})
 				}
 			}
-			cfg.ChariotLogger.Info("RunPlanOnce applied beliefs", zap.String("agent", req.AgentName), zap.Int("count", len(req.VarsMap)))
+			cfg.ChariotLogger.Info("RunPlanOnce applied beliefs", zap.String("agent", req.AgentName), zap.Int("count", len(planVars)))
+		}
+		if existingBeliefs := ch.DefaultAgentGetBeliefs(req.AgentName); existingBeliefs != nil {
+			executionVars := make(map[string]ch.Value, len(existingBeliefs)+len(planVars))
+			for key, value := range existingBeliefs {
+				executionVars[key] = value
+			}
+			for key, value := range planVars {
+				executionVars[key] = value
+			}
+			planVars = executionVars
 		}
 	}
 
-	// Execute in the bootstrap runtime where plan creation/save APIs register plans.
-	res, err := h.bootstrapRuntime.ExecProgram(code.String())
+	result, err := ch.RunPlanOnceResult(h.bootstrapRuntime, req.AgentName, plan, planVars, req.Mode)
 	if err != nil {
 		cfg.ChariotLogger.Error("RunPlanOnce error", zap.String("plan", req.Plan), zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "error", Data: err.Error()})
 	}
+	resultPayload := result.ToJSON()
+	resultPayload["planVariable"] = req.Plan
+	resultPayload["beliefsSet"] = beliefsSet
 
-	cfg.ChariotLogger.Info("Plan executed once", zap.String("plan", req.Plan), zap.String("mode", req.Mode))
-	return c.JSON(http.StatusOK, ResultJSON{Result: "success", Data: ch.ValueToJSON(res)})
+	cfg.ChariotLogger.Info("Plan executed once", zap.String("plan", req.Plan), zap.String("mode", req.Mode), zap.Bool("executed", result.Executed))
+	return c.JSON(http.StatusOK, ResultJSON{Result: "success", Data: resultPayload})
 }
 
 // toChariotValue: best-effort conversion from JSON types to chariot.Value

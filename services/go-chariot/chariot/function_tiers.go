@@ -44,7 +44,7 @@ func GetBasicChariotFunctions() []string {
 		"getAt", "setAt", "indexOf", "length", "contains", "split", "join",
 
 		// String functions - clean names
-		"append", "ascii", "atPos", "char", "charAt", "concat", "digits", "format", "hasPrefix", "hasSuffix", "interpolate", "join", "lastPos", "lower", "occurs", "padLeft", "padRight", "repeat", "replace", "right", "split", "sprintf", "string", "strlen", "substr", "substring", "trim", "trimLeft", "trimRight", "upper",
+		"append", "ascii", "atPos", "char", "charAt", "concat", "digits", "format", "formatAs", "hasPrefix", "hasSuffix", "interpolate", "join", "lastPos", "lower", "occurs", "padLeft", "padRight", "repeat", "replace", "right", "split", "sprintf", "string", "strlen", "substr", "substring", "trim", "trimLeft", "trimRight", "upper",
 
 		// Type utilities
 		"typeof", "isNull", "isNumber", "isString", "isBool", "isArray",

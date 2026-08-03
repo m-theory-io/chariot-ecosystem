@@ -3,7 +3,7 @@ export interface LogiconData {
   label: string;
   icon: string;
   description: string;
-  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'ml' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
+  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'ml' | 'bdi' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
 }
 
 export const logiconDefinitions: LogiconData[] = [
@@ -31,9 +31,9 @@ export const logiconDefinitions: LogiconData[] = [
   },
   {
     id: 'func',
-    label: 'Function',
+    label: 'func',
     icon: '⚙️',
-    description: 'Function definition',
+    description: 'Inline Chariot function value, such as func(){ equal(1, 1) }',
     category: 'control'
   },
   {
@@ -70,6 +70,120 @@ export const logiconDefinitions: LogiconData[] = [
     icon: '⏭️',
     description: 'Continue loop iteration',
     category: 'control'
+  },
+
+  // BDI / Signal Functions
+  {
+    id: 'plan',
+    label: 'plan',
+    icon: '🧭',
+    description: 'Create a BDI plan from name, parameters, trigger, guard, steps, and optional drop condition',
+    category: 'bdi'
+  },
+  {
+    id: 'belief',
+    label: 'belief',
+    icon: '💭',
+    description: 'Read a belief value from an agent',
+    category: 'bdi'
+  },
+  {
+    id: 'agentBelief',
+    label: 'agentBelief',
+    icon: '📌',
+    description: 'Set a belief on a named agent and publish activation',
+    category: 'bdi'
+  },
+  {
+    id: 'agentStartNamed',
+    label: 'agentStartNamed',
+    icon: '▶️',
+    description: 'Start a named BDI agent with max concurrency, polling interval, and lifecycle',
+    category: 'bdi'
+  },
+  {
+    id: 'agentStopNamed',
+    label: 'agentStopNamed',
+    icon: '⏹️',
+    description: 'Stop a named BDI agent',
+    category: 'bdi'
+  },
+  {
+    id: 'agentList',
+    label: 'agentList',
+    icon: '📋',
+    description: 'List named BDI agents',
+    category: 'bdi'
+  },
+  {
+    id: 'agentPublish',
+    label: 'agentPublish',
+    icon: '📣',
+    description: 'Publish activation for a named BDI agent',
+    category: 'bdi'
+  },
+  {
+    id: 'runPlanOnce',
+    label: 'runPlanOnce',
+    icon: '🧪',
+    description: 'Run a plan once outside a long-running agent',
+    category: 'bdi'
+  },
+  {
+    id: 'setStepResult',
+    label: 'setStepResult',
+    icon: '✅',
+    description: 'Set structured output for the current BDI step',
+    category: 'bdi'
+  },
+  {
+    id: 'setPlanResult',
+    label: 'setPlanResult',
+    icon: '🏁',
+    description: 'Set structured output for the current BDI plan',
+    category: 'bdi'
+  },
+  {
+    id: 'signalRegister',
+    label: 'signalRegister',
+    icon: '📡',
+    description: 'Register a signal source such as static, random, sysfs, or httpJson',
+    category: 'bdi'
+  },
+  {
+    id: 'signalRead',
+    label: 'signalRead',
+    icon: '📥',
+    description: 'Read a registered signal source once',
+    category: 'bdi'
+  },
+  {
+    id: 'signalList',
+    label: 'signalList',
+    icon: '📋',
+    description: 'List registered signal sources',
+    category: 'bdi'
+  },
+  {
+    id: 'signalStartBeliefFeed',
+    label: 'signalStartBeliefFeed',
+    icon: '🔁',
+    description: 'Start a signal feed that updates an agent belief and activates the agent on change',
+    category: 'bdi'
+  },
+  {
+    id: 'signalStopBeliefFeed',
+    label: 'signalStopBeliefFeed',
+    icon: '⏸️',
+    description: 'Stop a running signal belief feed',
+    category: 'bdi'
+  },
+  {
+    id: 'signalFeedList',
+    label: 'signalFeedList',
+    icon: '📊',
+    description: 'List running signal belief feeds',
+    category: 'bdi'
   },
 
   // Array Functions

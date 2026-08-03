@@ -159,6 +159,35 @@ export class ChariotCodeGenerator {
       'dot product': 'dotProduct',
       'dotproduct': 'dotProduct',
       'dot-product': 'dotProduct',
+      'function': 'func',
+      'agent belief': 'agentBelief',
+      'agentbelief': 'agentBelief',
+      'agent start named': 'agentStartNamed',
+      'agentstartnamed': 'agentStartNamed',
+      'agent stop named': 'agentStopNamed',
+      'agentstopnamed': 'agentStopNamed',
+      'agent list': 'agentList',
+      'agentlist': 'agentList',
+      'agent publish': 'agentPublish',
+      'agentpublish': 'agentPublish',
+      'run plan once': 'runPlanOnce',
+      'runplanonce': 'runPlanOnce',
+      'set step result': 'setStepResult',
+      'setstepresult': 'setStepResult',
+      'set plan result': 'setPlanResult',
+      'setplanresult': 'setPlanResult',
+      'signal register': 'signalRegister',
+      'signalregister': 'signalRegister',
+      'signal read': 'signalRead',
+      'signalread': 'signalRead',
+      'signal list': 'signalList',
+      'signallist': 'signalList',
+      'signal start belief feed': 'signalStartBeliefFeed',
+      'signalstartbelieffeed': 'signalStartBeliefFeed',
+      'signal stop belief feed': 'signalStopBeliefFeed',
+      'signalstopbelieffeed': 'signalStopBeliefFeed',
+      'signal feed list': 'signalFeedList',
+      'signalfeedlist': 'signalFeedList',
     };
     return aliasMap[lowerKey] || normalized;
   }
@@ -188,7 +217,7 @@ export class ChariotCodeGenerator {
         const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'parseJSON', 'parseJSONSimple', 'Array', 'Range'];
         if (inlineLabels.includes(childLabel)) {
           inlineProcessedNodes.add(childIds[0]);
-        } else if (childLabel === 'Function' && typeSpec === 'F') {
+        } else if (childLabel === 'func' && typeSpec === 'F') {
           inlineProcessedNodes.add(childIds[0]);
         }
       } else if (['Set Equal', 'Set Value', 'Set Q', 'setq'].includes(parentLabel)) {
@@ -491,6 +520,38 @@ export class ChariotCodeGenerator {
       case 'NBA Decision':
       case 'nbaDecision':
         return this.generateNBADecisionCode(node);
+      case 'plan':
+        return this.generatePlanCode(node);
+      case 'belief':
+        return this.generateBeliefCode(node);
+      case 'agentBelief':
+        return this.generateAgentBeliefCode(node);
+      case 'agentStartNamed':
+        return this.generateAgentStartNamedCode(node);
+      case 'agentStopNamed':
+        return this.generateAgentStopNamedCode(node);
+      case 'agentList':
+        return 'agentList()';
+      case 'agentPublish':
+        return this.generateAgentPublishCode(node);
+      case 'runPlanOnce':
+        return this.generateRunPlanOnceCode(node);
+      case 'setStepResult':
+        return this.generateSetStepResultCode(node);
+      case 'setPlanResult':
+        return this.generateSetPlanResultCode(node);
+      case 'signalRegister':
+        return this.generateSignalRegisterCode(node);
+      case 'signalRead':
+        return this.generateSignalReadCode(node);
+      case 'signalList':
+        return 'signalList()';
+      case 'signalStartBeliefFeed':
+        return this.generateSignalStartBeliefFeedCode(node);
+      case 'signalStopBeliefFeed':
+        return this.generateSignalStopBeliefFeedCode(node);
+      case 'signalFeedList':
+        return 'signalFeedList()';
       case 'and':
         return this.generateAndCode(node);
       case 'or':
@@ -551,6 +612,7 @@ export class ChariotCodeGenerator {
       case 'valueOf':
         return this.generateValueOfCode(node);
       case 'Function':
+      case 'func':
         return this.generateFunctionCode(node);
       case 'If':
         return this.generateIfCode(node);
@@ -649,9 +711,10 @@ export class ChariotCodeGenerator {
     if (nestedChildren.length === 1) {
       const childNode = this.nodeMap.get(nestedChildren[0]);
       if (childNode) {
+        const childLabel = this.getNodeLabel(childNode);
         const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'parseJSON', 'parseJSONSimple', 'Array', 'Range'];
-        const isSimpleChild = inlineLabels.includes(childNode.data.label);
-        const isInlineFunction = childNode.data.label === 'Function' && typeSpec === 'F';
+        const isSimpleChild = inlineLabels.includes(childLabel);
+        const isInlineFunction = childLabel === 'func' && typeSpec === 'F';
         if (isSimpleChild || isInlineFunction) {
           const childCode = isInlineFunction
             ? this.generateFunctionCode(childNode)
@@ -1113,6 +1176,103 @@ export class ChariotCodeGenerator {
       }
     }
     return `logPrint(${args.join(', ')})`;
+  }
+
+  private generatePlanCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const name = this.coerceStringArgument(props.name, 'MyPlan');
+    const parameters = this.coerceExpression(props.parameters, 'array()');
+    const trigger = this.coerceExpression(props.trigger, 'func(){ equal(1, 1) }');
+    const guard = this.coerceExpression(props.guard, 'func(){ equal(1, 1) }');
+    const steps = this.coerceExpression(props.steps, 'array(stepFn)');
+    const drop = (props.drop ?? '').toString().trim();
+    const args = [name, parameters, trigger, guard, steps];
+    if (drop.length > 0) {
+      args.push(drop);
+    }
+    return `plan(${args.join(', ')})`;
+  }
+
+  private generateBeliefCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `belief(${this.coerceStringArgument(props.agentName, 'thermostat')}, ${this.coerceStringArgument(props.beliefName, 'currentTemp')})`;
+  }
+
+  private generateAgentBeliefCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const value = this.coerceExpression(props.value, '72');
+    return `agentBelief(${this.coerceStringArgument(props.agentName, 'thermostat')}, ${this.coerceStringArgument(props.beliefName, 'currentTemp')}, ${value})`;
+  }
+
+  private generateAgentStartNamedCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const agentName = this.coerceStringArgument(props.agentName, 'thermostat');
+    const plan = this.coerceExpression(props.plan, 'pThermostat');
+    const maxConcurrent = this.coerceExpression(props.maxConcurrent, '1');
+    const pollSeconds = this.coerceExpression(props.pollSeconds, '0');
+    const lifecycle = this.coerceStringArgument(props.lifecycle, 'eventOnly');
+    return `agentStartNamed(${agentName}, ${plan}, ${maxConcurrent}, ${pollSeconds}, ${lifecycle})`;
+  }
+
+  private generateAgentStopNamedCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `agentStopNamed(${this.coerceStringArgument(props.agentName, 'thermostat')})`;
+  }
+
+  private generateAgentPublishCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `agentPublish(${this.coerceStringArgument(props.agentName, 'thermostat')})`;
+  }
+
+  private generateRunPlanOnceCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const plan = this.coerceExpression(props.plan, 'pThermostat');
+    const mode = (props.mode ?? '').toString().trim();
+    if (mode.length === 0) {
+      return `runPlanOnce(${plan})`;
+    }
+    return `runPlanOnce(${plan}, ${this.coerceStringArgument(mode, 'manual')})`;
+  }
+
+  private generateSetStepResultCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `setStepResult(${this.coerceExpression(props.value, "map('action', 'ok')")})`;
+  }
+
+  private generateSetPlanResultCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `setPlanResult(${this.coerceExpression(props.value, "map('status', 'complete')")})`;
+  }
+
+  private generateSignalRegisterCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const sourceName = this.coerceStringArgument(props.sourceName, 'roomTemp');
+    const kind = this.coerceStringArgument(props.kind, 'static');
+    const config = (props.config ?? '').toString().trim();
+    if (config.length === 0) {
+      return `signalRegister(${sourceName}, ${kind})`;
+    }
+    return `signalRegister(${sourceName}, ${kind}, ${config})`;
+  }
+
+  private generateSignalReadCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `signalRead(${this.coerceStringArgument(props.sourceName, 'roomTemp')})`;
+  }
+
+  private generateSignalStartBeliefFeedCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    const feedName = this.coerceStringArgument(props.feedName, 'roomTempFeed');
+    const sourceName = this.coerceStringArgument(props.sourceName, 'roomTemp');
+    const agentName = this.coerceStringArgument(props.agentName, 'thermostat');
+    const beliefName = this.coerceStringArgument(props.beliefName, 'currentTemp');
+    const intervalSeconds = this.coerceExpression(props.intervalSeconds, '3');
+    return `signalStartBeliefFeed(${feedName}, ${sourceName}, ${agentName}, ${beliefName}, ${intervalSeconds})`;
+  }
+
+  private generateSignalStopBeliefFeedCode(node: VisualDSLNode): string {
+    const props = node.data.properties || {};
+    return `signalStopBeliefFeed(${this.coerceStringArgument(props.feedName, 'roomTempFeed')})`;
   }
 
   private generateSleepCode(node: VisualDSLNode): string {

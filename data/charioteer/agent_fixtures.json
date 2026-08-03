@@ -1,0 +1,24 @@
+[
+  {
+    "id": "fx_1d094045198631b9dca01425",
+    "name": "RunLeaseDecision",
+    "plan": "pLeaseDecision",
+    "agentName": "leasedecision",
+    "varsMap": {
+      "applicantAge": 18
+    },
+    "createdAt": "2026-07-24T20:49:17.12539918Z",
+    "updatedAt": "2026-07-24T20:49:39.611440843Z"
+  },
+  {
+    "id": "fx_f1b54b58efeea99c0c46dd6c",
+    "name": "RunThermostatHighTemp",
+    "plan": "pThermostat",
+    "agentName": "thermostat",
+    "varsMap": {
+      "currentTemp": 80
+    },
+    "createdAt": "2026-07-24T19:14:18.0471135Z",
+    "updatedAt": "2026-07-24T19:14:18.0471135Z"
+  }
+]

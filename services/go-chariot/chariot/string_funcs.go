@@ -3,7 +3,9 @@ package chariot
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -78,6 +80,56 @@ func RegisterString(rt *Runtime) {
 
 	// Alias for format
 	rt.Register("sprintf", rt.funcs["format"])
+
+	rt.Register("formatAs", func(args ...Value) (Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("formatAs requires 2 arguments: targetFormat and source")
+		}
+
+		for i, arg := range args {
+			if tvar, ok := arg.(ScopeEntry); ok {
+				args[i] = tvar.Value
+			}
+		}
+
+		targetFormat, ok := args[0].(Str)
+		if !ok {
+			return nil, fmt.Errorf("formatAs targetFormat must be a string, got %T", args[0])
+		}
+
+		formatName := strings.ToLower(strings.TrimSpace(string(targetFormat)))
+		switch formatName {
+		case "string":
+			return Str(ValueToString(args[1])), nil
+		case "currency":
+			n, err := numericValueForFormatAs(formatName, args[1])
+			if err != nil {
+				return nil, err
+			}
+			return Str("$" + formatNumberWithCommas(fmt.Sprintf("%.2f", n))), nil
+		case "number":
+			n, err := numericValueForFormatAs(formatName, args[1])
+			if err != nil {
+				return nil, err
+			}
+			return Str(formatNumberWithCommas(strconv.FormatFloat(n, 'f', -1, 64))), nil
+		case "integer":
+			n, err := numericValueForFormatAs(formatName, args[1])
+			if err != nil {
+				return nil, err
+			}
+			return Str(formatNumberWithCommas(strconv.FormatFloat(math.Round(n), 'f', 0, 64))), nil
+		case "percent":
+			n, err := numericValueForFormatAs(formatName, args[1])
+			if err != nil {
+				return nil, err
+			}
+			percent := math.Round(n*100*1e10) / 1e10
+			return Str(strconv.FormatFloat(percent, 'f', -1, 64) + "%"), nil
+		default:
+			return nil, fmt.Errorf("formatAs unsupported targetFormat %q", string(targetFormat))
+		}
+	})
 
 	rt.Register("char", func(args ...Value) (Value, error) {
 		if len(args) != 2 {
@@ -784,6 +836,65 @@ func interpolateString(rt *Runtime, template string) (string, error) {
 	}
 
 	return result, nil
+}
+
+func numericValueForFormatAs(targetFormat string, source Value) (float64, error) {
+	switch v := source.(type) {
+	case Number:
+		return finiteFormatAsNumber(targetFormat, float64(v))
+	case Str:
+		trimmed := strings.TrimSpace(string(v))
+		if trimmed == "" {
+			return 0, fmt.Errorf("formatAs %s requires a numeric source", targetFormat)
+		}
+		n, err := strconv.ParseFloat(trimmed, 64)
+		if err != nil {
+			return 0, fmt.Errorf("formatAs %s requires a numeric source", targetFormat)
+		}
+		return finiteFormatAsNumber(targetFormat, n)
+	default:
+		return 0, fmt.Errorf("formatAs %s requires a numeric source, got %T", targetFormat, source)
+	}
+}
+
+func finiteFormatAsNumber(targetFormat string, n float64) (float64, error) {
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		return 0, fmt.Errorf("formatAs %s requires a finite numeric source", targetFormat)
+	}
+	return n, nil
+}
+
+func formatNumberWithCommas(raw string) string {
+	if raw == "" {
+		return raw
+	}
+	sign := ""
+	if strings.HasPrefix(raw, "-") {
+		sign = "-"
+		raw = strings.TrimPrefix(raw, "-")
+	}
+	integerPart := raw
+	fractionalPart := ""
+	if dot := strings.Index(raw, "."); dot >= 0 {
+		integerPart = raw[:dot]
+		fractionalPart = raw[dot:]
+	}
+	if len(integerPart) <= 3 {
+		return sign + integerPart + fractionalPart
+	}
+	firstGroupLen := len(integerPart) % 3
+	if firstGroupLen == 0 {
+		firstGroupLen = 3
+	}
+	var builder strings.Builder
+	builder.WriteString(sign)
+	builder.WriteString(integerPart[:firstGroupLen])
+	for i := firstGroupLen; i < len(integerPart); i += 3 {
+		builder.WriteString(",")
+		builder.WriteString(integerPart[i : i+3])
+	}
+	builder.WriteString(fractionalPart)
+	return builder.String()
 }
 
 // stringGetAt - for string character access

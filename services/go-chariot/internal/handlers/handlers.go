@@ -17,8 +17,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Add this to your handlers.go or appropriate file
-const listenerFileScope = "listeners"
+const (
+	listenerFileScope  = "listeners"
+	bootstrapFileScope = "bootstrap"
+)
 
 type ResultJSON struct {
 	Result string      `json:"result"`
@@ -95,6 +97,46 @@ func listenerFunctionNameFromFile(name string) string {
 
 func isListenerFileScope(scopeRaw string) bool {
 	return strings.EqualFold(strings.TrimSpace(scopeRaw), listenerFileScope)
+}
+
+func isBootstrapFileScope(scopeRaw string) bool {
+	return strings.EqualFold(strings.TrimSpace(scopeRaw), bootstrapFileScope)
+}
+
+func bootstrapScopeDisabledError() ResultJSON {
+	return ResultJSON{Result: "ERROR", Data: "bootstrap file editing is disabled"}
+}
+
+func bootstrapFileName() (string, error) {
+	configured := strings.TrimSpace(cfg.ChariotConfig.Bootstrap)
+	if configured == "" {
+		return "", fmt.Errorf("bootstrap filename not configured")
+	}
+	name := filepath.Base(filepath.Clean(configured))
+	if name == "." || name == string(filepath.Separator) || strings.Contains(name, "..") {
+		return "", fmt.Errorf("invalid bootstrap filename")
+	}
+	return name, nil
+}
+
+func bootstrapFilePath() (string, string, error) {
+	name, err := bootstrapFileName()
+	if err != nil {
+		return "", "", err
+	}
+	fullPath, err := chariot.GetSecureFilePath(cfg.ChariotConfig.Bootstrap, "data")
+	if err != nil {
+		return "", "", err
+	}
+	return name, fullPath, nil
+}
+
+func isConfiguredBootstrapFile(name string) bool {
+	configured, err := bootstrapFileName()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(filepath.Base(filepath.Clean(strings.TrimSpace(name))), configured)
 }
 
 func listListenerScriptFiles() ([]string, error) {
@@ -226,6 +268,13 @@ func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
 		listenerManager:  lman,
 		execManager:      NewExecutionManager(),
 	}
+}
+
+func (h *Handlers) BootstrapRuntime() *chariot.Runtime {
+	if h == nil {
+		return nil
+	}
+	return h.bootstrapRuntime
 }
 
 // Listener APIs
@@ -1252,6 +1301,17 @@ func (h *Handlers) ListFiles(c echo.Context) error {
 
 	// Parse scope from query param, default to user's default scope
 	scopeRaw := c.QueryParam("scope")
+	if isBootstrapFileScope(scopeRaw) {
+		if !cfg.ChariotConfig.BootstrapEditEnabled {
+			return c.JSON(http.StatusForbidden, bootstrapScopeDisabledError())
+		}
+		name, _, err := bootstrapFilePath()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", bootstrapFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: []string{name}})
+	}
 	if isListenerFileScope(scopeRaw) {
 		files, err := listListenerScriptFiles()
 		if err != nil {
@@ -1318,6 +1378,27 @@ func (h *Handlers) GetFile(c echo.Context) error {
 	}
 
 	scopeRaw := c.QueryParam("scope")
+	if isBootstrapFileScope(scopeRaw) {
+		if !cfg.ChariotConfig.BootstrapEditEnabled {
+			return c.JSON(http.StatusForbidden, bootstrapScopeDisabledError())
+		}
+		if !isConfiguredBootstrapFile(fileName) {
+			return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "requested file is not the configured bootstrap"})
+		}
+		_, filePath, err := bootstrapFilePath()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "file not found"})
+			}
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", bootstrapFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: string(content)})
+	}
 	if isListenerFileScope(scopeRaw) {
 		normalized, err := normalizeListenerScriptFilename(fileName)
 		if err != nil {
@@ -1377,6 +1458,23 @@ func (h *Handlers) SaveFile(c echo.Context) error {
 	}
 
 	scopeRaw := c.QueryParam("scope")
+	if isBootstrapFileScope(scopeRaw) {
+		if !cfg.ChariotConfig.BootstrapEditEnabled {
+			return c.JSON(http.StatusForbidden, bootstrapScopeDisabledError())
+		}
+		if !isConfiguredBootstrapFile(req.Name) {
+			return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "requested file is not the configured bootstrap"})
+		}
+		_, filePath, err := bootstrapFilePath()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		if err := os.WriteFile(filePath, []byte(req.Content), 0o644); err != nil {
+			return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+		}
+		c.Response().Header().Set("X-Chariot-Scope", bootstrapFileScope)
+		return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: "bootstrap file saved; log out and back in to assert a fresh session, restart go-chariot to assert startup handlers"})
+	}
 	if isListenerFileScope(scopeRaw) {
 		normalized, err := normalizeListenerScriptFilename(req.Name)
 		if err != nil {
@@ -1445,6 +1543,12 @@ func (h *Handlers) DeleteFile(c echo.Context) error {
 	}
 
 	scopeRaw := c.QueryParam("scope")
+	if isBootstrapFileScope(scopeRaw) {
+		if !cfg.ChariotConfig.BootstrapEditEnabled {
+			return c.JSON(http.StatusForbidden, bootstrapScopeDisabledError())
+		}
+		return c.JSON(http.StatusMethodNotAllowed, ResultJSON{Result: "ERROR", Data: "bootstrap file cannot be deleted from Charioteer"})
+	}
 	if isListenerFileScope(scopeRaw) {
 		normalized, err := normalizeListenerScriptFilename(fileName)
 		if err != nil {

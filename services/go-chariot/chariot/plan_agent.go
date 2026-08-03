@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+const (
+	AgentLifecyclePolling  = "polling"
+	AgentLifecycleEvent    = "eventOnly"
+	AgentLifecycleCallOnly = "callOnly"
+)
+
 // AgentEvent is emitted on plan/step lifecycle transitions for dashboards/clients.
 type AgentEvent struct {
 	Type   string    `json:"type"` // "plan" | "step"
@@ -24,6 +30,8 @@ var (
 	agentEventMu    sync.RWMutex
 	agentEventSinks = map[chan AgentEvent]struct{}{}
 )
+
+const planStepResultVar = "__plan_step_result"
 
 // RegisterAgentEventSink registers a channel to receive AgentEvent notifications.
 // Call the returned function to unregister.
@@ -57,6 +65,67 @@ type Plan struct {
 	Guard   *FunctionValue
 	Steps   []*FunctionValue
 	Drop    *FunctionValue
+}
+
+// PlanRunResult is the structured outcome of a single plan execution.
+type PlanRunResult struct {
+	Agent        string
+	Plan         string
+	Mode         string
+	Status       string
+	Executed     bool
+	WouldExecute bool
+	Reason       string
+	Steps        []PlanStepResult
+	Output       Value
+	Error        string
+}
+
+// PlanStepResult records the outcome of one plan step.
+type PlanStepResult struct {
+	Index  int
+	Status string
+	Result Value
+	Error  string
+}
+
+func (r *PlanRunResult) ToJSON() map[string]interface{} {
+	if r == nil {
+		return nil
+	}
+	out := map[string]interface{}{
+		"agent":        r.Agent,
+		"plan":         r.Plan,
+		"mode":         r.Mode,
+		"status":       r.Status,
+		"executed":     r.Executed,
+		"wouldExecute": r.WouldExecute,
+	}
+	if r.Reason != "" {
+		out["reason"] = r.Reason
+	}
+	if r.Output != nil {
+		out["output"] = ValueToJSON(r.Output)
+	}
+	if r.Error != "" {
+		out["error"] = r.Error
+	}
+	steps := make([]map[string]interface{}, 0, len(r.Steps))
+	for _, step := range r.Steps {
+		stepJSON := map[string]interface{}{
+			"index":  step.Index,
+			"status": step.Status,
+		}
+		if step.Result != nil {
+			stepJSON["result"] = ValueToJSON(step.Result)
+		}
+		if step.Error != "" {
+			stepJSON["error"] = step.Error
+		}
+		steps = append(steps, stepJSON)
+	}
+	out["steps"] = steps
+	return out
 }
 
 func (p *Plan) String() string {
@@ -102,18 +171,42 @@ type Agent struct {
 	cancel    context.CancelFunc
 	rtMu      sync.Mutex // serialize runtime usage across goroutines
 	pollEvery time.Duration
+	lifecycle string
 
 	// simple belief store for this agent (plan trigger/guard/steps can consult)
 	beliefsMu sync.RWMutex
 	beliefs   map[string]Value
+
+	resultsMu sync.RWMutex
+	results   []*PlanRunResult
 }
 
-func newAgent(rt *Runtime, maxConcurrent int, pollEvery time.Duration) *Agent {
+func normalizeAgentLifecycle(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "event", "eventonly", "event-only", "manual", "manualevent":
+		return AgentLifecycleEvent
+	case "call", "callonly", "call-only", "mcp", "runonce", "run-once":
+		return AgentLifecycleCallOnly
+	case "", "poll", "polling", "active":
+		return AgentLifecyclePolling
+	default:
+		return AgentLifecyclePolling
+	}
+}
+
+func newAgent(rt *Runtime, maxConcurrent int, pollEvery time.Duration, lifecycleOpt ...string) *Agent {
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1
 	}
-	if pollEvery <= 0 {
+	lifecycle := AgentLifecyclePolling
+	if len(lifecycleOpt) > 0 {
+		lifecycle = normalizeAgentLifecycle(lifecycleOpt[0])
+	}
+	if pollEvery <= 0 && lifecycle == AgentLifecyclePolling {
 		pollEvery = 3 * time.Second
+	}
+	if lifecycle != AgentLifecyclePolling {
+		pollEvery = 0
 	}
 	return &Agent{
 		name:      "",
@@ -121,6 +214,7 @@ func newAgent(rt *Runtime, maxConcurrent int, pollEvery time.Duration) *Agent {
 		sem:       make(chan struct{}, maxConcurrent),
 		events:    make(chan struct{}, 64),
 		pollEvery: pollEvery,
+		lifecycle: lifecycle,
 		beliefs:   make(map[string]Value),
 	}
 }
@@ -183,19 +277,31 @@ func (a *Agent) GetInfo() map[string]interface{} {
 	pollSeconds := a.pollEvery.Seconds()
 	a.mu.RUnlock()
 
+	lastResults := a.RecentResultsJSON()
+	var lastResult map[string]interface{}
+	if len(lastResults) > 0 {
+		lastResult = lastResults[len(lastResults)-1]
+	}
+
 	beliefs := a.GetBeliefs()
 	beliefCount := len(beliefs)
 
 	return map[string]interface{}{
-		"name":        a.name,
-		"plans":       planNames,
-		"running":     running,
-		"pollSeconds": pollSeconds,
-		"beliefCount": beliefCount,
+		"name":          a.name,
+		"plans":         planNames,
+		"running":       running,
+		"lifecycle":     a.lifecycle,
+		"pollSeconds":   pollSeconds,
+		"beliefCount":   beliefCount,
+		"lastResult":    lastResult,
+		"recentResults": lastResults,
 	}
 }
 
 func (a *Agent) start(ctx context.Context) {
+	if a.lifecycle == AgentLifecycleCallOnly {
+		return
+	}
 	if a.running {
 		return
 	}
@@ -213,43 +319,88 @@ func (a *Agent) stop() {
 }
 
 func (a *Agent) loop() {
-	ticker := time.NewTicker(a.pollEvery)
-	defer ticker.Stop()
+	var ticker *time.Ticker
+	var tickerC <-chan time.Time
+	if a.lifecycle == AgentLifecyclePolling && a.pollEvery > 0 {
+		ticker = time.NewTicker(a.pollEvery)
+		tickerC = ticker.C
+		defer ticker.Stop()
+	}
 	for {
 		select {
 		case <-a.ctx.Done():
 			return
-		case <-ticker.C:
-			a.trySchedule()
+		case <-tickerC:
+			a.tryScheduleAsync()
 		case <-a.events:
-			a.trySchedule()
+			a.tryScheduleAsync()
 		}
 	}
 }
 
-func (a *Agent) trySchedule() {
+func (a *Agent) tryScheduleAsync() {
 	a.mu.RLock()
 	plans := append([]*Plan(nil), a.plans...)
 	a.mu.RUnlock()
 
 	for _, p := range plans {
-		// Evaluate trigger and guard quickly; ignore errors as false
-		if ok, _ := a.evalBool(p.Trigger); !ok {
-			continue
-		}
-		if ok, _ := a.evalBool(p.Guard); !ok {
-			continue
-		}
 		select {
 		case a.sem <- struct{}{}:
 			go func(pl *Plan) {
 				defer func() { <-a.sem }()
-				_ = a.runPlanOnce(pl)
+				result, _ := a.runPlanOnceWithResult(pl, nil, "bdi")
+				a.recordResult(result)
 			}(p)
 		default:
 			return
 		}
 	}
+}
+
+func (a *Agent) tryScheduleSync(mode string) []*PlanRunResult {
+	a.mu.RLock()
+	plans := append([]*Plan(nil), a.plans...)
+	a.mu.RUnlock()
+
+	results := []*PlanRunResult{}
+	for _, p := range plans {
+		select {
+		case a.sem <- struct{}{}:
+			result, _ := a.runPlanOnceWithResult(p, nil, mode)
+			<-a.sem
+			a.recordResult(result)
+			if result != nil {
+				results = append(results, result)
+			}
+		default:
+			return results
+		}
+	}
+	return results
+}
+
+func (a *Agent) recordResult(result *PlanRunResult) {
+	if result == nil || !result.Executed {
+		return
+	}
+	a.resultsMu.Lock()
+	defer a.resultsMu.Unlock()
+	a.results = append(a.results, result)
+	if len(a.results) > 20 {
+		a.results = append([]*PlanRunResult(nil), a.results[len(a.results)-20:]...)
+	}
+}
+
+func (a *Agent) RecentResultsJSON() []map[string]interface{} {
+	a.resultsMu.RLock()
+	defer a.resultsMu.RUnlock()
+	out := make([]map[string]interface{}, 0, len(a.results))
+	for _, result := range a.results {
+		if result != nil {
+			out = append(out, result.ToJSON())
+		}
+	}
+	return out
 }
 
 func (a *Agent) evalBool(fn *FunctionValue) (bool, error) {
@@ -276,42 +427,8 @@ func (a *Agent) evalBool(fn *FunctionValue) (bool, error) {
 
 // runPlanOnce executes steps sequentially with drop checks; returns error if a step fails
 func (a *Agent) runPlanOnce(p *Plan) error {
-	ctx := a.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	// Broadcast plan start
-	broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "start", Time: time.Now()})
-	// Plan instance scope so variables persist across steps for this run only.
-	// Use a child scope of the agent runtime's global scope to avoid polluting globals.
-	instanceScope := NewScope(a.rt.globalScope)
-	for i, step := range p.Steps {
-		// Drop before step
-		drop, _ := a.evalBool(p.Drop)
-		if drop {
-			broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "drop", Step: i, Time: time.Now()})
-			return nil
-		}
-		// Execute step
-		broadcastAgentEvent(AgentEvent{Type: "step", Agent: a.name, Plan: p.Name, Step: i, Status: "start", Time: time.Now()})
-		a.rtMu.Lock()
-		_, err := a.execFnInScope(step, instanceScope)
-		a.rtMu.Unlock()
-		if err != nil {
-			broadcastAgentEvent(AgentEvent{Type: "step", Agent: a.name, Plan: p.Name, Step: i, Status: "error", Error: err.Error(), Time: time.Now()})
-			return fmt.Errorf("step %d failed: %w", i, err)
-		}
-		broadcastAgentEvent(AgentEvent{Type: "step", Agent: a.name, Plan: p.Name, Step: i, Status: "finish", Time: time.Now()})
-		// Cooperative cancellation point
-		select {
-		case <-ctx.Done():
-			broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "cancel", Time: time.Now()})
-			return ctx.Err()
-		default:
-		}
-	}
-	broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "finish", Time: time.Now()})
-	return nil
+	_, err := a.runPlanOnceWithResult(p, nil, "plain")
+	return err
 }
 
 // runPlanOnceWithOptions runs a single plan instance with optional instance-scope variables and mode.
@@ -322,8 +439,16 @@ func (a *Agent) runPlanOnce(p *Plan) error {
 //   - "force-all": bypass Trigger and Guard, bypass Drop
 //   - "dry-run": evaluate according to BDI (or other provided mode) but do not execute steps; returns whether it WOULD run
 func (a *Agent) runPlanOnceWithOptions(p *Plan, instanceVars map[string]Value, mode string) (bool, error) {
+	result, err := a.runPlanOnceWithResult(p, instanceVars, mode)
+	if result == nil {
+		return false, err
+	}
+	return result.Executed || result.WouldExecute, err
+}
+
+func (a *Agent) runPlanOnceWithResult(p *Plan, instanceVars map[string]Value, mode string) (*PlanRunResult, error) {
 	if p == nil {
-		return false, errors.New("nil plan")
+		return nil, errors.New("nil plan")
 	}
 
 	m := strings.ToLower(strings.TrimSpace(mode))
@@ -333,6 +458,9 @@ func (a *Agent) runPlanOnceWithOptions(p *Plan, instanceVars map[string]Value, m
 	dryRun := false
 	checkTrig, checkGuard, respectDrop := true, true, true
 	switch m {
+	case "plain":
+		checkTrig = false
+		checkGuard = false
 	case "bdi":
 		// default
 	case "guard-only":
@@ -351,6 +479,13 @@ func (a *Agent) runPlanOnceWithOptions(p *Plan, instanceVars map[string]Value, m
 		// unknown mode → treat as BDI
 		m = "bdi"
 	}
+	result := &PlanRunResult{
+		Agent:  a.name,
+		Plan:   p.Name,
+		Mode:   m,
+		Status: "skipped",
+		Steps:  []PlanStepResult{},
+	}
 
 	// Instance scope per run, overlay any provided variables
 	instanceScope := NewScope(a.rt.globalScope)
@@ -362,24 +497,37 @@ func (a *Agent) runPlanOnceWithOptions(p *Plan, instanceVars map[string]Value, m
 
 	// Evaluate trigger/guard depending on mode
 	if checkTrig {
-		ok, _ := a.evalBool(p.Trigger)
+		ok, err := a.evalBool(p.Trigger)
+		if err != nil {
+			result.Reason = "trigger_error"
+			result.Error = err.Error()
+			return result, nil
+		}
 		if !ok {
-			return false, nil // not executed
+			result.Reason = "trigger_false"
+			return result, nil
 		}
 	}
 	if checkGuard {
-		ok, _ := a.evalBool(p.Guard)
+		ok, err := a.evalBool(p.Guard)
+		if err != nil {
+			result.Reason = "guard_error"
+			result.Error = err.Error()
+			return result, nil
+		}
 		if !ok {
-			return false, nil // not executed
+			result.Reason = "guard_false"
+			return result, nil
 		}
 	}
 
 	if dryRun {
-		return true, nil // would run, but skip executing steps
+		result.Status = "would_run"
+		result.WouldExecute = true
+		return result, nil
 	}
 
 	// Execute steps
-	executed := false
 	ctx := a.ctx
 	if ctx == nil {
 		ctx = context.Background()
@@ -387,34 +535,75 @@ func (a *Agent) runPlanOnceWithOptions(p *Plan, instanceVars map[string]Value, m
 	broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "start", Time: time.Now()})
 	for i, step := range p.Steps {
 		if respectDrop {
-			drop, _ := a.evalBool(p.Drop)
+			drop, err := a.evalBool(p.Drop)
+			if err != nil {
+				result.Status = "failed"
+				result.Reason = "drop_error"
+				result.Error = err.Error()
+				broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "error", Step: i, Error: err.Error(), Time: time.Now()})
+				return result, err
+			}
 			if drop {
+				result.Status = "dropped"
+				result.Reason = "drop_true"
 				broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "drop", Step: i, Time: time.Now()})
-				if executed {
-					return true, nil
-				}
-				return false, nil
+				return result, nil
 			}
 		}
 		broadcastAgentEvent(AgentEvent{Type: "step", Agent: a.name, Plan: p.Name, Step: i, Status: "start", Time: time.Now()})
+		instanceScope.Set(planStepResultVar, DBNull)
 		a.rtMu.Lock()
-		_, err := a.execFnInScope(step, instanceScope)
+		stepValue, err := a.execFnInScope(step, instanceScope)
 		a.rtMu.Unlock()
 		if err != nil {
+			result.Status = "failed"
+			result.Reason = "step_error"
+			result.Error = err.Error()
+			result.Steps = append(result.Steps, PlanStepResult{Index: i, Status: "failed", Error: err.Error()})
 			broadcastAgentEvent(AgentEvent{Type: "step", Agent: a.name, Plan: p.Name, Step: i, Status: "error", Error: err.Error(), Time: time.Now()})
-			return false, fmt.Errorf("step %d failed: %w", i, err)
+			return result, fmt.Errorf("step %d failed: %w", i, err)
 		}
-		executed = true
+		if explicitResult, ok := instanceScope.Get(planStepResultVar); ok && explicitResult != DBNull {
+			stepValue = explicitResult
+		}
+		result.Executed = true
+		result.Output = stepValue
+		result.Steps = append(result.Steps, PlanStepResult{Index: i, Status: "completed", Result: stepValue})
 		broadcastAgentEvent(AgentEvent{Type: "step", Agent: a.name, Plan: p.Name, Step: i, Status: "finish", Time: time.Now()})
 		select {
 		case <-ctx.Done():
+			result.Status = "canceled"
+			result.Reason = "canceled"
+			result.Error = ctx.Err().Error()
 			broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "cancel", Time: time.Now()})
-			return executed, ctx.Err()
+			return result, ctx.Err()
 		default:
 		}
 	}
+	result.Status = "completed"
 	broadcastAgentEvent(AgentEvent{Type: "plan", Agent: a.name, Plan: p.Name, Status: "finish", Time: time.Now()})
-	return executed, nil
+	return result, nil
+}
+
+// RunPlanOnceResult executes a plan once and returns a structured execution result.
+func RunPlanOnceResult(rt *Runtime, agentName string, p *Plan, instanceVars map[string]Value, mode string) (*PlanRunResult, error) {
+	if rt == nil {
+		return nil, errors.New("nil runtime")
+	}
+	m := strings.ToLower(strings.TrimSpace(mode))
+	if m == "" {
+		m = "bdi"
+	}
+	if m == "plain" {
+		ag := newAgent(rt, 1, 0)
+		ag.name = agentName
+		return ag.runPlanOnceWithResult(p, instanceVars, m)
+	}
+	agentRT := rt.CloneRuntime()
+	rp := rebindPlanToRuntime(p, agentRT)
+	ag := newAgent(agentRT, 1, 0)
+	ag.name = agentName
+	return ag.runPlanOnceWithResult(rp, instanceVars, m)
 }
 
 // execFnInScope executes a function value with rt.currentScope set to the provided scope
@@ -445,6 +634,20 @@ func (a *Agent) execFnInScope(fn *FunctionValue, scope *Scope) (Value, error) {
 
 // RegisterPlanFunctions wires plan/agent functions into the runtime
 func RegisterPlanFunctions(rt *Runtime) {
+	setPlanResult := func(args ...Value) (Value, error) {
+		if len(args) != 1 {
+			return nil, errors.New("setStepResult(value)")
+		}
+		scope := rt.currentScope
+		if scope == nil {
+			scope = rt.globalScope
+		}
+		scope.Set(planStepResultVar, args[0])
+		return args[0], nil
+	}
+	rt.Register("setStepResult", setPlanResult)
+	rt.Register("setPlanResult", setPlanResult)
+
 	// plan(name, paramsArray, triggerFn, guardFn, stepsArray, dropFn)
 	rt.Register("plan", func(args ...Value) (Value, error) {
 		if len(args) != 6 {
@@ -635,10 +838,10 @@ func RegisterPlanFunctions(rt *Runtime) {
 
 	// ---- Name-based Agent registry functions (for REST/NSQ control and dashboard) ----
 
-	// agentStartNamed(name, plan[, maxConcurrent=1][, pollSeconds=3]) -> true
+	// agentStartNamed(name, plan[, maxConcurrent=1][, pollSeconds=3][, lifecycle='polling']) -> true
 	rt.Register("agentStartNamed", func(args ...Value) (Value, error) {
 		if len(args) < 2 {
-			return nil, errors.New("agentStartNamed(name, plan[, maxConcurrent][, pollSeconds])")
+			return nil, errors.New("agentStartNamed(name, plan[, maxConcurrent][, pollSeconds][, lifecycle])")
 		}
 		name, ok := args[0].(Str)
 		if !ok || name == "" {
@@ -650,17 +853,25 @@ func RegisterPlanFunctions(rt *Runtime) {
 		}
 		maxC := 1
 		pollSec := 3
-		if len(args) > 2 {
-			if n, ok := args[2].(Number); ok && n > 0 {
-				maxC = int(n)
+		lifecycle := AgentLifecyclePolling
+		numberArg := 0
+		for _, arg := range args[2:] {
+			switch v := arg.(type) {
+			case Number:
+				if v <= 0 {
+					continue
+				}
+				if numberArg == 0 {
+					maxC = int(v)
+				} else if numberArg == 1 {
+					pollSec = int(v)
+				}
+				numberArg++
+			case Str:
+				lifecycle = normalizeAgentLifecycle(string(v))
 			}
 		}
-		if len(args) > 3 {
-			if n, ok := args[3].(Number); ok && n > 0 {
-				pollSec = int(n)
-			}
-		}
-		if err := defaultAgents.Start(string(name), rt, p, maxC, time.Duration(pollSec)*time.Second); err != nil {
+		if err := defaultAgents.StartWithLifecycle(string(name), rt, p, maxC, time.Duration(pollSec)*time.Second, lifecycle); err != nil {
 			return nil, err
 		}
 		return Bool(true), nil
@@ -770,18 +981,35 @@ func (r *agentRegistry) Get(name string) *Agent {
 }
 
 func (r *agentRegistry) Start(name string, rt *Runtime, pl *Plan, maxC int, pollEvery time.Duration) error {
+	return r.StartWithLifecycle(name, rt, pl, maxC, pollEvery, AgentLifecyclePolling)
+}
+
+func (r *agentRegistry) StartWithLifecycle(name string, rt *Runtime, pl *Plan, maxC int, pollEvery time.Duration, lifecycle string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	lifecycle = normalizeAgentLifecycle(lifecycle)
+	if pollEvery <= 0 && lifecycle == AgentLifecyclePolling {
+		pollEvery = 3 * time.Second
+	}
+	if lifecycle != AgentLifecyclePolling {
+		pollEvery = 0
+	}
 	if ag, ok := r.agents[name]; ok {
 		// re-use existing agent: register plan and ensure running
 		// rebind plan to the existing agent's runtime before registering
 		ag.register(rebindPlanToRuntime(pl, ag.rt))
-		ag.start(context.Background())
+		ag.lifecycle = lifecycle
+		ag.pollEvery = pollEvery
+		if lifecycle == AgentLifecycleCallOnly {
+			ag.stop()
+		} else {
+			ag.start(context.Background())
+		}
 		return nil
 	}
 	// Create an isolated per-agent runtime cloned from the provided bootstrap runtime
 	agentRT := rt.CloneRuntime()
-	ag := newAgent(agentRT, maxC, pollEvery)
+	ag := newAgent(agentRT, maxC, pollEvery, lifecycle)
 	ag.name = name
 	// Rebind plan functions to the agent runtime's scope
 	ag.register(rebindPlanToRuntime(pl, agentRT))
@@ -816,6 +1044,10 @@ func DefaultAgentStart(name string, rt *Runtime, pl *Plan, maxC int, pollEvery t
 	return defaultAgents.Start(name, rt, pl, maxC, pollEvery)
 }
 
+func DefaultAgentStartWithLifecycle(name string, rt *Runtime, pl *Plan, maxC int, pollEvery time.Duration, lifecycle string) error {
+	return defaultAgents.StartWithLifecycle(name, rt, pl, maxC, pollEvery, lifecycle)
+}
+
 func DefaultAgentStop(name string) { defaultAgents.Stop(name) }
 
 func DefaultAgentPublish(name string) bool {
@@ -826,9 +1058,36 @@ func DefaultAgentPublish(name string) bool {
 	return false
 }
 
+func DefaultAgentActivate(name string) ([]map[string]interface{}, bool) {
+	if ag := defaultAgents.Get(name); ag != nil {
+		if ag.lifecycle == AgentLifecycleCallOnly {
+			return []map[string]interface{}{}, true
+		}
+		results := ag.tryScheduleSync("bdi")
+		out := make([]map[string]interface{}, 0, len(results))
+		for _, result := range results {
+			if result != nil {
+				out = append(out, result.ToJSON())
+			}
+		}
+		return out, true
+	}
+	return nil, false
+}
+
 func DefaultAgentBelief(name, key string, v Value) bool {
 	if ag := defaultAgents.Get(name); ag != nil {
 		ag.SetBelief(key, v)
+		return true
+	}
+	return false
+}
+
+func DefaultAgentSetBeliefQuiet(name, key string, v Value) bool {
+	if ag := defaultAgents.Get(name); ag != nil {
+		ag.beliefsMu.Lock()
+		ag.beliefs[key] = v
+		ag.beliefsMu.Unlock()
 		return true
 	}
 	return false

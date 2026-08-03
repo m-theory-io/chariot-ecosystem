@@ -39,6 +39,7 @@ func RegisterAll(rt *Runtime) {
 	RegisterMCPFunctions(rt)            // Registers MCP client functions
 	RegisterKnapsackFunctions(rt)       // Registers knapsack solver functions
 	RegisterRLFunctions(rt)             // Registers RL Support (NBA scoring) functions
+	RegisterSignalFunctions(rt)         // Registers signal sources and belief feeds
 	RegisterTypeDispatchedFunctions(rt) // Registers polymorphic functions LAST
 	RegisterPlanFunctions(rt)           // Registers plan/agent functions
 

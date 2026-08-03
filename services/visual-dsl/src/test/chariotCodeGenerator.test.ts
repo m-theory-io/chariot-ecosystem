@@ -280,11 +280,169 @@ const testMatrixMathGeneration = () => {
   }
 };
 
+const testBdiSignalGeneration = () => {
+  const sampleDiagram = {
+    name: 'bdiSignals',
+    nodes: [
+      {
+        id: 'start',
+        type: 'logicon',
+        position: { x: 0, y: 0 },
+        data: { label: 'Start', icon: '🚀', category: 'control' }
+      },
+      {
+        id: 'signalRegister-1',
+        type: 'logicon',
+        position: { x: 200, y: 0 },
+        data: {
+          label: 'signalRegister',
+          icon: '📡',
+          category: 'bdi',
+          properties: { sourceName: 'roomTemp', kind: 'static', config: "map('value', 65)" }
+        }
+      },
+      {
+        id: 'agentStartNamed-2',
+        type: 'logicon',
+        position: { x: 400, y: 0 },
+        data: {
+          label: 'agentStartNamed',
+          icon: '▶️',
+          category: 'bdi',
+          properties: { agentName: 'thermostat', plan: 'pThermostat', maxConcurrent: '1', pollSeconds: '0', lifecycle: 'eventOnly' }
+        }
+      },
+      {
+        id: 'feed-3',
+        type: 'logicon',
+        position: { x: 600, y: 0 },
+        data: {
+          label: 'signalStartBeliefFeed',
+          icon: '🔁',
+          category: 'bdi',
+          properties: { feedName: 'roomTempFeed', sourceName: 'roomTemp', agentName: 'thermostat', beliefName: 'currentTemp', intervalSeconds: '3' }
+        }
+      }
+    ],
+    edges: [
+      { id: 'start-signal', source: 'start', target: 'signalRegister-1' },
+      { id: 'signal-agent', source: 'signalRegister-1', target: 'agentStartNamed-2' },
+      { id: 'agent-feed', source: 'agentStartNamed-2', target: 'feed-3' }
+    ],
+    nestingRelations: []
+  };
+
+  try {
+    const generatedCode = generateChariotCodeFromDiagram(JSON.stringify(sampleDiagram), { embedSource: false });
+    console.log('BDI signal nodes code:');
+    console.log(generatedCode);
+    return generatedCode;
+  } catch (error) {
+    console.error('BDI signal code generation failed:', error);
+    return null;
+  }
+};
+
+const testFuncGeneration = () => {
+  const sampleDiagram = {
+    name: 'funcSmoke',
+    nodes: [
+      {
+        id: 'start',
+        type: 'logicon',
+        position: { x: 0, y: 0 },
+        data: { label: 'Start', icon: '🚀', category: 'control' }
+      },
+      {
+        id: 'func-1',
+        type: 'logicon',
+        position: { x: 200, y: 0 },
+        data: {
+          label: 'func',
+          icon: '⚙️',
+          category: 'control',
+          properties: { parameters: [], body: "or(smaller(belief('thermostat','currentTemp'), belief('thermostat','lower')), bigger(belief('thermostat','currentTemp'), belief('thermostat','upper')))" }
+        }
+      }
+    ],
+    edges: [
+      { id: 'start-func', source: 'start', target: 'func-1' }
+    ],
+    nestingRelations: []
+  };
+
+  try {
+    const generatedCode = generateChariotCodeFromDiagram(JSON.stringify(sampleDiagram), { embedSource: false });
+    console.log('func node code:');
+    console.log(generatedCode);
+    return generatedCode;
+  } catch (error) {
+    console.error('func code generation failed:', error);
+    return null;
+  }
+};
+
+const testDeclareNestedFuncGeneration = () => {
+  const sampleDiagram = {
+    name: 'declareNestedFunc',
+    nodes: [
+      {
+        id: 'start',
+        type: 'logicon',
+        position: { x: 0, y: 0 },
+        data: { label: 'Start', icon: '🚀', category: 'control' }
+      },
+      {
+        id: 'declare-trig',
+        type: 'logicon',
+        position: { x: 200, y: 0 },
+        data: {
+          label: 'Declare',
+          icon: '📋',
+          category: 'value',
+          properties: { variableName: 'trig', typeSpecifier: 'F' }
+        }
+      },
+      {
+        id: 'func-trig',
+        type: 'logicon',
+        position: { x: 200, y: 160 },
+        data: {
+          label: 'func',
+          icon: '⚙️',
+          category: 'control',
+          properties: { parameters: [], body: "or(smaller(belief('thermostat','currentTemp'), belief('thermostat','lower')), bigger(belief('thermostat','currentTemp'), belief('thermostat','upper')))" }
+        }
+      }
+    ],
+    edges: [
+      { id: 'start-declare', source: 'start', target: 'declare-trig' },
+      { id: 'declare-func', source: 'declare-trig', target: 'func-trig' }
+    ],
+    nestingRelations: [
+      { parentId: 'declare-trig', childId: 'func-trig', order: 0 }
+    ]
+  };
+
+  try {
+    const generatedCode = generateChariotCodeFromDiagram(JSON.stringify(sampleDiagram), { embedSource: false });
+    console.log('declare nested func code:');
+    console.log(generatedCode);
+    return generatedCode;
+  } catch (error) {
+    console.error('declare nested func code generation failed:', error);
+    return null;
+  }
+};
+
 // Run the test in browser environment
 if (typeof window !== 'undefined') {
   console.log('Testing Chariot Code Generator...');
   testUsersAgentGeneration();
   testMatrixMathGeneration();
+  testBdiSignalGeneration();
+  testFuncGeneration();
+  testDeclareNestedFuncGeneration();
 }
 
-export { testUsersAgentGeneration, testMatrixMathGeneration };
+export { testUsersAgentGeneration, testMatrixMathGeneration, testBdiSignalGeneration, testFuncGeneration, testDeclareNestedFuncGeneration };

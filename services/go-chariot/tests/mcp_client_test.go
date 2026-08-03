@@ -29,7 +29,7 @@ func TestMCPClient_ListAndExecute(t *testing.T) {
 		{
 			Name: "Execute code via MCP execute tool",
 			Script: []string{
-				"setq(mcp, mcpConnect(map('transport','stdio','command','" + scriptPath + "')))",
+				"setq(mcp, mcpConnect(map('transport','stdio','command','" + scriptPath + "','env',map('CHARIOT_MCP_EXECUTE_ENABLED','true'))))",
 				"setq(res, mcpCallTool(mcp, 'execute', map('code','add(1,2)')))",
 				"setq(resStr, string(res))",
 				"mcpClose(mcp)",
