@@ -1489,6 +1489,9 @@
                         <label for="fileScopeSelect">Scope:</label>
                         <select id="fileScopeSelect" disabled>
                             <option value="global">Global</option>
+                            <option value="sandbox">Sandbox</option>
+                            <option value="listeners">Listeners</option>
+                            <option value="bootstrap">Bootstrap</option>
                         </select>
                     </div>
                     <div class="file-selector">
@@ -1807,12 +1810,13 @@
             return editorPaneState[paneId || 'primary'];
         }
 
-        function ensurePaneElements() {
+        function ensurePaneElements(forceRestore) {
             const container = document.getElementById('editorContainer');
             if (container && !editorContainerTemplate) {
                 editorContainerTemplate = container.innerHTML;
             }
-            if (container && editorContainerTemplate) {
+            const editorView = currentTab === 'files' || currentTab === 'functions' || currentTab === 'diagrams';
+            if (container && editorContainerTemplate && (forceRestore || editorView)) {
                 const primaryBody = document.getElementById('editorPanePrimaryBody');
                 const secondaryBody = document.getElementById('editorPaneSecondaryBody');
                 if (!primaryBody || !secondaryBody) {
@@ -1823,6 +1827,9 @@
                         pane.tabStripEl = null;
                     });
                 }
+            }
+            if (!forceRestore && !editorView) {
+                return;
             }
             Object.values(editorPaneState).forEach(pane => {
                 if (!pane.paneEl) {
@@ -3710,7 +3717,7 @@
 
         // Set up Monaco editor (called from initializeEditor)
         function setupMonacoEditor() {
-            ensurePaneElements();
+            ensurePaneElements(true);
             if (editor) {
                 try { editor.dispose(); } catch (e) { console.warn('Primary editor disposal error:', e); }
                 editor = null;
@@ -4863,29 +4870,6 @@
             const mcpToolbar = document.getElementById('mcpToolbar');
 
             if (filesTab && functionsTab && dashboardTab && agentsTab && diagramsTab && mcpTab && fileToolbar && functionsToolbar && dashboardToolbar && agentsToolbar && diagramsToolbar && mcpToolbar) {
-                // Helpers to manage dashboard auto-refresh lifecycle
-                function stopDashboardAutoRefresh() {
-                    if (dashboardAutoRefresh) {
-                        clearInterval(dashboardAutoRefresh);
-                        dashboardAutoRefresh = null;
-                    }
-                    // Also close WS if open
-                    try { if (dashboardWS) { dashboardWS.close(); dashboardWS = null; } } catch (e) { }
-                }
-
-                function startDashboardAutoRefresh() {
-                    // Ensure only one timer is running
-                    stopDashboardAutoRefresh();
-                    // Poll every 30 seconds to reflect session changes/timeouts
-                    dashboardAutoRefresh = setInterval(() => {
-                        if (currentTab === 'dashboard' && typeof fetchAndUpdateDashboard === 'function') {
-                            try { fetchAndUpdateDashboard(); } catch (e) { /* ignore */ }
-                        } else {
-                            stopDashboardAutoRefresh();
-                        }
-                    }, 30000);
-                }
-
                 function showToolbar(selected) {
                     const previousTab = currentTab;
                     // Hide all toolbars
@@ -9748,6 +9732,32 @@
         let dashboardWSBackoffMs = 1000; // start at 1s, cap later
         let dashboardWSForcedPolling = false; // only used if we truly can't WS at all
 
+        function stopDashboardAutoRefresh() {
+            if (dashboardAutoRefresh) {
+                clearInterval(dashboardAutoRefresh);
+                dashboardAutoRefresh = null;
+            }
+            try {
+                if (dashboardWS) {
+                    dashboardWS.onclose = null;
+                    dashboardWS.onerror = null;
+                    dashboardWS.close();
+                    dashboardWS = null;
+                }
+            } catch (e) { }
+        }
+
+        function startDashboardAutoRefresh() {
+            stopDashboardAutoRefresh();
+            dashboardAutoRefresh = setInterval(() => {
+                if (currentTab === 'dashboard' && typeof fetchAndUpdateDashboard === 'function') {
+                    fetchAndUpdateDashboard().catch(e => console.warn('Dashboard refresh failed', e));
+                } else {
+                    stopDashboardAutoRefresh();
+                }
+            }, 30000);
+        }
+
         function showDashboardStatusBanner(text, kind) {
             const elId = 'dashboardError';
             let el = document.getElementById(elId);
@@ -10178,7 +10188,7 @@
                         '<th style="text-align: left; padding: 12px; color: #569cd6;">Name</th>' +
                         '<th style="text-align: left; padding: 12px; color: #569cd6;">Script</th>' +
                         '<th style="text-align: left; padding: 12px; color: #569cd6;">Status</th>' +
-                        '<th style="text-align: left; padding: 12px; color: #569cd6;">Auto Start</th>' +
+                        '<th style="text-align: left; padding: 12px; color: #569cd6;">DevTest preference</th>' +
                         '<th style="text-align: left; padding: 12px; color: #569cd6;">Health</th>' +
                         '<th style="text-align: left; padding: 12px; color: #569cd6;">Actions</th>' +
                         '</tr>' +
@@ -10214,7 +10224,7 @@
                         '</div>' +
                         '<label style="display:flex; flex-direction:column; gap:4px;">On Start<select id="listenerOnStartSelect" style="padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #3e3e42; border-radius:4px;"></select></label>' +
                         '<label style="display:flex; flex-direction:column; gap:4px;">On Exit<select id="listenerOnExitSelect" style="padding:8px; background:#1e1e1e; color:#d4d4d4; border:1px solid #3e3e42; border-radius:4px;"></select></label>' +
-                        '<label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="listenerAutoStart"/> Auto Start</label>' +
+                        '<label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="listenerAutoStart" disabled/> DevTest auto-start (disabled; start manually)</label>' +
                         '</div>' +
                         '<div style="padding:12px 16px; border-top:1px solid #3e3e42; display:flex; justify-content:flex-end; gap:8px;">' +
                         '<button id="listenerModalCancel" class="toolbar-button">Cancel</button>' +
@@ -10254,8 +10264,8 @@
                             '</td>' +
                             '<td style="padding:12px;">' + escapeHtml(ls.name || '') + '</td>' +
                             '<td style="padding:12px;">' + escapeHtml(ls.script_file || ls.script || '—') + '</td>' +
-                            '<td style="padding:12px;">' + '<span style="color:' + (status === 'running' ? '#4ec9b0' : '#f44747') + '">' + status + '</span></td>' +
-                            '<td style="padding:12px;">' + (ls.auto_start ? 'Yes' : 'No') + '</td>' +
+                            '<td style="padding:12px;">' + '<span style="color:' + (status === 'running' ? '#4ec9b0' : '#f44747') + '">' + escapeHtml(status) + '</span>' + (ls.last_error ? '<div style="color:#f44747; font-size:12px;">' + escapeHtml(ls.last_error) + '</div>' : '') + '</td>' +
+                            '<td style="padding:12px;">' + (ls.auto_start_devtest ? 'Saved (disabled)' : 'Manual') + '</td>' +
                             '<td style="padding:12px;">' + health + '</td>' +
                             '<td style="padding:12px;">' +
                             '<button class="toolbar-button" data-act="start">Start</button> ' +
@@ -10397,7 +10407,7 @@
             ensureSelectOption(exitSel, exitValue, exitValue);
             if (exitSel) exitSel.value = exitValue;
             const autoCheckbox = document.getElementById('listenerAutoStart');
-            if (autoCheckbox) autoCheckbox.checked = !!listener.auto_start;
+            if (autoCheckbox) autoCheckbox.checked = !!listener.auto_start_devtest;
         }
 
         function ensureSelectOption(selectEl, value, label) {
@@ -10461,7 +10471,7 @@
                     script_file: scriptFile,
                     on_start_file: onStart,
                     on_exit_file: onExit,
-                    auto_start: autoStart
+                    auto_start_devtest: autoStart
                 };
                 const actionLabel = listenerModalMode === 'edit' ? 'Update' : 'Create';
                 try {

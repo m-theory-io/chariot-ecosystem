@@ -1,26 +1,24 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/listeners"
+	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/application"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 	"go.uber.org/zap"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/handlers"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/routes"
 	mcpserver "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
 	"github.com/bhouse1273/kissflag"
-
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 func init() {
@@ -32,6 +30,7 @@ func init() {
 	cfg.ChariotConfig.BoolVar("dev_rest_enabled", &cfg.ChariotConfig.DevRESTEnabled, true)
 	cfg.ChariotConfig.IntVar("port", &cfg.ChariotConfig.Port, 8087)
 	cfg.ChariotConfig.IntVar("timeout", &cfg.ChariotConfig.Timeout, 30)
+	cfg.ChariotConfig.IntVar("shutdown_timeout", &cfg.ChariotConfig.ShutdownTimeout, 30)
 	cfg.ChariotConfig.BoolVar("verbose", &cfg.ChariotConfig.Verbose, false)
 	cfg.ChariotConfig.BoolVar("ssl", &cfg.ChariotConfig.SSL, false)
 	// Couchbase connectivity
@@ -68,7 +67,7 @@ func init() {
 	cfg.ChariotConfig.StringVar("sandbox_root", &cfg.ChariotConfig.SandboxRoot, "./data/sandboxes")
 	cfg.ChariotConfig.StringVar("sandbox_default_scope", &cfg.ChariotConfig.SandboxDefaultScope, "sandbox")
 	// Function library
-	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stdlib.json")
+	cfg.ChariotConfig.StringVar("function_lib", &cfg.ChariotConfig.FunctionLib, "stlib.json")
 	// Bootstrap script
 	cfg.ChariotConfig.StringVar("bootstrap", &cfg.ChariotConfig.Bootstrap, "bootstrap.ch")
 	cfg.ChariotConfig.BoolVar("bootstrap_edit_enabled", &cfg.ChariotConfig.BootstrapEditEnabled, false)
@@ -104,18 +103,23 @@ func init() {
 
 func main() {
 	slogger := logs.NewZapLogger()
-	defer slogger.Sync() // Ensure logger is flushed before exit
 	cfg.ChariotLogger = slogger
+	if err := run(slogger); err != nil {
+		slogger.Error("Chariot service stopped with an error", zap.Error(err))
+		_ = slogger.Sync()
+		os.Exit(1)
+	}
+	_ = slogger.Sync()
+}
+
+func run(slogger *logs.ZapLogger) error {
 	slogger.Info("Starting Chariot service beginning...")
-	// Warn if legacy env var is present
 	if legacy := os.Getenv("CHARIOT_BOOTSTRAP_FILE"); legacy != "" {
 		slogger.Warn("Ignoring legacy env var CHARIOT_BOOTSTRAP_FILE; use CHARIOT_BOOTSTRAP instead",
 			zap.String("legacy_value", legacy),
 			zap.String("canonical_var", "CHARIOT_BOOTSTRAP"),
-			zap.String("canonical_value", cfg.ChariotConfig.Bootstrap),
-		)
+			zap.String("canonical_value", cfg.ChariotConfig.Bootstrap))
 	}
-	// Log key configuration for diagnostics
 	slogger.Info("Chariot configuration",
 		zap.String("DataPath", cfg.ChariotConfig.DataPath),
 		zap.String("TreePath", cfg.ChariotConfig.TreePath),
@@ -126,144 +130,83 @@ func main() {
 		zap.Bool("MCPExecuteEnabled", cfg.ChariotConfig.MCPExecuteEnabled),
 		zap.Bool("Headless", cfg.ChariotConfig.Headless),
 		zap.Bool("DevRESTEnabled", cfg.ChariotConfig.DevRESTEnabled),
-	)
+		zap.Int("ShutdownTimeoutSeconds", cfg.ChariotConfig.ShutdownTimeout))
+
 	if spec := strings.TrimSpace(cfg.ChariotConfig.NSQResponseTopics); spec != "" {
 		if err := chariot.RegisterResponseTopicsFromSpec(spec); err != nil {
-			cfg.ChariotLogger.Warn("Failed to register NSQ response topics from env", zap.Error(err))
-		} else {
-			cfg.ChariotLogger.Info("Registered NSQ response topics", zap.String("spec", spec))
+			return fmt.Errorf("register NSQ response topics: %w", err)
 		}
+		cfg.ChariotLogger.Info("Registered NSQ response topics", zap.String("spec", spec))
 	}
-	// Create session manager with 30 minute timeout, clean up every 5 minutes
-	timeOut := time.Duration(cfg.ChariotConfig.Timeout) * time.Minute
-	cleanUpInterval := time.Duration(5) * time.Minute
-	sessionManager := chariot.NewSessionManager(timeOut, cleanUpInterval)
-	if err := vault.InitVaultClient(); err != nil { // Initialize Azure Key Vault client
-		cfg.ChariotLogger.Error("Failed to initialize Vault client", zap.Error(err))
-		return
+	if err := vault.InitVaultClient(); err != nil {
+		return fmt.Errorf("initialize Vault client: %w", err)
 	}
 
-	// Start MCP server in stdio mode if enabled, then exit (intended to be launched as a subprocess by clients)
-	if cfg.ChariotConfig.MCPEnabled && strings.ToLower(cfg.ChariotConfig.MCPTransport) == "stdio" {
+	// Stdio remains an explicit tooling mode and does not launch application listeners.
+	if cfg.ChariotConfig.MCPEnabled && strings.EqualFold(cfg.ChariotConfig.MCPTransport, "stdio") {
 		cfg.ChariotLogger.Info("Starting MCP (stdio) server")
 		if err := mcpserver.RunSTDIO(); err != nil {
-			cfg.ChariotLogger.Error("MCP stdio server error", zap.Error(err))
+			return fmt.Errorf("MCP stdio server: %w", err)
 		}
-		return
+		return nil
+	}
+	if !cfg.ChariotConfig.Headless && !cfg.ChariotConfig.DevRESTEnabled {
+		cfg.ChariotLogger.Info("No application service surface is enabled; exiting")
+		return nil
 	}
 
-	// Optionally start headless session (does not block if Dev REST is also enabled)
-	if cfg.ChariotConfig.Headless {
-		// Initialize a bootstrap runtime that mirrors the REST handlers runtime
-		bootstrapRuntime := chariot.NewRuntime()
-		chariot.RegisterAll(bootstrapRuntime)
-
-		// Load stdlib functions from configured library and register them
-		if cfg.ChariotConfig.FunctionLib != "" {
-			if funcs, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
-				for name, fn := range funcs {
-					bootstrapRuntime.RegisterFunction(name, fn)
-				}
-			} else {
-				cfg.ChariotLogger.Warn("Failed to load function library", zap.String("file", cfg.ChariotConfig.FunctionLib), zap.Error(err))
-			}
-		}
-
-		// Optionally load bootstrap script (users, helpers, etc.)
-		if cfg.ChariotConfig.Bootstrap != "" {
-			if fullPath, err := chariot.GetSecureFilePath(cfg.ChariotConfig.Bootstrap, "data"); err == nil {
-				if content, err := os.ReadFile(fullPath); err == nil {
-					if _, err := bootstrapRuntime.ExecProgram(string(content)); err != nil {
-						cfg.ChariotLogger.Warn("Failed to execute bootstrap script in headless mode", zap.Error(err))
-					}
-				} else {
-					cfg.ChariotLogger.Warn("Failed to read bootstrap script in headless mode", zap.Error(err))
-				}
-			} else {
-				cfg.ChariotLogger.Warn("Failed to resolve bootstrap path in headless mode", zap.Error(err))
-			}
-		}
-
-		// Initialize listeners manager and auto-start listeners marked AutoStart
-		lman := listeners.NewManager(bootstrapRuntime)
-		if err := lman.Load(); err != nil {
-			cfg.ChariotLogger.Warn("Failed to load listeners registry in headless mode", zap.Error(err))
-		}
-		for _, l := range lman.List() {
-			if l.AutoStart {
-				if _, err := lman.Start(l.Name, cfg.ChariotConfig.Port); err != nil {
-					cfg.ChariotLogger.Warn("Failed to auto-start listener (headless)", zap.String("name", l.Name), zap.Error(err))
-				} else {
-					cfg.ChariotLogger.Info("Auto-started listener (headless)", zap.String("name", l.Name))
-				}
-			}
-		}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	applicationRuntime, err := application.BuildApplicationRuntime(ctx, application.RuntimeOptions{
+		FunctionLibrary: cfg.ChariotConfig.FunctionLib,
+		Bootstrap:       cfg.ChariotConfig.Bootstrap,
+	})
+	if err != nil {
+		// An incomplete rollback returns its still-owned runtime alongside the
+		// startup error. Retry with fresh grace, not the cancelled startup context;
+		// arbitrary script execution must not hold process failure open forever.
+		return errors.Join(fmt.Errorf("initialize application runtime: %w", err), cleanupApplicationRuntime(applicationRuntime))
 	}
 
-	// Optionally start Dev REST API server
-	if cfg.ChariotConfig.DevRESTEnabled {
-		h := handlers.NewHandlers(sessionManager)
-		e := echo.New()
-		routes.RegisterRoutes(e, h)
-		e.Use(middleware.Logger())
-		e.Use(middleware.Recover())
-		e.Use(logs.ZapLoggerMiddleware(slogger.Get()))
-
-		// Add this middleware in your Echo setup
-		e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c echo.Context) error {
-				log.Printf("ECHO DEBUG: Received Authorization header: '%s'", c.Request().Header.Get("Authorization"))
-				log.Printf("ECHO DEBUG: All headers: %+v", c.Request().Header)
-				log.Printf("ECHO DEBUG: Method: %s, Path: %s", c.Request().Method, c.Request().URL.Path)
-				return next(c)
-			}
-		})
-
-		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins: []string{"*"},
-			AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
-			AllowHeaders: []string{"Content-Type", "Authorization"}, // Make sure Authorization is here
-		}))
-
-		basePath := cfg.ChariotConfig.CertPath
-		if basePath == "" {
-			basePath = "./.certs" // Default path if not set
-		}
-		fullPathCrt := fmt.Sprintf("%s/server.crt", basePath)
-		fullPathKey := fmt.Sprintf("%s/server.key", basePath)
-
-		// debug
-		fmt.Println("Current working directory:", func() string { dir, _ := os.Getwd(); return dir }())
-		fmt.Println("Looking for cert at:", fullPathCrt)
-		fmt.Println("Looking for key at:", fullPathKey)
-
-		// Optionally mount MCP endpoint for network clients.
-		if cfg.ChariotConfig.MCPEnabled {
-			mcpOptions := mcpserver.ServerOptions{RuntimeProvider: h.BootstrapRuntime}
-			switch strings.ToLower(cfg.ChariotConfig.MCPTransport) {
-			case "ws":
-				e.GET(cfg.ChariotConfig.MCPWSPath, func(c echo.Context) error { return mcpserver.HandleWSWithOptions(c, mcpOptions) })
-				cfg.ChariotLogger.Info("MCP WebSocket route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
-			case "http", "sse":
-				mcpHTTPHandler := echo.WrapHandler(mcpserver.NewHTTPHandler(mcpOptions))
-				e.GET(cfg.ChariotConfig.MCPWSPath, mcpHTTPHandler)
-				e.POST(cfg.ChariotConfig.MCPWSPath, mcpHTTPHandler)
-				cfg.ChariotLogger.Info("MCP HTTP/SSE route enabled", zap.String("path", cfg.ChariotConfig.MCPWSPath))
-			}
-		}
-
-		// Start server with or without SSL (this call blocks)
-		if cfg.ChariotConfig.SSL {
-			fmt.Printf("Starting TLS server on port %d\n", cfg.ChariotConfig.Port)
-			e.Logger.Fatal(e.StartTLS(fmt.Sprintf(":%d", cfg.ChariotConfig.Port), fullPathCrt, fullPathKey))
-		} else {
-			fmt.Printf("Starting HTTP server on port %d (SSL disabled for nginx termination)\n", cfg.ChariotConfig.Port)
-			e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.ChariotConfig.Port)))
-		}
-	} else {
-		// If REST is disabled and headless is enabled, keep the process alive
-		if cfg.ChariotConfig.Headless {
-			select {}
-		}
+	sessionManager := chariot.NewSessionManager(
+		time.Duration(cfg.ChariotConfig.Timeout)*time.Minute,
+		5*time.Minute)
+	host, err := application.NewHost(application.HostOptions{
+		Runtime:         applicationRuntime,
+		SessionManager:  sessionManager,
+		Logger:          slogger,
+		DevRESTEnabled:  cfg.ChariotConfig.DevRESTEnabled,
+		Port:            cfg.ChariotConfig.Port,
+		SSL:             cfg.ChariotConfig.SSL,
+		CertPath:        cfg.ChariotConfig.CertPath,
+		MCPEnabled:      cfg.ChariotConfig.MCPEnabled,
+		MCPTransport:    cfg.ChariotConfig.MCPTransport,
+		MCPPath:         cfg.ChariotConfig.MCPWSPath,
+		ShutdownTimeout: time.Duration(cfg.ChariotConfig.ShutdownTimeout) * time.Second,
+	})
+	if err != nil {
+		cleanupErr := cleanupApplicationRuntime(applicationRuntime)
+		sessionManager.Stop()
+		return errors.Join(fmt.Errorf("create application host: %w", err), cleanupErr)
 	}
+	return host.Run(ctx)
+}
+
+// Keep the runtime referenced throughout a bounded final cleanup attempt. A
+// timeout does not prove blocked scripts have exited; main reports failure and
+// exits rather than waiting indefinitely for those scripts.
+func cleanupApplicationRuntime(applicationRuntime *application.ApplicationRuntime) error {
+	if applicationRuntime == nil || applicationRuntime.Runtime == nil {
+		return nil
+	}
+	grace := time.Duration(cfg.ChariotConfig.ShutdownTimeout) * time.Second
+	if grace <= 0 {
+		grace = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), grace)
+	defer cancel()
+	if err := applicationRuntime.Runtime.ShutdownListeners(ctx); err != nil {
+		return fmt.Errorf("cleanup application runtime: %w", err)
+	}
+	return nil
 }

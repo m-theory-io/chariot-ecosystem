@@ -1,6 +1,13 @@
-// Load the agent
-setq(agentNode, treeLoad("debtorPlans.json"))
-declareGlobal(agent, 'T', agentNode)
+// Runnable transport example, not a business decision engine.
+// Replace this echo result with your validated agent/rule evaluation.
+setq(decisionHandler, func(req) {
+  return(httpResponse(200, map("service", "decision-example", "request", req)))
+})
 
-// Start HTTP listener with multiple handlers
-listen(8050, "routeRequest")
+listen(8050, decisionHandler, map(
+  "methods", array("POST"),
+  "base_path", "/decision",
+  "strict_json", true,
+  "on_start", "logPrint('Decision listener started')",
+  "on_exit", "logPrint('Decision listener exited')"
+))

@@ -1,5 +1,8 @@
 # Chariot Language Reference
 
+> Canonical System Functions reference. The service-local document links here;
+> update this file rather than maintaining a second copy.
+
 ## System Functions
 
 Chariot provides system-level functions for environment access, logging, runtime/platform information, time utilities, program control, and server listening.
@@ -18,7 +21,10 @@ Chariot provides system-level functions for environment access, logging, runtime
 | `timeFormat(timestamp, format)` | Format a Unix timestamp using a Go-style format string |
 | `exit([code])`     | Request program exit with optional exit code (default: 0)        |
 | `sleep(ms)`        | Pause execution for the specified milliseconds                   |
-| `listen(port [, onstart, onexit])` | Start a server listener on the given port, with optional startup/shutdown programs |
+| `listen(port, handler [, options])` | Start a validated HTTP application listener; see [Listener Functions](ListenerFunctions.md) |
+| `listenNSQ(topic, channel, handlers [, options])` | Start an NSQ application listener; see [Listener Functions](ListenerFunctions.md) |
+| `httpResponse(status [, headers], body)` | Create explicit HTTP response metadata |
+| `listenerList()`, `listenerStatus(id)`, `listenerStop(id)` | Inspect and control listeners owned by the current runtime |
 
 ---
 
@@ -94,17 +100,16 @@ Pauses execution for the specified number of milliseconds.
 sleep(500)  // Sleep for 500 milliseconds
 ```
 
-#### `listen(port [, onstart, onexit])`
+#### Listener functions
 
-Starts a server listener on the given port.
-- `port`: Port number (number)
-- `onstart`: (Optional) Chariot program to run on startup
-- `onexit`: (Optional) Chariot program to run on shutdown
+The canonical `listen()`, `listenNSQ()`, `httpResponse()`, and runtime lifecycle contracts are documented in [Listener Functions](ListenerFunctions.md). Unknown option names and legacy aliases are rejected.
 
-```chariot
-listen(8080)
-listen(8081, "onStartProgram", "onExitProgram")
-```
+`listenerStop(id)` requests graceful stop asynchronously: `true` means accepted,
+not completed. Unknown or already-removed IDs return an error. The listener
+remains visible as `stopping` through active handlers and exit hooks; after
+completion, `listenerStatus(id)` returns `DBNull` with no tombstone. Go's
+`StopListener(ctx, id)` waits for completion and must be called outside
+`WithExecution`; use `RequestStopListener(id)` for request-only semantics.
 
 ---
 
@@ -115,7 +120,7 @@ listen(8081, "onStartProgram", "onExitProgram")
 - `platform` and `timestamp` provide runtime introspection.
 - `timeFormat` uses Go's time formatting (e.g., `"2006-01-02 15:04:05"`).
 - `exit` requests program termination; actual exit handling is managed by the runtime.
-- `listen` is for server or event-driven applications; `onstart` and `onexit` are optional Chariot programs to run at server lifecycle events.
+- Application listeners belong to the runtime that creates them and are shut down by the application host.
 - All arguments are automatically unwrapped from `ScopeEntry` if needed.
 
 ---

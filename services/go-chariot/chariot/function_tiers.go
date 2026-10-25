@@ -68,6 +68,8 @@ func GetBasicChariotFunctions() []string {
 
 		// I/O functions - clear distinction from math
 		"print", "warn", "error", "debug", // Use print instead of log to avoid math conflict
+		// Application listener lifecycle and transport responses
+		"listen", "listenNSQ", "httpResponse", "listenerList", "listenerStatus", "listenerStop",
 
 		// Tree serialization
 		"treeSave", "treeLoad",

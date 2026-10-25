@@ -581,6 +581,7 @@ type DashboardData struct {
 func editorHandler(w http.ResponseWriter, r *http.Request) {
 	// Set proper content type
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 
 	// Parse template
 	tmpl, err := template.New("editor").Parse(editorTemplate.Tree.Root.String())

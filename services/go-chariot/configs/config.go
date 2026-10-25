@@ -14,14 +14,15 @@ const (
 )
 
 type Config struct {
-	Headless       bool   `evar:"headless"`         // Headless mode for the application
-	DevRESTEnabled bool   `evar:"dev_rest_enabled"` // Enable Dev REST API server (can run with or without headless)
-	Port           int    `evar:"port"`             // Port for the application to listen on
-	Timeout        int    `evar:"timeout"`          // Timeout for operations in seconds
-	Verbose        bool   `evar:"verbose"`          // Verbose logging mode
-	SSL            bool   `evar:"ssl"`              // Enable SSL/TLS (false for nginx termination)
-	OnStart        string `evar:"on_start"`         // Command to execute on start
-	OnExit         string `evar:"on_exit"`          // Command to execute on exit
+	Headless        bool   `evar:"headless"`         // Headless mode for the application
+	DevRESTEnabled  bool   `evar:"dev_rest_enabled"` // Enable Dev REST API server (can run with or without headless)
+	Port            int    `evar:"port"`             // Port for the application to listen on
+	Timeout         int    `evar:"timeout"`          // Timeout for operations in seconds
+	ShutdownTimeout int    `evar:"shutdown_timeout"` // Graceful process shutdown timeout in seconds
+	Verbose         bool   `evar:"verbose"`          // Verbose logging mode
+	SSL             bool   `evar:"ssl"`              // Enable SSL/TLS (false for nginx termination)
+	OnStart         string `evar:"on_start"`         // Command to execute on start
+	OnExit          string `evar:"on_exit"`          // Command to execute on exit
 	// Couchbase
 	CBUrl      string `evar:"couchbase_url"`      // Couchbase connection URL
 	CBUser     string `evar:"couchbase_user"`     // Couchbase username

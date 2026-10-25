@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -48,12 +49,18 @@ func TestListenNSQEndToEnd(t *testing.T) {
 
 	runtimeName := fmt.Sprintf("nsq_runtime_%d", time.Now().UnixNano())
 	rt := createNamedRuntime(runtimeName)
-	defer chariot.UnregisterRuntime(runtimeName)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := chariot.CloseRuntime(ctx, runtimeName); err != nil {
+			t.Errorf("close runtime listeners: %v", err)
+		}
+	}()
 
 	scriptLines := []string{
 		fmt.Sprintf(`registerResponseTopic("%s", "%s")`, responseKey, responseTopic),
 		fmt.Sprintf(`setq(%s, func(msg) { map("status", "ok", "payload", getProp(msg, "payload")) })`, handlerVar),
-		fmt.Sprintf(`setq(listenerInfo, listenNSQ("%s", "%s", map("decision", %s), map("nsqd", "%s")))`, requestTopic, channel, handlerVar, addr),
+		fmt.Sprintf(`setq(listenerInfo, listenNSQ("%s", "%s", map("decision", %s), map("nsqd_address", "%s")))`, requestTopic, channel, handlerVar, addr),
 		"getProp(listenerInfo, \"status\")",
 	}
 

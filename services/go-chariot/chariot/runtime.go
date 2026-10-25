@@ -1,6 +1,7 @@
 package chariot
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,6 +62,7 @@ type Runtime struct {
 	lists           map[string]map[string]Value              // Named lists (like arrays)
 	nodes           map[string]TreeNode                      // Named nodes for easy access
 	functions       map[string]*FunctionValue                // user-defined functions
+	executionMu     sync.Mutex                               // Shared by all outer execution owners
 	currentPosition Position                                 // Current position in the source code
 	scriptErrors    []ScriptError                            // Replace string array with structured errors
 
@@ -142,6 +144,20 @@ func NewRuntime() *Runtime {
 	}
 
 	return rt
+}
+
+// WithExecution serializes an outer unit of runtime work, including function
+// lookup, execution, and inspection of mutable results. The callback may call
+// interpreter APIs (including ExecProgram and RunProgram), which deliberately do
+// not acquire this guard: builtins and hooks can invoke them recursively.
+// Do not nest WithExecution, or synchronously wait for listener shutdown inside
+// it: an exit hook may need this same guard. RequestStopListener (and language
+// listenerStop) accepts a stop without waiting and is safe here. All concurrent
+// runtime users must participate; this does not make unguarded access safe.
+func (rt *Runtime) WithExecution(work func() error) error {
+	rt.executionMu.Lock()
+	defer rt.executionMu.Unlock()
+	return work()
 }
 
 // ClearCaches
@@ -1139,22 +1155,49 @@ func GetRuntimeByID(id string) (*Runtime, bool) {
 	return rt, exists
 }
 
-// UnregisterRuntime removes a runtime from the registry
-func UnregisterRuntime(id string) {
+// CloseRuntime shuts down listener resources and removes a runtime from the registry.
+func CloseRuntime(ctx context.Context, id string) error {
+	runtimeMutex.RLock()
+	rt, exists := runtimeRegistry[id]
+	runtimeMutex.RUnlock()
+	if !exists {
+		return nil
+	}
+
+	shutdownErr := rt.ShutdownListeners(ctx)
+	// A deadline can close sockets without stopping arbitrary script code. Keep
+	// registry ownership (and the default runtime) until all resources finalize.
+	if len(rt.ListListeners()) != 0 {
+		if shutdownErr == nil {
+			shutdownErr = errors.New("runtime still owns live listeners")
+		}
+		return shutdownErr
+	}
+
 	runtimeMutex.Lock()
 	defer runtimeMutex.Unlock()
-	delete(runtimeRegistry, id)
-
-	// Clear default if it was the default
-	if defaultRuntime != nil {
-		if rt, exists := runtimeRegistry[id]; exists && rt == defaultRuntime {
-			defaultRuntime = nil
-			// Set a new default if any exist
-			for _, newDefault := range runtimeRegistry {
-				defaultRuntime = newDefault
-				break
-			}
+	if current, ok := runtimeRegistry[id]; ok && current == rt {
+		delete(runtimeRegistry, id)
+	}
+	if defaultRuntime == rt {
+		defaultRuntime = nil
+		for _, newDefault := range runtimeRegistry {
+			defaultRuntime = newDefault
+			break
 		}
+	}
+	return shutdownErr
+}
+
+// UnregisterRuntime removes a runtime from the registry after stopping its listeners.
+// Use CloseRuntime when the caller needs to handle shutdown errors.
+func UnregisterRuntime(id string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := CloseRuntime(ctx, id); err != nil && cfg.ChariotLogger != nil {
+		cfg.ChariotLogger.Warn("failed to close runtime listeners",
+			zap.String("runtime", id),
+			zap.Error(err))
 	}
 }
 
