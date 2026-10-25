@@ -125,62 +125,99 @@ go-chariot/
 
 ## Listener Registry
 
-Go‑Chariot includes a lightweight Listener Registry for managing long‑running scripts with lifecycle hooks. This is useful for background services (for example, decision agents, ETL listeners, webhook consumers) that need a Start/Exit lifecycle and persistence across restarts.
+The Listener Registry is a **DevTest supervisor**, not the production startup
+source. Production executes `CHARIOT_BOOTSTRAP` once in one application runtime;
+HTTP/NSQ listeners belong to that runtime. Optional Dev REST and network MCP
+reuse it. Session clones inherit state/functions without rerunning bootstrap or
+owning application listeners.
 
 ### Configuration
 
-- CHARIOT_DEV_REST_ENABLED (bool, default true): Enables the Dev REST API server. Can run with or without headless mode.
-- CHARIOT_MCP_EXECUTE_ENABLED (bool, default false): Enables the MCP `execute` tool for local development. Leave disabled outside local dev.
-- CHARIOT_LISTENERS_FILE (string, default "listeners.json"): Filename (under CHARIOT_DATA_PATH) where the registry is persisted.
-- CHARIOT_DATA_PATH (string, default "./data"): Base path for persisted data.
+- `CHARIOT_HEADLESS=true` keeps application listeners alive without Dev REST.
+- `CHARIOT_DEV_REST_ENABLED` defaults to true; explicitly disable for production.
+- `CHARIOT_PORT` defaults to **8087**; debug examples explicitly select 8090.
+- `CHARIOT_DATA_PATH` defaults to `./data`, relative to the working directory.
+- `CHARIOT_BOOTSTRAP` defaults to `bootstrap.ch`, resolved under DataPath.
+- `CHARIOT_TREE_PATH` independently defaults to `./data/trees`;
+    `CHARIOT_FUNCTION_LIB` defaults to `stlib.json` under TreePath. A function
+    library file must exist even when bootstrap defines handlers inline.
+- `CHARIOT_LISTENERS_FILE` defaults to `listeners.json` under DataPath.
+- `CHARIOT_LISTENER_SCRIPTS_DIR` defaults to `listeners` under DataPath; an
+    absolute setting is used directly.
+- `CHARIOT_SHUTDOWN_TIMEOUT` defaults to 30 seconds.
+- `CHARIOT_MCP_EXECUTE_ENABLED` defaults to false. Leave disabled outside trusted
+    local development; stdio MCP is an isolated tooling mode, not application startup.
 
-The full persistence path is: `${CHARIOT_DATA_PATH}/${CHARIOT_LISTENERS_FILE}`.
+The unprefixed `DATA_PATH`, legacy `CHARIOT_BOOTSTRAP_FILE`, and unsupported
+`CHARIOT_ON_START_FILE` are not substitutes for those canonical settings.
 
-### JSON format: listeners.json
+### Configuration-only v2 persistence
 
-The file stores a Snapshot object containing a version and a map of listeners keyed by name:
+Only definitions are persisted, never authoritative live status:
 
 ```json
 {
-    "version": 1,
+        "version": 2,
     "listeners": {
         "orders-listener": {
             "name": "orders-listener",
-            "script": "processOrders.ch",
-            "on_start": "startOrdersService()",
-            "on_exit": "stopOrdersService()",
-            "status": "stopped",
-            "start_time": "2025-09-29T15:04:05.000Z",
-            "last_active": "2025-09-29T15:04:05.000Z",
-            "is_healthy": false
+                        "script": "Order test application",
+                        "script_file": "processOrders.ch",
+                        "on_start": "",
+                        "on_start_file": "",
+                        "on_exit": "",
+                        "on_exit_file": "",
+                        "auto_start_devtest": false
         }
     }
 }
 ```
 
-Field meanings:
+Loading v1 ignores persisted live fields and legacy `auto_start`, and resets
+`auto_start_devtest` to false; the next successful definition mutation saves v2.
+Start/Stop do not persist transient status. **Auto-start is disabled in both
+production and DevTest**, including when the inert v2 preference is true.
 
-- name: Unique listener name (key and field value should match).
-- script: Primary script or program identifier (optional; for display/traceability).
-- on_start: Chariot program text to run when starting the listener.
-- on_exit: Chariot program text to run when exiting the listener.
-- status: One of "running" | "stopped" | "error". Maintained by the manager.
-- start_time: RFC3339 timestamp when last started.
-- last_active: RFC3339 timestamp of last heartbeat/activity (manager sets initially; your scripts may update it through future APIs).
-- is_healthy: Boolean health indicator set by the manager or your scripts.
+`script` is only a display label. `script_file` is required and must create at
+least one real, running listener. New definitions and updates require it; repair
+legacy definitions before Start. Script/hook files are single `.ch` filenames
+confined to the configured scripts root, not arbitrary paths. Registry hook
+strings are Chariot programs (or registered library function names), not implied
+callbacks from bare `setq` variables; hook files take precedence over strings.
+See the canonical reference for ordering and duplicate-hook suppression.
 
 ### Managing listeners via API
 
-All endpoints are under `/api/listeners` (protected by session auth):
+With Dev REST enabled and session authentication:
 
-- GET `/api/listeners` → list all listeners
-- POST `/api/listeners` with body:
-    `{ "name": "orders-listener", "script": "processOrders.ch", "on_start": "startOrdersService()", "on_exit": "stopOrdersService()" }`
-- DELETE `/api/listeners/:name` → delete (must be stopped)
-- POST `/api/listeners/:name/start` → run the on_start program and mark running
-- POST `/api/listeners/:name/stop` → run the on_exit program and mark stopped
+- GET/POST `/api/listeners`: list/create definitions.
+- PUT/DELETE `/api/listeners/:name`: update/delete after stopping the instance.
+- POST `/api/listeners/:name/start`: execute `script_file` in an owned clone and
+    require real listener resources; startup failure rolls them back.
+- POST `/api/listeners/:name/stop`: drain listeners and hooks, dispose owned
+    resources and the runtime. Charioteer's Exit uses this operation.
+- `/api/listener-scripts`: list/read/save/delete script files.
 
-When headless mode is enabled, the Dev REST server can still be enabled or disabled independently using `CHARIOT_DEV_REST_ENABLED`.
+API state/health comes from the live test instance and its resources. Restart
+loads definitions stopped. Timed-out Stop retains ownership until work drains.
+Cloning provides **lifecycle isolation, not a security sandbox**: host objects
+may be borrowed and global values shallow-copied. Do not execute untrusted code.
+
+### References and runnable examples
+
+- [Canonical listener reference](../../docs/ListenerFunctions.md): HTTP/NSQ
+    options, request/response maps, program hooks, lifecycle, and v2 migration.
+- [Canonical System Functions](../../docs/SystemFunctions.md); the service-local
+    reference is a navigation link rather than a divergent duplicate.
+- [Runnable listener workflow](../../examples/listeners/README.md): two HTTP
+    listeners plus NSQ, HTTP-only alternative, debug bootstrap-once counter,
+    DevTest script, and real publishing steps with known helper limitations.
+- [Container guide](../../docs/Containerizing%20a%20Chariot%20Agent.md): canonical
+    environment, data/library resolution, headless/debug profiles and shutdown.
+
+SIGINT/SIGTERM initiate ordered graceful shutdown. Listener startup failures
+fail bootstrap and roll back earlier resources. Deadlines cannot forcibly kill
+arbitrary handler/hook code; keep it bounded and allow adequate termination grace.
 
 ## Contributing
 

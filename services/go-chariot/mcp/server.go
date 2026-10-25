@@ -47,15 +47,21 @@ func newServer(options ...ServerOptions) *sdkmcp.Server {
 			Result string `json:"result"`
 		}
 		sdkmcp.AddTool(server, &sdkmcp.Tool{Name: "execute", Description: "Execute Chariot program and return last value"}, func(ctx context.Context, req *sdkmcp.CallToolRequest, in execInput) (*sdkmcp.CallToolResult, execOutput, error) {
-			rt := chariot.NewRuntime()
-			chariot.RegisterAll(rt)
-			resultVal, err := rt.ExecProgram(in.Code)
+			var result string
+			err := registry.withRuntime(ctx, func(rt *chariot.Runtime) error {
+				resultVal, err := rt.ExecProgram(in.Code)
+				if err != nil {
+					return err
+				}
+				// Conversion can inspect mutable runtime values, so keep it guarded.
+				result = chariot.ValueToString(resultVal)
+				return nil
+			})
 			if err != nil {
 				// Surface error as a textual tool error
 				return &sdkmcp.CallToolResult{IsError: true, Content: []sdkmcp.Content{&sdkmcp.TextContent{Text: err.Error()}}}, execOutput{}, nil
 			}
 			// Return plain text content for broad client compatibility
-			result := chariot.ValueToString(resultVal)
 			return &sdkmcp.CallToolResult{Content: []sdkmcp.Content{&sdkmcp.TextContent{Text: result}}}, execOutput{Result: result}, nil
 		})
 	}

@@ -1,13 +1,32 @@
 [
   {
+    "id": "fx_0a33c2e934c40ff594b48ac1",
+    "name": "ExecCode",
+    "tool": "execute",
+    "payload": {
+      "code": "add(10,20)"
+    },
+    "createdAt": "2026-07-23T13:50:12.745976138Z",
+    "updatedAt": "2026-08-06T14:24:41.390899794Z"
+  },
+  {
     "id": "fx_2a3fff324f1f8a0d2eec2a4b",
     "name": "RunLeaseDecisionBDI",
-    "tool": "registryCall",
+    "tool": "agentCall",
     "payload": {
-      "id": "agent:leasedecision"
+      "name": "leasedecision",
+      "action": "runPlanOnce",
+      "input": {
+        "plan": "pLeaseDecision",
+        "beliefs": {
+          "applicantAge": 30,
+          "applicantDebt": 7000.25,
+          "applicantEmployed": true
+        }
+      }
     },
     "createdAt": "2026-07-24T13:14:38.022062554Z",
-    "updatedAt": "2026-07-28T04:20:14.999302085Z"
+    "updatedAt": "2026-08-10T00:00:00Z"
   },
   {
     "id": "fx_f024b3e0885f3d9dc179ff9e",
@@ -64,15 +83,5 @@
     },
     "createdAt": "2026-07-23T13:53:36.613329635Z",
     "updatedAt": "2026-07-23T13:53:36.613329635Z"
-  },
-  {
-    "id": "fx_0a33c2e934c40ff594b48ac1",
-    "name": "ExecCode",
-    "tool": "execute",
-    "payload": {
-      "code": "add(10,20)"
-    },
-    "createdAt": "2026-07-23T13:50:12.745976138Z",
-    "updatedAt": "2026-07-23T13:50:12.745976138Z"
   }
 ]

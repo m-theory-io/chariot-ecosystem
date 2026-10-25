@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
@@ -52,18 +53,51 @@ func NewRegistryService(provider func() *chariot.Runtime) *RegistryService {
 	return &RegistryService{RuntimeProvider: provider}
 }
 
-func (s *RegistryService) runtime() *chariot.Runtime {
+func (s *RegistryService) runtime() (*chariot.Runtime, bool) {
 	if s != nil && s.RuntimeProvider != nil {
 		if rt := s.RuntimeProvider(); rt != nil {
-			return rt
+			return rt, false
 		}
 	}
 	rt := chariot.NewRuntime()
 	chariot.RegisterAll(rt)
-	return rt
+	return rt, true
 }
 
-func (s *RegistryService) List(ctx context.Context) ([]RegistryItem, error) {
+// withRuntime owns the entire mutable transaction. Helpers called by work must
+// not acquire WithExecution again: the runtime guard is deliberately non-reentrant.
+func (s *RegistryService) withRuntime(ctx context.Context, work func(*chariot.Runtime) error) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	rt, owned := s.runtime()
+	if owned {
+		defer func() {
+			// Cleanup must run outside the execution guard: listener exit hooks
+			// acquire it too. A canceled request must not cancel cleanup.
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			session := &chariot.Session{Runtime: rt, Resources: make(map[string]interface{})}
+			err = errors.Join(err, session.Dispose(cleanupCtx))
+		}()
+	}
+	return rt.WithExecution(func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return work(rt)
+	})
+}
+
+func (s *RegistryService) List(ctx context.Context) (items []RegistryItem, err error) {
+	err = s.withRuntime(ctx, func(_ *chariot.Runtime) error {
+		items, err = s.list(ctx)
+		return err
+	})
+	return items, err
+}
+
+func (s *RegistryService) list(ctx context.Context) ([]RegistryItem, error) {
 	items := []RegistryItem{}
 
 	for _, name := range chariot.DefaultAgentNames() {
@@ -143,7 +177,15 @@ func (s *RegistryService) ListTrees(ctx context.Context) ([]RegistryItem, error)
 	return items, nil
 }
 
-func (s *RegistryService) Describe(ctx context.Context, id string) (map[string]any, error) {
+func (s *RegistryService) Describe(ctx context.Context, id string) (description map[string]any, err error) {
+	err = s.withRuntime(ctx, func(_ *chariot.Runtime) error {
+		description, err = s.describe(ctx, id)
+		return err
+	})
+	return description, err
+}
+
+func (s *RegistryService) describe(ctx context.Context, id string) (map[string]any, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -181,7 +223,7 @@ func (s *RegistryService) Describe(ctx context.Context, id string) (map[string]a
 			"callables": callables,
 		}, nil
 	case "treeFunction":
-		desc, err := s.Describe(ctx, "tree:"+parsed.name)
+		desc, err := s.describe(ctx, "tree:"+parsed.name)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +239,15 @@ func (s *RegistryService) Describe(ctx context.Context, id string) (map[string]a
 	}
 }
 
-func (s *RegistryService) Call(ctx context.Context, input RegistryCallInput) (*RegistryCallResult, error) {
+func (s *RegistryService) Call(ctx context.Context, input RegistryCallInput) (result *RegistryCallResult, err error) {
+	err = s.withRuntime(ctx, func(rt *chariot.Runtime) error {
+		result, err = s.call(ctx, rt, input)
+		return err
+	})
+	return result, err
+}
+
+func (s *RegistryService) call(ctx context.Context, rt *chariot.Runtime, input RegistryCallInput) (*RegistryCallResult, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -210,15 +260,15 @@ func (s *RegistryService) Call(ctx context.Context, input RegistryCallInput) (*R
 
 	switch parsed.kind {
 	case "agent":
-		return s.callAgent(parsed.name, input)
+		return s.callAgent(rt, parsed.name, input)
 	case "tree", "treeFunction":
-		return s.callTree(parsed, input)
+		return s.callTree(ctx, rt, parsed, input)
 	default:
 		return nil, fmt.Errorf("unsupported registry kind %q", parsed.kind)
 	}
 }
 
-func (s *RegistryService) callAgent(name string, input RegistryCallInput) (*RegistryCallResult, error) {
+func (s *RegistryService) callAgent(rt *chariot.Runtime, name string, input RegistryCallInput) (*RegistryCallResult, error) {
 	action := strings.ToLower(strings.TrimSpace(input.Action))
 	if action == "" {
 		action = "info"
@@ -289,7 +339,6 @@ func (s *RegistryService) callAgent(name string, input RegistryCallInput) (*Regi
 			beliefsSet[key] = raw
 		}
 
-		rt := s.runtime()
 		planValue, ok := rt.GetVariable(planName)
 		if !ok {
 			return nil, fmt.Errorf("plan variable %q not found", planName)
@@ -418,11 +467,11 @@ func mapToChariotMap(payload map[string]any) (*chariot.MapValue, error) {
 	return &chariot.MapValue{Values: values}, nil
 }
 
-func (s *RegistryService) callTree(parsed registryID, input RegistryCallInput) (*RegistryCallResult, error) {
+func (s *RegistryService) callTree(ctx context.Context, rt *chariot.Runtime, parsed registryID, input RegistryCallInput) (*RegistryCallResult, error) {
 	if parsed.kind == "tree" {
 		action := strings.ToLower(strings.TrimSpace(input.Action))
 		if action == "" || action == "describe" || action == "info" {
-			desc, err := s.Describe(context.Background(), "tree:"+parsed.name)
+			desc, err := s.describe(ctx, "tree:"+parsed.name)
 			if err != nil {
 				return nil, err
 			}
@@ -448,8 +497,7 @@ func (s *RegistryService) callTree(parsed registryID, input RegistryCallInput) (
 		return nil, fmt.Errorf("attribute %q on node %q is not callable", parsed.attribute, parsed.node)
 	}
 
-	rt := s.runtime()
-	rt.SetVariable("__mcp_fn", fn)
+	variables := map[string]chariot.Value{"__mcp_fn": fn}
 	callArgs := firstNonNilMap(input.Args, input.Input)
 	var argNames []string
 	for _, param := range fn.Parameters {
@@ -459,9 +507,9 @@ func (s *RegistryService) callTree(parsed registryID, input RegistryCallInput) (
 			if err != nil {
 				return nil, fmt.Errorf("convert argument %q: %w", param, err)
 			}
-			rt.SetVariable(argVar, value)
+			variables[argVar] = value
 		} else {
-			rt.SetVariable(argVar, chariot.DBNull)
+			variables[argVar] = chariot.DBNull
 		}
 		argNames = append(argNames, argVar)
 	}
@@ -471,7 +519,7 @@ func (s *RegistryService) callTree(parsed registryID, input RegistryCallInput) (
 	}
 	program += ")"
 
-	valueResult, err := rt.Execute(program)
+	valueResult, err := rt.ExecuteWithVariables(program, variables)
 	if err != nil {
 		return nil, err
 	}

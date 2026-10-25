@@ -142,8 +142,9 @@ func TestSessionInheritsBootstrapGlobals(t *testing.T) {
 	}
 }
 
-// TestSessionBootstrapFile verifies that sessions load bootstrap.ch if configured
-func TestSessionBootstrapFile(t *testing.T) {
+// TestSessionDoesNotReexecuteBootstrap verifies that sessions inherit initialized
+// application state without executing the listener-producing bootstrap again.
+func TestSessionDoesNotReexecuteBootstrap(t *testing.T) {
 	// Create a temporary bootstrap file
 	tmpDir := t.TempDir()
 	bootstrapFile := tmpDir + "/test_bootstrap.ch"
@@ -166,10 +167,23 @@ declareGlobal(fileTestVar, 'S', 'from file')
 	cfg.ChariotConfig.Bootstrap = bootstrapFile
 	cfg.ChariotConfig.DataPath = tmpDir
 
-	// Create session manager
-	sm := chariot.NewSessionManager(30*time.Minute, 5*time.Minute)
+	bootstrapRuntime := chariot.NewRuntime()
+	chariot.RegisterAll(bootstrapRuntime)
+	if _, err := bootstrapRuntime.ExecProgram(bootstrapContent); err != nil {
+		t.Fatalf("execute application bootstrap: %v", err)
+	}
 
-	// Create session (should load bootstrap file)
+	// Remove the file after application initialization. Session creation must use
+	// inherited state and therefore must not attempt to read it again.
+	if err := os.Remove(bootstrapFile); err != nil {
+		t.Fatalf("remove bootstrap fixture: %v", err)
+	}
+
+	sm := chariot.NewSessionManager(30*time.Minute, 5*time.Minute)
+	defer sm.Stop()
+	sm.SetBootstrapRuntime(bootstrapRuntime)
+
+	// Create session (should copy the already initialized state)
 	logger := logs.NewZapLogger()
 	session := sm.NewSession("testuser", logger, "test-token-456")
 

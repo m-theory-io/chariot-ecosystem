@@ -139,6 +139,47 @@ func TestMCPStorePersistsFixtures(t *testing.T) {
 	}
 }
 
+func TestSeededLeaseDecisionMCPFixtureExecutesPlan(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "data", "charioteer", "mcp_fixtures.json"))
+	if err != nil {
+		t.Fatalf("read seeded MCP fixtures: %v", err)
+	}
+
+	var fixtures []MCPFixture
+	if err := json.Unmarshal(raw, &fixtures); err != nil {
+		t.Fatalf("decode seeded MCP fixtures: %v", err)
+	}
+
+	for _, fixture := range fixtures {
+		if fixture.Name != "RunLeaseDecisionBDI" {
+			continue
+		}
+		if fixture.Tool != "agentCall" {
+			t.Fatalf("expected agentCall tool, got %q", fixture.Tool)
+		}
+		var payload struct {
+			Name   string `json:"name"`
+			Action string `json:"action"`
+			Input  struct {
+				Plan    string         `json:"plan"`
+				Beliefs map[string]any `json:"beliefs"`
+			} `json:"input"`
+		}
+		if err := json.Unmarshal(fixture.Payload, &payload); err != nil {
+			t.Fatalf("decode lease decision fixture payload: %v", err)
+		}
+		if payload.Name != "leasedecision" || payload.Action != "runPlanOnce" || payload.Input.Plan != "pLeaseDecision" {
+			t.Fatalf("expected executable lease decision payload, got %#v", payload)
+		}
+		if len(payload.Input.Beliefs) == 0 {
+			t.Fatal("expected lease decision input beliefs")
+		}
+		return
+	}
+
+	t.Fatal("RunLeaseDecisionBDI fixture not found")
+}
+
 func TestAgentFixtureStorePersistsFixtures(t *testing.T) {
 	dir := t.TempDir()
 	store, err := newAgentFixtureStore(dir)

@@ -2,10 +2,12 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
@@ -330,5 +332,132 @@ func TestRegistryAgentSetBeliefReturnsScheduledExecution(t *testing.T) {
 	last, ok := info["lastResult"].(map[string]interface{})
 	if !ok || last["status"] != "completed" {
 		t.Fatalf("expected lastResult in describe info, got %#v", info["lastResult"])
+	}
+}
+
+func TestRegistryOperationsWaitForRuntimeGuard(t *testing.T) {
+	configureRegistryTestPaths(t)
+	operations := map[string]func(*RegistryService) error{
+		"list": func(s *RegistryService) error { _, err := s.List(context.Background()); return err },
+		"describeTreeFunction": func(s *RegistryService) error {
+			_, err := s.Describe(context.Background(), "tree:decisionAgent1.rules.ageFilter")
+			return err
+		},
+		"callTreeDescription": func(s *RegistryService) error {
+			_, err := s.Call(context.Background(), RegistryCallInput{ID: "tree:decisionAgent1"})
+			return err
+		},
+		"callTreeFunction": func(s *RegistryService) error {
+			_, err := s.Call(context.Background(), RegistryCallInput{ID: "tree:decisionAgent1.rules.ageFilter", Args: map[string]any{"profile": map[string]any{"age": float64(42)}}})
+			return err
+		},
+		"agentPlanLookup": func(s *RegistryService) error {
+			_, err := s.Call(context.Background(), RegistryCallInput{ID: "agent:missing", Action: "runPlanOnce", Input: map[string]any{"plan": "missingPlan"}})
+			if err == nil || !strings.Contains(err.Error(), "not found") {
+				t.Errorf("expected missing plan error, got %v", err)
+			}
+			return nil
+		},
+	}
+	for name, operation := range operations {
+		t.Run(name, func(t *testing.T) {
+			rt := chariot.NewRuntime()
+			chariot.RegisterAll(rt)
+			acquired, release, ownerDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			go func() {
+				_ = rt.WithExecution(func() error { close(acquired); <-release; return nil })
+				close(ownerDone)
+			}()
+			<-acquired
+			requested := make(chan struct{}, 1)
+			service := NewRegistryService(func() *chariot.Runtime { requested <- struct{}{}; return rt })
+			done := make(chan error, 1)
+			go func() { done <- operation(service) }()
+			<-requested
+			select {
+			case err := <-done:
+				t.Errorf("operation bypassed runtime guard: %v", err)
+				close(release)
+				<-ownerDone
+				return
+			case <-time.After(25 * time.Millisecond):
+			}
+			close(release)
+			<-ownerDone
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Fatal(err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatal("registry operation deadlocked, possibly a nested execution guard")
+			}
+		})
+	}
+}
+
+func TestRegistryTreeCallRestoresTemporaryBindings(t *testing.T) {
+	configureRegistryTestPaths(t)
+	rt := chariot.NewRuntime()
+	chariot.RegisterAll(rt)
+	scope := rt.GetCurrentScope()
+	rt.SetVariable("__mcp_fn", chariot.Str("existing-function"))
+	rt.SetVariable("__mcp_arg_profile", chariot.Str("existing-argument"))
+	service := NewRegistryService(func() *chariot.Runtime { return rt })
+	for _, profile := range []any{map[string]any{"age": float64(42)}, make(chan int)} {
+		_, err := service.Call(context.Background(), RegistryCallInput{
+			ID: "tree:decisionAgent1.rules.ageFilter", Args: map[string]any{"profile": profile},
+		})
+		if _, valid := profile.(map[string]any); valid && err != nil {
+			t.Fatal(err)
+		} else if !valid && err == nil {
+			t.Fatal("expected argument conversion error")
+		}
+		if rt.GetCurrentScope() != scope {
+			t.Fatal("tree call did not restore scope")
+		}
+		for name, want := range map[string]chariot.Value{
+			"__mcp_fn": chariot.Str("existing-function"), "__mcp_arg_profile": chariot.Str("existing-argument"),
+		} {
+			if got, _ := rt.GetVariable(name); got != want {
+				t.Fatalf("%s=%v, want %v", name, got, want)
+			}
+		}
+	}
+}
+
+func TestRegistryCanceledWaitDoesNotStartTransaction(t *testing.T) {
+	rt := chariot.NewRuntime()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	acquired, release, ownerDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	go func() {
+		_ = rt.WithExecution(func() error { close(acquired); <-release; return nil })
+		close(ownerDone)
+	}()
+	<-acquired
+	requested := make(chan struct{}, 1)
+	service := NewRegistryService(func() *chariot.Runtime { requested <- struct{}{}; return rt })
+	done := make(chan error, 1)
+	go func() {
+		done <- service.withRuntime(ctx, func(rt *chariot.Runtime) error {
+			rt.SetGlobalVariable("mustNotRun", chariot.Bool(true))
+			return nil
+		})
+	}()
+	<-requested
+	cancel()
+	close(release)
+	<-ownerDone
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("error=%v, want context.Canceled", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("canceled operation did not finish after guard release")
+	}
+	if _, exists := rt.GetVariable("mustNotRun"); exists {
+		t.Fatal("canceled operation mutated shared runtime")
 	}
 }

@@ -1,8 +1,8 @@
 package chariot
 
 import (
+	"context"
 	"errors"
-	"os"
 	"sync"
 	"time"
 
@@ -18,6 +18,8 @@ type SessionManager struct {
 	defaultTimeout   time.Duration
 	cleanupInterval  time.Duration
 	stopCleanup      chan struct{}
+	stopOnce         sync.Once
+	stopped          bool
 	bootstrapRuntime *Runtime // Shared bootstrap runtime for copying globals into new sessions
 }
 
@@ -40,8 +42,12 @@ type Session struct {
 	OnStart string // Chariot program name to run on session start
 	OnExit  string // Chariot program name to run on session exit
 
-	stopChan chan struct{} // Used to signal the session goroutine to stop
-
+	stopChan    chan struct{} // Used to signal the session goroutine to stop
+	started     bool
+	startDone   chan struct{}
+	disposing   bool
+	disposeDone chan struct{}
+	disposeErr  error
 }
 
 // NewSessionManager creates a session manager with the specified default timeout
@@ -76,7 +82,54 @@ func (sm *SessionManager) cleanupLoop() {
 
 // Stop shuts down the session manager and stops the cleanup goroutine
 func (sm *SessionManager) Stop() {
-	close(sm.stopCleanup)
+	ctx, cancel := context.WithTimeout(context.Background(), listenerShutdownGrace())
+	defer cancel()
+	if err := sm.Shutdown(ctx); err != nil && cfg.ChariotLogger != nil {
+		cfg.ChariotLogger.Warn("session manager shutdown failed", zap.Error(err))
+	}
+}
+
+// Shutdown stops admission and disposes all session-owned listeners and resources.
+// Failed/incomplete disposals remain owned and can be awaited by calling again.
+func (sm *SessionManager) Shutdown(ctx context.Context) error {
+	sm.mu.Lock()
+	sm.stopped = true
+	sm.stopOnce.Do(func() { close(sm.stopCleanup) })
+	sessions := make(map[string]*Session, len(sm.sessions))
+	for token, session := range sm.sessions {
+		sessions[token] = session
+	}
+	sm.mu.Unlock()
+	results := make(chan error, len(sessions))
+	for token, session := range sessions {
+		go func(token string, session *Session) {
+			err := session.Dispose(ctx)
+			sm.removeDisposed(token, session)
+			results <- err
+		}(token, session)
+	}
+	var errs []error
+	for range sessions {
+		if err := <-results; err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (sm *SessionManager) removeDisposed(token string, session *Session) {
+	session.mu.RLock()
+	done := session.disposeDone
+	session.mu.RUnlock()
+	select {
+	case <-done:
+		sm.mu.Lock()
+		if sm.sessions[token] == session {
+			delete(sm.sessions, token)
+		}
+		sm.mu.Unlock()
+	default:
+	}
 }
 
 // SetBootstrapRuntime sets the bootstrap runtime to copy globals from into new sessions
@@ -87,7 +140,18 @@ func (sm *SessionManager) SetBootstrapRuntime(rt *Runtime) {
 }
 
 // NewSession creates a new session for a user
+// It returns nil after manager shutdown, and returns the existing session for
+// an already-owned token instead of abandoning that session's resources.
 func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token string, customTimeout ...time.Duration) *Session {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	if sm.stopped {
+		return nil
+	}
+	// Do not overwrite a token and orphan its runtime resources.
+	if existing := sm.sessions[token]; existing != nil {
+		return existing
+	}
 	timeout := sm.defaultTimeout
 	if len(customTimeout) > 0 {
 		timeout = customTimeout[0]
@@ -137,55 +201,40 @@ func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token st
 			session.Runtime.nodes[name] = node
 		}
 
+		bootstrapFunctions := sm.bootstrapRuntime.ListUserFunctionsMap()
+		for name, function := range bootstrapFunctions {
+			session.Runtime.RegisterFunction(name, function)
+		}
+
 		session.Logger.Info("Copied bootstrap resources into session",
 			zap.Int("globals", len(bootstrapGlobals)),
 			zap.Int("objects", len(bootstrapObjects)),
 			zap.Int("lists", len(bootstrapLists)),
-			zap.Int("nodes", len(bootstrapNodes)))
-	}
-
-	// Load bootstrap script if specified
-	if cfg.ChariotConfig.Bootstrap != "" {
-		fullPath, err := getSecureFilePath(cfg.ChariotConfig.Bootstrap, "data")
-		if err != nil {
-			session.Logger.Error("Failed to get secure file path", zap.String("bootstrap", cfg.ChariotConfig.Bootstrap), zap.Error(err))
-		} else {
-			session.Logger.Info("Loading bootstrap script (session)", zap.String("path", fullPath))
-			content, err := os.ReadFile(fullPath)
-			if err != nil {
-				session.Logger.Error("Failed to read bootstrap script", zap.String("path", fullPath), zap.Error(err))
-			} else {
-				if _, err := session.Runtime.ExecProgram(string(content)); err != nil {
-					session.Logger.Error("Failed to execute bootstrap script (session)", zap.String("path", fullPath), zap.Error(err))
-				} else {
-					session.Logger.Info("Bootstrap script executed (session)", zap.String("path", fullPath))
-				}
-			}
-		}
-	} else {
-		session.Logger.Warn("Bootstrap filename not configured; skipping session bootstrap")
+			zap.Int("nodes", len(bootstrapNodes)),
+			zap.Int("functions", len(bootstrapFunctions)))
 	}
 
 	// Store the session
-	sm.mu.Lock()
 	sm.sessions[token] = session
-	sm.mu.Unlock()
 
 	return session
 }
 
 // Run launches the session goroutine, running onStart and onExit hooks
 func (s *Session) Run() {
+	s.mu.Lock()
+	if s.started || s.disposing {
+		s.mu.Unlock()
+		return
+	}
+	s.started = true
+	s.startDone = make(chan struct{})
+	done, rt, onStart := s.startDone, s.Runtime, s.OnStart
+	s.mu.Unlock()
 	go func() {
-		// Run onStart if set
-		if s.OnStart != "" {
-			_ = s.Runtime.RunProgram(s.OnStart, cfg.ChariotConfig.Port)
-		}
-		// Wait for stop signal
-		<-s.stopChan
-		// Run onExit if set
-		if s.OnExit != "" {
-			_ = s.Runtime.RunProgram(s.OnExit, cfg.ChariotConfig.Port)
+		defer close(done)
+		if rt != nil && onStart != "" {
+			_ = rt.WithExecution(func() error { return rt.RunProgram(onStart, cfg.ChariotConfig.Port) })
 		}
 	}()
 }
@@ -194,6 +243,7 @@ func (s *Session) Run() {
 func (sm *SessionManager) GetSession(token string) (*Session, error) {
 	sm.mu.RLock()
 	session, exists := sm.sessions[token]
+	bootstrapRuntime := sm.bootstrapRuntime
 	sm.mu.RUnlock()
 
 	if !exists {
@@ -203,20 +253,24 @@ func (sm *SessionManager) GetSession(token string) (*Session, error) {
 	// Update last accessed time and extend expiration
 	now := time.Now()
 	session.mu.Lock()
+	if session.disposing {
+		session.mu.Unlock()
+		return nil, errors.New("session is closing")
+	}
 	session.LastAccessed = now
 	session.ExpiresAt = now.Add(sm.defaultTimeout)
 	session.mu.Unlock()
 
 	// CRITICAL: Ensure session has bootstrap resources (for sessions created before v0.053)
 	// Check if session runtime has objects - if empty and bootstrap has objects, copy them
-	if sm.bootstrapRuntime != nil {
+	if bootstrapRuntime != nil {
 		sessionObjects := session.Runtime.ListObjects()
-		bootstrapObjects := sm.bootstrapRuntime.ListObjects()
+		bootstrapObjects := bootstrapRuntime.ListObjects()
 
 		// If session has no objects but bootstrap does, this is an old session - refresh it
 		if len(sessionObjects) == 0 && len(bootstrapObjects) > 0 {
 			// Copy bootstrap globals
-			bootstrapGlobals := sm.bootstrapRuntime.ListGlobalVariables()
+			bootstrapGlobals := bootstrapRuntime.ListGlobalVariables()
 			for name, value := range bootstrapGlobals {
 				session.Runtime.GlobalScope().Set(name, value)
 			}
@@ -227,13 +281,13 @@ func (sm *SessionManager) GetSession(token string) (*Session, error) {
 			}
 
 			// Copy named lists
-			bootstrapLists := sm.bootstrapRuntime.ListLists()
+			bootstrapLists := bootstrapRuntime.ListLists()
 			for name, list := range bootstrapLists {
 				session.Runtime.lists[name] = list
 			}
 
 			// Copy named tree nodes
-			bootstrapNodes := sm.bootstrapRuntime.ListNodes()
+			bootstrapNodes := bootstrapRuntime.ListNodes()
 			for name, node := range bootstrapNodes {
 				session.Runtime.nodes[name] = node
 			}
@@ -252,34 +306,27 @@ func (sm *SessionManager) GetSession(token string) (*Session, error) {
 
 // EndSession explicitly terminates a session
 func (sm *SessionManager) EndSession(token string) error {
-	cfg.ChariotLogger.Info("Ending session", zap.String("token", token))
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), listenerShutdownGrace())
+	defer cancel()
+	return sm.EndSessionContext(ctx, token)
+}
 
+// EndSessionContext disposes a session without holding the manager lock over hooks.
+func (sm *SessionManager) EndSessionContext(ctx context.Context, token string) error {
+	sm.mu.RLock()
 	session, exists := sm.sessions[token]
+	sm.mu.RUnlock()
 	if !exists {
-		cfg.ChariotLogger.Warn("EndSession: session not found", zap.String("token", token))
 		return errors.New("session not found")
 	}
-
-	// Signal the session goroutine to stop
-	if session.stopChan != nil {
-		close(session.stopChan)
-	}
-
-	// Cleanup resources
-	session.Cleanup()
-
-	// Remove from sessions map
-	delete(sm.sessions, token)
-	cfg.ChariotLogger.Info("Session removed", zap.String("token", token))
-
-	return nil
+	err := session.Dispose(ctx)
+	sm.removeDisposed(token, session)
+	return err
 }
 
 // SetOnStart/SetOnExit helpers:
-func (s *Session) SetOnStart(prog string) { s.OnStart = prog }
-func (s *Session) SetOnExit(prog string)  { s.OnExit = prog }
+func (s *Session) SetOnStart(prog string) { s.mu.Lock(); s.OnStart = prog; s.mu.Unlock() }
+func (s *Session) SetOnExit(prog string)  { s.mu.Lock(); s.OnExit = prog; s.mu.Unlock() }
 
 // CleanupExpiredSessions removes all expired sessions
 func (sm *SessionManager) CleanupExpiredSessions() {
@@ -340,7 +387,7 @@ func (sm *SessionManager) GetActiveSessionsInfo() []map[string]interface{} {
 			"last_access": session.LastAccessed,
 			"expires_at":  session.ExpiresAt,
 			"status": func() string {
-				if session.IsExpired() {
+				if time.Now().After(session.ExpiresAt) {
 					return "expired"
 				}
 				return "active"
@@ -374,30 +421,102 @@ type SessionInfo struct {
 
 // Cleanup for individual sessions
 func (s *Session) Cleanup() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Clean up Chariot resources
-	for name, resource := range s.Resources {
-		if cleanup, ok := resource.(interface{ Close() error }); ok {
-			cleanup.Close()
-		}
-		delete(s.Resources, name)
+	ctx, cancel := context.WithTimeout(context.Background(), listenerShutdownGrace())
+	defer cancel()
+	if err := s.Dispose(ctx); err != nil && cfg.ChariotLogger != nil {
+		cfg.ChariotLogger.Warn("session cleanup failed", zap.Error(err))
 	}
+}
 
-	// Clear any document caches, SQL caches, etc.
-	s.Runtime.ClearCaches()
+// Dispose initiates exactly-once cleanup and waits within the caller's budget.
+// On timeout, ownership and caches remain intact until active listeners drain.
+// Runtime stays a stable pointer; callers must stop using a disposed session.
+func (s *Session) Dispose(ctx context.Context) error {
+	s.mu.Lock()
+	if !s.disposing {
+		s.disposing = true
+		s.disposeDone = make(chan struct{})
+		if s.stopChan != nil {
+			close(s.stopChan)
+		}
+		go s.dispose(ctx, s.startDone, s.Runtime, s.OnExit)
+	}
+	done := s.disposeDone
+	s.mu.Unlock()
+	select {
+	case <-done:
+		return s.disposeErr
+	default:
+	}
+	select {
+	case <-done:
+		return s.disposeErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
-	// Break circular references
-	s.Runtime = nil
+func (s *Session) dispose(ctx context.Context, startDone <-chan struct{}, rt *Runtime, onExit string) {
+	defer close(s.disposeDone)
+	if startDone != nil {
+		<-startDone
+	}
+	var errs []error
+	if rt != nil {
+		if err := rt.ShutdownListeners(ctx); err != nil {
+			errs = append(errs, err)
+		}
+		// Forced socket close cannot interrupt arbitrary Chariot/host code.
+		// Continue owning it and defer hooks/cache teardown until it really exits.
+		if len(rt.ListListeners()) != 0 {
+			if err := rt.ShutdownListeners(context.Background()); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if onExit != "" {
+			if err := rt.WithExecution(func() error { return rt.RunProgram(onExit, cfg.ChariotConfig.Port) }); err != nil {
+				errs = append(errs, err)
+			}
+			// Exit code can itself create listeners; those are session-owned too.
+			if err := rt.ShutdownListeners(ctx); err != nil {
+				errs = append(errs, err)
+			}
+			if len(rt.ListListeners()) != 0 {
+				if err := rt.ShutdownListeners(context.Background()); err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
+	s.mu.Lock()
+	resources := s.Resources
+	s.Resources = make(map[string]interface{})
+	s.mu.Unlock()
+	for _, resource := range resources {
+		if cleanup, ok := resource.(interface{ Close() error }); ok {
+			if err := cleanup.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	if rt != nil {
+		_ = rt.WithExecution(func() error { rt.ClearCaches(); return nil })
+	}
+	s.disposeErr = errors.Join(errs...)
 }
 
 // AddResource adds a named resource to the session
 func (s *Session) AddResource(name string, resource interface{}) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	if s.disposing {
+		s.mu.Unlock()
+		if cleanup, ok := resource.(interface{ Close() error }); ok {
+			_ = cleanup.Close()
+		}
+		return
+	}
 	s.Resources[name] = resource
+	s.mu.Unlock()
 }
 
 // GetResource retrieves a named resource

@@ -1311,6 +1311,48 @@ export const logiconDefinitions: LogiconData[] = [
     description: 'Exit program',
     category: 'system'
   },
+  {
+    id: 'listen',
+    label: 'Listen HTTP',
+    icon: '🌐',
+    description: 'Start an HTTP listener with validated routing, body, timeout, and lifecycle options',
+    category: 'system'
+  },
+  {
+    id: 'listenNSQ',
+    label: 'Listen NSQ',
+    icon: '📬',
+    description: 'Start an NSQ consumer with explicit retry, backoff, dead-letter, and response policy',
+    category: 'system'
+  },
+  {
+    id: 'httpResponse',
+    label: 'HTTP Response',
+    icon: '📤',
+    description: 'Create an explicit HTTP status, headers, and body response',
+    category: 'system'
+  },
+  {
+    id: 'listenerList',
+    label: 'List Listeners',
+    icon: '📋',
+    description: 'List live listeners owned by the current runtime',
+    category: 'system'
+  },
+  {
+    id: 'listenerStatus',
+    label: 'Listener Status',
+    icon: '🔎',
+    description: 'Inspect one live listener by process-local listener id',
+    category: 'system'
+  },
+  {
+    id: 'listenerStop',
+    label: 'Stop Listener',
+    icon: '⏹️',
+    description: 'Gracefully stop one listener owned by the current runtime',
+    category: 'system'
+  },
 
   // Value Functions
   {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -62,24 +63,7 @@ func ensureListenerScriptsDir() (string, error) {
 }
 
 func normalizeListenerScriptFilename(name string) (string, error) {
-	clean := strings.TrimSpace(name)
-	if clean == "" {
-		return "", fmt.Errorf("listener script name required")
-	}
-	if strings.ContainsAny(clean, "/\\") {
-		return "", fmt.Errorf("listener script name cannot contain path separators")
-	}
-	clean = filepath.Clean(clean)
-	if strings.Contains(clean, "..") {
-		return "", fmt.Errorf("listener script name may not include '..'")
-	}
-	if filepath.Ext(clean) == "" {
-		clean += ".ch"
-	}
-	if filepath.Ext(clean) != ".ch" {
-		return "", fmt.Errorf("listener scripts must use .ch extension")
-	}
-	return clean, nil
+	return listeners.ScriptFilename(name)
 }
 
 func listenerScriptFullPath(name string) (string, error) {
@@ -88,11 +72,6 @@ func listenerScriptFullPath(name string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, name), nil
-}
-
-func listenerFunctionNameFromFile(name string) string {
-	base := filepath.Base(name)
-	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 func isListenerFileScope(scopeRaw string) bool {
@@ -161,113 +140,29 @@ func listListenerScriptFiles() ([]string, error) {
 	return files, nil
 }
 
-func (h *Handlers) compileListenerScript(fileName string, pending map[string]*chariot.FunctionValue) (string, string, error) {
-	if fileName == "" {
-		return "", "", nil
-	}
-	normalized, err := normalizeListenerScriptFilename(fileName)
-	if err != nil {
-		return "", "", err
-	}
-	fullPath, err := listenerScriptFullPath(normalized)
-	if err != nil {
-		return "", "", err
-	}
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		return "", "", fmt.Errorf("read script '%s': %w", normalized, err)
-	}
-	funcName := listenerFunctionNameFromFile(normalized)
-	if err := h.bootstrapRuntime.SaveFunction(funcName, string(content), ""); err != nil {
-		return "", "", fmt.Errorf("parse function '%s': %w", funcName, err)
-	}
-	fn, ok := h.bootstrapRuntime.GetFunction(funcName)
-	if !ok {
-		return "", "", fmt.Errorf("function not found after save: %s", funcName)
-	}
-	if pending != nil {
-		pending[funcName] = fn
-	}
-	return funcName, normalized, nil
-}
-
-func (h *Handlers) persistListenerFunctions(funcs map[string]*chariot.FunctionValue) error {
-	if len(funcs) == 0 {
-		return nil
-	}
-	if cfg.ChariotConfig.FunctionLib != "" {
-		merged := make(map[string]*chariot.FunctionValue)
-		if existing, err := chariot.LoadFunctionsFromFile(cfg.ChariotConfig.FunctionLib); err == nil {
-			for k, v := range existing {
-				merged[k] = v
-			}
-		}
-		for k, v := range funcs {
-			merged[k] = v
-		}
-		if err := chariot.SaveFunctionsToFile(merged, cfg.ChariotConfig.FunctionLib); err != nil {
-			return err
-		}
-	} else {
-		cfg.ChariotLogger.Warn("function_lib not configured; listener scripts will not persist across restarts")
-	}
-	for name, fn := range funcs {
-		h.bootstrapRuntime.RegisterFunction(name, fn)
-	}
-	return nil
-}
-
-// NewHandlers creates a new Handlers instance with dependencies
-func NewHandlers(sessionManager *chariot.SessionManager) *Handlers {
-	// Create a bootstrap runtime for system operations like user authentication
-	bootstrapRuntime := chariot.NewRuntime()
-
-	// Register all standard functions in the bootstrap runtime
-	chariot.RegisterAll(bootstrapRuntime)
-
-	// Load bootstrap script that includes usersAgent
-	var bootstrapLoaded bool
-	if cfg.ChariotConfig.Bootstrap != "" {
-		fullPath, err := chariot.GetSecureFilePath(cfg.ChariotConfig.Bootstrap, "data")
-		if err != nil {
-			cfg.ChariotLogger.Error("Failed to get secure file path for bootstrap", zap.String("bootstrap", cfg.ChariotConfig.Bootstrap), zap.Error(err))
-		} else {
-			cfg.ChariotLogger.Info("Loading bootstrap script (handlers)", zap.String("path", fullPath))
-			content, err := os.ReadFile(fullPath)
-			if err != nil {
-				cfg.ChariotLogger.Error("Failed to read bootstrap script", zap.String("path", fullPath), zap.Error(err))
-			} else {
-				if _, err := bootstrapRuntime.ExecProgram(string(content)); err != nil {
-					cfg.ChariotLogger.Error("Failed to execute bootstrap script in handlers", zap.String("path", fullPath), zap.Error(err))
-				} else {
-					cfg.ChariotLogger.Info("Bootstrap script executed (handlers)", zap.String("path", fullPath))
-					bootstrapLoaded = true
-				}
-			}
-		}
-	} else {
-		cfg.ChariotLogger.Warn("Bootstrap filename not configured; skipping handlers bootstrap")
-	}
-
-	// Pass bootstrap runtime to session manager so new sessions inherit globals
-	sessionManager.SetBootstrapRuntime(bootstrapRuntime)
-
-	// Initialize a listeners manager using the bootstrap runtime
-	lman := listeners.NewManager(bootstrapRuntime)
+// NewHandlers creates handlers over an already initialized application runtime.
+func NewHandlers(sessionManager *chariot.SessionManager, applicationRuntime *chariot.Runtime) *Handlers {
+	// Isolated DevTest instances are started only by explicit registry requests.
+	// Production listeners remain owned directly by applicationRuntime.
+	lman := listeners.NewManager(applicationRuntime)
 	if err := lman.Load(); err != nil {
 		cfg.ChariotLogger.Warn("Failed to load listeners registry", zap.Error(err))
 	}
-	// In REST mode, do NOT auto-start listeners. Headless mode is responsible for starting
-	// listeners with auto_start=true (handled in cmd/main.go).
 
 	return &Handlers{
 		sessionManager:   sessionManager,
-		bootstrapRuntime: bootstrapRuntime,
+		bootstrapRuntime: applicationRuntime,
 		startTime:        time.Now(),
-		bootstrapLoaded:  bootstrapLoaded,
+		bootstrapLoaded:  true,
 		listenerManager:  lman,
 		execManager:      NewExecutionManager(),
 	}
+}
+
+// ShutdownDevTest drains registry runtimes without touching bootstrap listeners.
+// Hosts must call this alongside session/application shutdown.
+func (h *Handlers) ShutdownDevTest(ctx context.Context) error {
+	return h.listenerManager.Shutdown(ctx)
 }
 
 func (h *Handlers) BootstrapRuntime() *chariot.Runtime {
@@ -279,33 +174,32 @@ func (h *Handlers) BootstrapRuntime() *chariot.Runtime {
 
 // Listener APIs
 type listenerCreateReq struct {
-	Name        string `json:"name"`
-	Script      string `json:"script"`
-	ScriptFile  string `json:"script_file"`
-	OnStart     string `json:"on_start"`
-	OnStartFile string `json:"on_start_file"`
-	OnExit      string `json:"on_exit"`
-	OnExitFile  string `json:"on_exit_file"`
-	AutoStart   bool   `json:"auto_start"`
+	Name             string `json:"name"`
+	Script           string `json:"script"`
+	ScriptFile       string `json:"script_file"`
+	OnStart          string `json:"on_start"`
+	OnStartFile      string `json:"on_start_file"`
+	OnExit           string `json:"on_exit"`
+	OnExitFile       string `json:"on_exit_file"`
+	AutoStartDevTest bool   `json:"auto_start_devtest"`
 }
 
-func (h *Handlers) parseListenerRequest(req listenerCreateReq, forcedName string) (listeners.Listener, map[string]*chariot.FunctionValue, error) {
-	pending := make(map[string]*chariot.FunctionValue)
+func (h *Handlers) parseListenerRequest(req listenerCreateReq, forcedName string) (listeners.Definition, error) {
 	name := strings.TrimSpace(req.Name)
 	if forcedName != "" {
 		name = forcedName
 	}
 	if name == "" {
-		return listeners.Listener{}, nil, fmt.Errorf("name is required")
+		return listeners.Definition{}, fmt.Errorf("name is required")
 	}
 	scriptLabel := strings.TrimSpace(req.Script)
 	scriptFile := strings.TrimSpace(req.ScriptFile)
 	if scriptFile == "" {
-		return listeners.Listener{}, nil, fmt.Errorf("script_file is required")
+		return listeners.Definition{}, fmt.Errorf("script_file is required")
 	}
 	cleanScript, err := normalizeListenerScriptFilename(scriptFile)
 	if err != nil {
-		return listeners.Listener{}, nil, fmt.Errorf("script_file: %v", err)
+		return listeners.Definition{}, fmt.Errorf("script_file: %v", err)
 	}
 	scriptFile = cleanScript
 	if scriptLabel == "" {
@@ -314,34 +208,32 @@ func (h *Handlers) parseListenerRequest(req listenerCreateReq, forcedName string
 	onStartName := strings.TrimSpace(req.OnStart)
 	onStartFile := strings.TrimSpace(req.OnStartFile)
 	if onStartFile != "" {
-		compiledName, cleanFile, err := h.compileListenerScript(onStartFile, pending)
+		cleanFile, err := normalizeListenerScriptFilename(onStartFile)
 		if err != nil {
-			return listeners.Listener{}, nil, fmt.Errorf("on_start_file: %v", err)
+			return listeners.Definition{}, fmt.Errorf("on_start_file: %v", err)
 		}
-		onStartName = compiledName
 		onStartFile = cleanFile
 	}
 	onExitName := strings.TrimSpace(req.OnExit)
 	onExitFile := strings.TrimSpace(req.OnExitFile)
 	if onExitFile != "" {
-		compiledName, cleanFile, err := h.compileListenerScript(onExitFile, pending)
+		cleanFile, err := normalizeListenerScriptFilename(onExitFile)
 		if err != nil {
-			return listeners.Listener{}, nil, fmt.Errorf("on_exit_file: %v", err)
+			return listeners.Definition{}, fmt.Errorf("on_exit_file: %v", err)
 		}
-		onExitName = compiledName
 		onExitFile = cleanFile
 	}
-	listener := listeners.Listener{
-		Name:        name,
-		Script:      scriptLabel,
-		ScriptFile:  scriptFile,
-		OnStart:     onStartName,
-		OnStartFile: onStartFile,
-		OnExit:      onExitName,
-		OnExitFile:  onExitFile,
-		AutoStart:   req.AutoStart,
+	listener := listeners.Definition{
+		Name:             name,
+		Script:           scriptLabel,
+		ScriptFile:       scriptFile,
+		OnStart:          onStartName,
+		OnStartFile:      onStartFile,
+		OnExit:           onExitName,
+		OnExitFile:       onExitFile,
+		AutoStartDevTest: req.AutoStartDevTest,
 	}
-	return listener, pending, nil
+	return listener, nil
 }
 
 func (h *Handlers) ListListeners(c echo.Context) error {
@@ -354,12 +246,9 @@ func (h *Handlers) CreateListener(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
 	}
-	listener, pending, err := h.parseListenerRequest(req, "")
+	listener, err := h.parseListenerRequest(req, "")
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
-	}
-	if err := h.persistListenerFunctions(pending); err != nil {
-		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("save stdlib: %v", err)})
 	}
 	l, err := h.listenerManager.Create(listener)
 	if err != nil {
@@ -373,7 +262,7 @@ func (h *Handlers) UpdateListener(c echo.Context) error {
 	if name == "" {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
 	}
-	existing, err := h.listenerManager.Get(name)
+	_, err := h.listenerManager.Get(name)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
@@ -381,16 +270,9 @@ func (h *Handlers) UpdateListener(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "invalid request"})
 	}
-	listener, pending, err := h.parseListenerRequest(req, name)
+	listener, err := h.parseListenerRequest(req, name)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
-	}
-	listener.Status = existing.Status
-	listener.StartTime = existing.StartTime
-	listener.LastActive = existing.LastActive
-	listener.IsHealthy = existing.IsHealthy
-	if err := h.persistListenerFunctions(pending); err != nil {
-		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: fmt.Sprintf("save stdlib: %v", err)})
 	}
 	updated, err := h.listenerManager.Update(name, listener)
 	if err != nil {
@@ -427,11 +309,11 @@ func (h *Handlers) GetListenerScript(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-	fullPath, err := listenerScriptFullPath(name)
+	dir, err := ensureListenerScriptsDir()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-	content, err := os.ReadFile(fullPath)
+	content, err := listeners.ReadScript(dir, name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "script not found"})
@@ -453,12 +335,26 @@ func (h *Handlers) SaveListenerScript(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-	fullPath, err := listenerScriptFullPath(name)
+	dir, err := ensureListenerScriptsDir()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-	if err := os.WriteFile(fullPath, []byte(req.Content), 0o644); err != nil {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	defer root.Close()
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	_, writeErr := f.WriteString(req.Content)
+	closeErr := f.Close()
+	if writeErr != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: writeErr.Error()})
+	}
+	if closeErr != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: closeErr.Error()})
 	}
 	return c.JSON(http.StatusOK, ResultJSON{Result: "OK", Data: map[string]string{"name": name}})
 }
@@ -468,11 +364,16 @@ func (h *Handlers) DeleteListenerScript(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-	fullPath, err := listenerScriptFullPath(name)
+	dir, err := ensureListenerScriptsDir()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
-	if err := os.Remove(fullPath); err != nil {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ResultJSON{Result: "ERROR", Data: err.Error()})
+	}
+	defer root.Close()
+	if err := root.Remove(name); err != nil {
 		if os.IsNotExist(err) {
 			return c.JSON(http.StatusNotFound, ResultJSON{Result: "ERROR", Data: "script not found"})
 		}
@@ -541,7 +442,7 @@ func (h *Handlers) StartListener(c echo.Context) error {
 	if name == "" {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
 	}
-	l, err := h.listenerManager.Start(name, cfg.ChariotConfig.Port)
+	l, err := h.listenerManager.Start(name)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
@@ -553,7 +454,9 @@ func (h *Handlers) StopListener(c echo.Context) error {
 	if name == "" {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: "missing name"})
 	}
-	l, err := h.listenerManager.Stop(name, cfg.ChariotConfig.Port)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 30*time.Second)
+	defer cancel()
+	l, err := h.listenerManager.Stop(ctx, name)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ResultJSON{Result: "ERROR", Data: err.Error()})
 	}
@@ -1127,11 +1030,14 @@ func (h *Handlers) authenticateUser(username, password string) bool {
 		return false
 	}
 
-	// Execute authentication script using the bootstrap runtime
-	authScript := fmt.Sprintf(`
+	// Keep temporary bindings, execution, conversion, and scope restoration in
+	// one transaction shared with bootstrap listeners and MCP execution.
+	authenticated := false
+	err := h.bootstrapRuntime.WithExecution(func() error {
+		authScript := `
 if(exists('usersAgent')) {
 	setq(users, getChildByName(usersAgent, 'users'))
-	setq(authResult, authenticateUser(users, '%s', '%s'))
+	setq(authResult, authenticateUser(users, __auth_username, __auth_password))
 	if(unequal(authResult, null)) {
 		true
 	} else {
@@ -1140,23 +1046,29 @@ if(exists('usersAgent')) {
 } else {
 	false
 }
-	`, username, password)
-
-	result, err := h.bootstrapRuntime.ExecProgram(authScript)
+	`
+		result, err := h.bootstrapRuntime.ExecuteWithVariables(authScript, map[string]chariot.Value{
+			"__auth_username": chariot.Str(username),
+			"__auth_password": chariot.Str(password),
+			"users":           chariot.DBNull,
+			"authResult":      chariot.DBNull,
+		})
+		if err != nil {
+			return err
+		}
+		switch value := result.(type) {
+		case chariot.Bool:
+			authenticated = bool(value)
+		case chariot.Str:
+			authenticated = string(value) == "true"
+		}
+		return nil
+	})
 	if err != nil {
 		cfg.ChariotLogger.Error("Authentication script failed", zap.Error(err))
 		return false
 	}
-
-	// Convert result to boolean
-	if boolResult, ok := result.(chariot.Bool); ok {
-		return bool(boolResult)
-	}
-	if strResult, ok := result.(chariot.Str); ok {
-		return string(strResult) == "true"
-	}
-
-	return false
+	return authenticated
 }
 
 func generateSecureToken() string {
