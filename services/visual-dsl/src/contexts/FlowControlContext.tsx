@@ -19,9 +19,9 @@ export const useFlowControl = () => {
   return context;
 };
 
-export const FlowControlProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [direction, setDirection] = useState<FlowDirection>('down');
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+export const FlowControlProvider: React.FC<{ children: React.ReactNode; initialDraft?: import('../utils/diagramDraft').DiagramDraft }> = ({ children, initialDraft }) => {
+  const [direction, setDirection] = useState<FlowDirection>(initialDraft?.editor.direction ?? 'down');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(initialDraft?.editor.selectedNodeId ?? null);
 
   return (
     <FlowControlContext.Provider value={{ 

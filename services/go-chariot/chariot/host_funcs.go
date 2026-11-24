@@ -53,13 +53,7 @@ func RegisterHostFunctions(rt *Runtime) {
 
 		value := args[2]
 
-		// Set the property based on object type
-		if m, ok := obj.(map[string]Value); ok {
-			m[string(propertyName)] = value
-			return value, nil
-		}
-
-		return nil, errors.New("cannot set property on this object type")
+		return rt.setObjectProperty(obj, string(propertyName), value)
 	})
 
 	// Register function to get a property from a host object
@@ -94,13 +88,7 @@ func RegisterHostFunctions(rt *Runtime) {
 			return nil, err
 		}
 
-		// Convert the result to a Chariot Value
-		if val, ok := result.(Value); ok {
-			return val, nil
-		}
-
-		// Convert Go values to Chariot values
-		return convertFromNativeValue(result), nil
+		return hostPropertyValue(rt, result)
 	})
 
 	// Register function to call a method on a host object (alias for callMethod)
@@ -137,6 +125,9 @@ func RegisterHostFunctions(rt *Runtime) {
 	rt.Register("callMethod", func(args ...Value) (Value, error) {
 		if len(args) < 2 {
 			return nil, errors.New("callMethod requires at least 2 arguments: object and methodName")
+		}
+		if _, ok := args[1].(Str); !ok {
+			return nil, errors.New("second argument must be method name string")
 		}
 
 		var objName string
@@ -212,6 +203,9 @@ func RegisterHostFunctions(rt *Runtime) {
 
 // Helper function to get a property from an object using reflection
 func getObjectProperty(obj interface{}, propertyName string) (interface{}, error) {
+	if isNilMemberReceiver(obj) {
+		return nil, errors.New("null host object")
+	}
 	// Handle map[string]Value objects
 	if m, ok := obj.(map[string]Value); ok {
 		if val, exists := m[propertyName]; exists {
@@ -253,6 +247,9 @@ func getObjectProperty(obj interface{}, propertyName string) (interface{}, error
 
 	if !field.IsValid() {
 		return nil, fmt.Errorf("field '%s' not found in object", propertyName)
+	}
+	if !field.CanInterface() {
+		return nil, fmt.Errorf("field '%s' is not exported", propertyName)
 	}
 
 	return field.Interface(), nil

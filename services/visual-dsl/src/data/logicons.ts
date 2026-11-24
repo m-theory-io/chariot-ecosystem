@@ -1,12 +1,21 @@
+import { CLASS_NODE_LABELS, CLASS_NODE_SCHEMA } from 'chariot-codegen';
+
 export interface LogiconData {
   id: string;
   label: string;
   icon: string;
   description: string;
-  category: 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'ml' | 'bdi' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
+  category: 'classes' | 'control' | 'array' | 'comparison' | 'couchbase' | 'date' | 'dispatcher' | 'etl' | 'file' | 'crypto' | 'host' | 'json' | 'math' | 'ml' | 'bdi' | 'node' | 'csv' | 'sql' | 'string' | 'system' | 'tree' | 'value';
 }
 
 export const logiconDefinitions: LogiconData[] = [
+  ...CLASS_NODE_LABELS.map((label, index): LogiconData => ({
+    id: CLASS_NODE_SCHEMA[label].functionName,
+    label,
+    icon: ['🏛️', '📋', '⚙️', '🆕', '🔌', '📌', '📝', '🏷️', '✅', '🛡️'][index],
+    description: CLASS_NODE_SCHEMA[label].help,
+    category: 'classes',
+  })),
   // Control Flow
   {
     id: 'start',

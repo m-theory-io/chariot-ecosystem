@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/nsqio/go-nsq"
 )
 

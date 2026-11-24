@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // Ensures a Plan ('P') can be set as a TreeNode attribute, saved, and loaded without losing type or fields

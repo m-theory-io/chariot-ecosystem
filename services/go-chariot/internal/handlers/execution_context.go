@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	"github.com/google/uuid"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // ExecutionManager manages all active and recent script executions

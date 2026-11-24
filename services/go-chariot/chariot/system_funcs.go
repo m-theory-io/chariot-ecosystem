@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"go.uber.org/zap"
 )
 

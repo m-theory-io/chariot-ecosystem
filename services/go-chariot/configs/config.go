@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/logs"
 )
 
 const (

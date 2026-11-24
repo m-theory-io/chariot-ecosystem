@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"go.uber.org/zap"
 )
 
@@ -1077,6 +1077,7 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 	}
 
 	// Register all functions with the cloned runtime
+	cloneScriptState(rt, clone)
 	RegisterAll(clone)
 
 	return clone
@@ -1089,6 +1090,8 @@ func cloneFunctionValueWithScope(src *FunctionValue, newScope *Scope) *FunctionV
 		return nil
 	}
 	return &FunctionValue{
+		Signature:       copySignature(src.Signature),
+		OriginFile:      src.OriginFile,
 		Body:            src.Body,
 		Parameters:      append([]string(nil), src.Parameters...),
 		SourceCode:      src.SourceCode,
@@ -1214,6 +1217,14 @@ func ListRuntimes() []string {
 }
 
 func executeFunctionValue(rt *Runtime, fn *FunctionValue, args []Value) (Value, error) {
+	if fn == nil || fn.Body == nil {
+		return nil, fmt.Errorf("function has no executable body")
+	}
+	if fn.Signature != nil {
+		if err := fn.Signature.checkArgs(args); err != nil {
+			return nil, err
+		}
+	}
 	// Create new scope with proper parent
 	var parentScope *Scope
 	if fn.Scope != nil {
@@ -1265,9 +1276,12 @@ func executeFunctionValue(rt *Runtime, fn *FunctionValue, args []Value) (Value, 
 	if err != nil {
 		if retErr, ok := err.(*ReturnError); ok {
 			// Return is successful - extract the value
-			return retErr.Value, nil
+			result, err = retErr.Value, nil
 		}
 	}
 
+	if err == nil && fn.Signature != nil {
+		err = checkContract(fn.Signature.Return, result)
+	}
 	return result, err
 }

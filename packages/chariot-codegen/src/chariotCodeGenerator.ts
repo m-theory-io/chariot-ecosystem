@@ -1,4 +1,7 @@
 // Chariot Code Generator - Converts VisualDSL diagrams to Chariot .ch source code
+import { generateSourceNodeCode } from './chariotAST';
+import { isClassNodeLabel, isClassExpressionLabel, validateClassDiagram } from './classSchema';
+import type { ClassNodePropertiesMap } from './classSchema';
 
 export interface VisualDSLDiagram {
   name: string;
@@ -49,12 +52,17 @@ export class ChariotCodeGenerator {
   private structuralInlineNodes: Set<string>;
 
   constructor(diagram: VisualDSLDiagram) {
+    this.validateClasses(diagram);
     this.diagram = diagram;
     this.nodeMap = new Map();
     this.executionOrder = [];
     this.nestingMap = new Map();
     this.parentLookup = new Map();
     this.structuralInlineNodes = new Set();
+    const sourceIds = new Set(diagram.nodes.filter(node => node.data.label === 'Source').map(node => node.id));
+    if (diagram.nestingRelations.some(rel => sourceIds.has(rel.parentId) || sourceIds.has(rel.childId))) {
+      throw new Error('Source nodes cannot participate in visual nesting; preserve the complete expression in properties.ast');
+    }
     diagram.nodes.forEach(node => {
       if (node.type === 'group') return;
       this.nodeMap.set(node.id, node);
@@ -197,6 +205,7 @@ export class ChariotCodeGenerator {
   }
 
   public generateChariotCode(options?: GenerateOptions): string {
+    this.validateClasses(this.diagram);
     const lines: string[] = [];
     lines.push(`// ${this.diagram.name}`);
     lines.push('');
@@ -215,7 +224,7 @@ export class ChariotCodeGenerator {
         const typeSpec = parentNode.data.properties?.typeSpecifier || 'T';
         const childLabel = this.getNodeLabel(childNode);
         const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'parseJSON', 'parseJSONSimple', 'Array', 'Range'];
-        if (inlineLabels.includes(childLabel)) {
+        if (inlineLabels.includes(childLabel) || isClassExpressionLabel(childLabel)) {
           inlineProcessedNodes.add(childIds[0]);
         } else if (childLabel === 'func' && typeSpec === 'F') {
           inlineProcessedNodes.add(childIds[0]);
@@ -305,10 +314,68 @@ export class ChariotCodeGenerator {
     });
   }
 
+  private validateClasses(diagram: VisualDSLDiagram): void {
+    const issues = validateClassDiagram(diagram);
+    if (issues.length) {
+      throw new Error(issues.map(issue => `Node ${issue.nodeId ?? '?'}: ${issue.property}: ${issue.message}`).join('\n'));
+    }
+  }
+
+  /** Explicit dispatch is also used by assignment/declaration expression paths. */
+  private generateClassNodeCode(node: VisualDSLNode): string {
+    const label = this.getNodeLabel(node);
+    const props = node.data.properties!;
+    const quote = (value: string) => JSON.stringify(value);
+    switch (label) {
+      case 'Class':
+      case 'Interface': {
+        const p = props as unknown as ClassNodePropertiesMap['Class'];
+        const children = this.generateBlockFromChildren(node.id, 2);
+        return `${label === 'Class' ? 'class' : 'interface'}(${p.identifier}) {\n${children.join('\n')}\n}`;
+      }
+      case 'Field': {
+        const p = props as unknown as ClassNodePropertiesMap['Field'];
+        return `field(${quote(p.memberName)}, ${quote(p.contract)}${p.hasDefault ? `, ${p.defaultExpression}` : ''})`;
+      }
+      case 'Method': {
+        const p = props as unknown as ClassNodePropertiesMap['Method'];
+        let func = p.functionMode === 'expression' ? p.functionExpression :
+          this.generateFunctionCode({ ...node, data: { ...node.data, properties: { parameters: p.parameters, body: p.body } } });
+        if (p.hasSignature) func = `withSignature(${func}, ${p.signatureExpression})`;
+        return `method(${p.classExpression}, ${quote(p.memberName)}, ${func})`;
+      }
+      case 'New': {
+        const p = props as unknown as ClassNodePropertiesMap['New'];
+        return `new(${p.classExpression}${p.hasAttributes ? `, ${p.attributesExpression}` : ''})`;
+      }
+      case 'Requires': {
+        const p = props as unknown as ClassNodePropertiesMap['Requires'];
+        return `requires(${quote(p.memberName)}, ${p.signatureExpression})`;
+      }
+      case 'Signature': {
+        const p = props as unknown as ClassNodePropertiesMap['Signature'];
+        return `signature(array(${p.parameterContracts.map(quote).join(', ')}), ${quote(p.returnContract)})`;
+      }
+      case 'WithSignature': {
+        const p = props as unknown as ClassNodePropertiesMap['WithSignature'];
+        return `withSignature(${p.functionExpression}, ${p.signatureExpression})`;
+      }
+      case 'Satisfies':
+      case 'AssertSatisfies': {
+        const p = props as unknown as ClassNodePropertiesMap['Satisfies'];
+        return `${label === 'Satisfies' ? 'satisfies' : 'assertSatisfies'}(${p.valueExpression}, ${p.interfaceExpression})`;
+      }
+      default: throw new Error(`Node ${node.id}: unsupported class label ${label}`);
+    }
+  }
+
   private generateNodeCode(node: VisualDSLNode): string | null {
     const props = node.data.properties || {};
     const label = this.getNodeLabel(node);
+    if (isClassNodeLabel(label)) return this.generateClassNodeCode(node);
     switch (label) {
+      case 'Source':
+        return generateSourceNodeCode(props);
       case 'Start':
         return `// Starting ${props.name || this.diagram.name}`;
       case 'Declare':
@@ -685,7 +752,7 @@ export class ChariotCodeGenerator {
       case 'Index Of':
         return this.generateIndexOfCode(node);
       default:
-        return 'Error - unknown function'; // this.generateGenericFunctionCode(node);
+        throw new Error(`Unsupported Visual DSL node ${node.id}: ${node.data.label}`);
     }
   }
 
@@ -713,7 +780,7 @@ export class ChariotCodeGenerator {
       if (childNode) {
         const childLabel = this.getNodeLabel(childNode);
         const inlineLabels = ['Create', 'New Tree', 'Parse JSON', 'parseJSON', 'parseJSONSimple', 'Array', 'Range'];
-        const isSimpleChild = inlineLabels.includes(childLabel);
+        const isSimpleChild = inlineLabels.includes(childLabel) || isClassExpressionLabel(childLabel);
         const isInlineFunction = childLabel === 'func' && typeSpec === 'F';
         if (isSimpleChild || isInlineFunction) {
           const childCode = isInlineFunction
@@ -2038,7 +2105,7 @@ export class ChariotCodeGenerator {
     const paramsStr = paramNames.join(', ');
     const defaultLines = parameterEntries
       .filter(entry => entry.name.length > 0 && entry.value.length > 0)
-      .map(entry => `  if(equal(${entry.name}, DBNull)) {\n    setq(${entry.name}, ${entry.value});\n  }`);
+      .map(entry => `  if(equal(${entry.name}, DBNull)) {\n    setq(${entry.name}, ${entry.value})\n  }`);
     const normalizedBody = body.replace(/\r\n/g, '\n');
     const hasBodyContent = normalizedBody.trim().length > 0;
     const sections: string[] = [];
@@ -2476,10 +2543,14 @@ export class ChariotCodeGenerator {
         parentLabel === 'Switch' ||
         parentLabel === 'If' ||
         parentLabel === 'While' ||
-        parentLabel === 'Loop Body'
+        parentLabel === 'Loop Body' ||
+        parentLabel === 'Class' ||
+        parentLabel === 'Interface'
       ) {
         for (const childId of childIds) {
           visit(childId);
+          // Declaration membership is ONLY nestingRelations, never flow edges.
+          if (parentLabel === 'Class' || parentLabel === 'Interface') continue;
           const branchExtras = this.collectBranchFlow(childId);
           for (const extra of branchExtras) {
             visit(extra);
@@ -2629,6 +2700,7 @@ export class ChariotCodeGenerator {
 
   private generateSetqInlineValue(childNode: VisualDSLNode): string | null {
     const label = this.getNodeLabel(childNode);
+    if (isClassExpressionLabel(label)) return this.generateClassNodeCode(childNode);
     if (
       [
         'Set Equal',
@@ -3270,6 +3342,7 @@ export class ChariotCodeGenerator {
   }
 
   private generateNestedChildCode(childNode: VisualDSLNode): string | null {
+    if (isClassNodeLabel(this.getNodeLabel(childNode))) return this.generateClassNodeCode(childNode);
     switch (this.getNodeLabel(childNode)) {
       case 'Create':
         return this.generateCreateCode(childNode);

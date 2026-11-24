@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
 	"github.com/couchbase/gocb/v2"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/vault"
 )
 
 type CouchbaseMeta struct {

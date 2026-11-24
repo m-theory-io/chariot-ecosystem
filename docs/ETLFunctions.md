@@ -4,6 +4,14 @@
 
 Chariot provides a robust set of ETL (Extract, Transform, Load) functions for data pipeline automation, CSV ingestion, transformation, and loading into SQL or Couchbase targets. ETL transforms can be defined inline or reused from a registry of common data cleaning and validation routines.
 
+`map(key, value, ...)` is registered here but currently constructs a `MapValue`,
+just like core `mapValue(key, value, ...)`; both require string keys and paired
+arguments. Both work as named attributes in `new(Class, attributes)` and support
+map member reads. See [Classes and interfaces](ClassesAndInterfaces.md) and
+[Member notation](MemberNotation.md). Restricted embeddings must register the
+constructor they use; this registration location does not make `map` an ETL-only
+transformation operator.
+
 ---
 
 ### ETL Job Functions

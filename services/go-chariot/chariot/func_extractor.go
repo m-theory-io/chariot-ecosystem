@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // FunctionExtractor analyzes TreeNodes to extract all function calls
@@ -243,6 +243,8 @@ func (fe *FunctionExtractor) ExtractFromValue(value Value) {
 // Also add the helper method to extract from AST nodes:
 func (fe *FunctionExtractor) ExtractFromNode(node Node) {
 	switch n := node.(type) {
+	case *MemberAccessNode:
+		fe.ExtractFromNode(n.Receiver)
 	case *Block:
 		// Extract from all statements in the block
 		for _, stmt := range n.Stmts {

@@ -1,10 +1,77 @@
 package chariot
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
+
+// decodeNodePos accepts both ToMap's SourcePos and JSON-decoded position maps.
+func decodeNodePos(value interface{}) SourcePos {
+	if pos, ok := value.(SourcePos); ok {
+		return pos
+	}
+	var pos SourcePos
+	if data, err := json.Marshal(value); err == nil {
+		_ = json.Unmarshal(data, &pos)
+	}
+	return pos
+}
 
 func NodeFromMap(m map[string]interface{}) (Node, error) {
 	nodeType, _ := m["_node_type"].(string)
 	switch nodeType {
+	case "MemberAccessNode":
+		receiverMap, ok := m["receiver"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("MemberAccessNode missing receiver")
+		}
+		receiver, err := NodeFromMap(receiverMap)
+		if err != nil {
+			return nil, err
+		}
+		name, ok := m["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("MemberAccessNode missing name")
+		}
+		return &MemberAccessNode{Receiver: receiver, Name: name, Pos: decodeNodePos(m["pos"])}, nil
+	case "FunctionCallNode":
+		calleeMap, ok := m["funcExpr"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("FunctionCallNode missing funcExpr")
+		}
+		callee, err := NodeFromMap(calleeMap)
+		if err != nil {
+			return nil, err
+		}
+		argsRaw, _ := m["args"].([]interface{})
+		args := make([]Node, 0, len(argsRaw))
+		for _, raw := range argsRaw {
+			argMap, ok := raw.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("FunctionCallNode: arg is not a map")
+			}
+			arg, err := NodeFromMap(argMap)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, arg)
+		}
+		return &FunctionCallNode{FuncExpr: callee, Args: args, Pos: decodeNodePos(m["pos"])}, nil
+	case "ArrayLiteralNode":
+		raw, _ := m["elements"].([]interface{})
+		elements := make([]Node, 0, len(raw))
+		for _, item := range raw {
+			itemMap, ok := item.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("ArrayLiteralNode: element is not a map")
+			}
+			node, err := NodeFromMap(itemMap)
+			if err != nil {
+				return nil, err
+			}
+			elements = append(elements, node)
+		}
+		return &ArrayLiteralNode{Elements: elements}, nil
 	case "Block":
 		stmtsRaw, _ := m["stmts"].([]interface{})
 		stmts := make([]Node, 0, len(stmtsRaw))
@@ -79,10 +146,13 @@ func NodeFromMap(m map[string]interface{}) (Node, error) {
 	case "Literal":
 		val := m["val"]
 		// You may need to convert val to the correct Value type
-		return &Literal{Val: Value(val)}, nil
+		return &Literal{Val: convertFromNativeValue(val)}, nil
 	case "FunctionDefNode":
 		// Reconstruct parameters
 		var params []string
+		if arr, ok := m["parameters"].([]string); ok {
+			params = append(params, arr...)
+		}
 		if arr, ok := m["parameters"].([]interface{}); ok {
 			for _, p := range arr {
 				if ps, ok := p.(string); ok {
@@ -99,9 +169,11 @@ func NodeFromMap(m map[string]interface{}) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		source, _ := m["source"].(string)
 		return &FunctionDefNode{
 			Parameters: params,
 			Body:       body,
+			Source:     source,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown node type: %s", nodeType)

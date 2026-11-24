@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -e
+
+SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "Starting go-chariot in development mode with live code mounting..."
 echo "This mounts your source code directly into the container"
 echo "Rebuild/restart to see changes"
@@ -12,7 +16,7 @@ docker rm chariot-go-chariot 2>/dev/null || true
 docker run -d \
   --name chariot-go-chariot-dev \
   --network host \
-  -v /home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot:/app/src \
+  -v "$SERVICE_DIR:/app/src" \
   -v ~/.azure:/home/gochariot/.azure:rw \
   -w /app/src \
   -e GO_ENV=development \

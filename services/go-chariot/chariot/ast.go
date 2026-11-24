@@ -122,7 +122,7 @@ func (f *FunctionDefNode) ToMap() map[string]interface{} {
 // ToString returns the function definition as a string.
 func (f *FunctionDefNode) ToString() string {
 	var sb strings.Builder
-	sb.WriteString("function(")
+	sb.WriteString("func(")
 	for i, param := range f.Parameters {
 		sb.WriteString(param)
 		if i < len(f.Parameters)-1 {
@@ -130,9 +130,10 @@ func (f *FunctionDefNode) ToString() string {
 		}
 	}
 	sb.WriteString(") {\n")
-	if bodyStr := f.Body.ToString(); bodyStr == "" {
+	if f.Body == nil {
 		return ""
-	} else {
+	}
+	if bodyStr := f.Body.ToString(); bodyStr != "" {
 		sb.WriteString("    ")
 		sb.WriteString(bodyStr)
 		sb.WriteString("\n")
@@ -160,12 +161,6 @@ func (c *FunctionCallNode) Exec(rt *Runtime) (Value, error) {
 		return nil, err
 	}
 
-	// Check if it's a function
-	fn, ok := fnVal.(*FunctionValue)
-	if !ok {
-		return nil, fmt.Errorf("not a function: %v", fnVal)
-	}
-
 	// Evaluate arguments
 	args := make([]Value, len(c.Args))
 	for i, argExpr := range c.Args {
@@ -177,7 +172,11 @@ func (c *FunctionCallNode) Exec(rt *Runtime) (Value, error) {
 	}
 
 	// Execute function
-	return executeFunctionValue(rt, fn, args)
+	value, err := InvokeCallable(rt, fnVal, args)
+	if err != nil {
+		return nil, fmt.Errorf("%s:%d:%d: call: %w", c.Pos.File, c.Pos.Line, c.Pos.Column, err)
+	}
+	return value, nil
 }
 
 func (c *FunctionCallNode) ToMap() map[string]interface{} {
@@ -189,18 +188,20 @@ func (c *FunctionCallNode) ToMap() map[string]interface{} {
 		"_node_type": "FunctionCallNode",
 		"funcExpr":   c.FuncExpr.ToMap(),
 		"args":       args,
+		"pos":        c.Pos,
 	}
 }
 
 // ToString returns the function call as a string.
 func (c *FunctionCallNode) ToString() string {
 	var sb strings.Builder
+	sb.WriteString("(")
 	if funcStr := c.FuncExpr.ToString(); funcStr == "" {
 		return ""
 	} else {
 		sb.WriteString(funcStr)
 	}
-	sb.WriteString("(")
+	sb.WriteString(")(")
 	for i, arg := range c.Args {
 		if argStr := arg.ToString(); argStr == "" {
 			return ""
@@ -854,6 +855,7 @@ func (b *Block) ToString() string {
 		} else {
 			sb.WriteString(tvar)
 		}
+		// Newlines separate statements, including a following grouped call.
 		sb.WriteString("\n")
 	}
 	return sb.String()
@@ -871,6 +873,9 @@ func (f *FuncCall) SetPos(pos SourcePos) { f.Pos = pos }
 
 // Exec handles built-ins, control-flow functions, and host binding calls.
 func (f *FuncCall) Exec(rt *Runtime) (Value, error) {
+	if f.Name == "class" || f.Name == "interface" {
+		return executeTypeDeclaration(rt, f)
+	}
 	// Special handling for declare and declareGlobal - don't evaluate first arg
 	if f.Name == "declare" || f.Name == "declareGlobal" || f.Name == "setq" {
 		if len(f.Args) < 2 {
@@ -957,20 +962,32 @@ func (f *FuncCall) Exec(rt *Runtime) (Value, error) {
 		vals[i] = v
 	}
 
-	// Host object method: obj.Method()
-	if parts := strings.SplitN(f.Name, ".", 2); len(parts) == 2 {
-		if obj, ok := rt.objects[parts[0]]; ok {
-			return rt.CallHostMethod(obj, parts[1], vals)
-		}
-	}
-
 	// Built-in function dispatch
 	if h, ok := rt.funcs[f.Name]; ok {
 		return h(vals...)
 	}
 	// UDF function call
 	if fn, ok := rt.functions[f.Name]; ok {
-		return rt.funcs["call"](fn, vals)
+		return InvokeCallable(rt, fn, vals)
+	}
+	if rt.currentScope != nil {
+		if fn, ok := rt.currentScope.Get(f.Name); ok {
+			return InvokeCallable(rt, fn, vals)
+		}
+	}
+	// Legacy serialized FuncCalls sometimes encoded a dotted name. Resolve it
+	// through the same member path rather than the old host-only shortcut.
+	if strings.Contains(f.Name, ".") {
+		parts := strings.Split(f.Name, ".")
+		var expr Node = &VarRef{Name: parts[0], Pos: f.Pos}
+		for _, name := range parts[1:] {
+			expr = &MemberAccessNode{Receiver: expr, Name: name, Pos: f.Pos}
+		}
+		fn, err := expr.Exec(rt)
+		if err != nil {
+			return nil, err
+		}
+		return InvokeCallable(rt, fn, vals)
 	}
 	return nil, fmt.Errorf("undefined function '%s'", f.Name)
 }
@@ -989,6 +1006,9 @@ func (f *FuncCall) ToMap() map[string]interface{} {
 }
 
 func (f *FuncCall) ToString() string {
+	if (f.Name == "class" || f.Name == "interface") && len(f.Args) == 2 {
+		return fmt.Sprintf("%s(%s) {\n%s\n}", f.Name, f.Args[0].ToString(), f.Args[1].ToString())
+	}
 	args := make([]string, len(f.Args))
 	for i, arg := range f.Args {
 		if tvar := arg.ToString(); tvar == "" {

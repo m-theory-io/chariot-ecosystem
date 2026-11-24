@@ -8,9 +8,9 @@ set -e
 echo "🚀 Starting Chariot Ecosystem Migration..."
 
 # Set paths
-VISUAL_DSL_SOURCE="$HOME/go/src/github.com/bhouse1273/visual-dsl"
-GO_CHARIOT_SOURCE="$HOME/go/src/github.com/bhouse1273/go-chariot"  # Adjust path as needed
-CHARIOTEER_SOURCE="$HOME/go/src/github.com/bhouse1273/charioteer"   # Adjust path as needed
+VISUAL_DSL_SOURCE="${VISUAL_DSL_SOURCE:-$HOME/go/src/github.com/m-theory-io/visual-dsl}"
+GO_CHARIOT_SOURCE="${GO_CHARIOT_SOURCE:-$HOME/go/src/github.com/m-theory-io/go-chariot}"
+CHARIOTEER_SOURCE="${CHARIOTEER_SOURCE:-$HOME/go/src/github.com/m-theory-io/charioteer}"
 
 # Verify we're in the right directory
 if [ ! -d "services" ]; then

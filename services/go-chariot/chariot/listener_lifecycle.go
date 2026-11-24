@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 func listenerShutdownGrace() time.Duration {

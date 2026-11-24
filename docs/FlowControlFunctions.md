@@ -18,10 +18,23 @@ Chariot supports a set of flow control constructs for scripting, including loops
 | `default()`               | Default branch within a switch                                   |
 | `break`                   | Exit the nearest enclosing loop or switch                        |
 | `continue`                | Skip to the next iteration of the nearest enclosing loop         |
+| `error(message)`          | Raise a runtime error with a string message; stops normal execution |
 
 ---
 
 ### Function Details
+
+#### `error(message)`
+
+Raises an error through the normal runtime error path. Requires exactly one
+string argument; it does not log and continue or terminate the host process.
+Registered by `RegisterFlow`.
+
+```chariot
+if(equal(customerId, null)) {
+    error("Customer ID is required")
+}
+```
 
 #### `while(condition) { ... }`
 

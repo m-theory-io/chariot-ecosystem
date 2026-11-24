@@ -6,7 +6,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	azv "github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"go.uber.org/zap"
 )
 

@@ -14,7 +14,7 @@
             overflow: hidden;
         }
 
-        // Tabs for switching toolbar modes
+        /* Tabs for switching toolbar modes */
         .toolbar-tabs {
             display: flex;
             gap: 4px;
@@ -1615,6 +1615,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
     <script src="chariot-codegen.js"></script>
+    <script src="editor-state.js"></script>
     <script>
         // Configuration
         const CHARIOT_FILES_FOLDER = 'files';
@@ -1659,6 +1660,7 @@
             [/\b(deleteFile|convertJSONFileToYAML|convertYAMLFileToJSON|fileExists|getFileSize|jsonToYAML|jsonToYAMLNode|listFiles|loadCSV|loadCSVRaw|loadJSON|loadJSONRaw|loadYAML|loadYAMLMultiDoc|loadYAMLRaw|loadXML|loadXMLRaw|parseXMLString|readFile|saveCSV|saveCSVRaw|saveJSON|saveJSONRaw|saveYAML|saveYAMLMultiDoc|saveYAMLRaw|saveXML|saveXMLRaw|writeFile|yamlToJSON|yamlToJSONNode)\b(?=\s*\()/, 'keyword.chariot.file'],
             [/\b(cryptoRandomString|encrypt|decrypt|sign|verify|hash256|hash512|generateKey|generateRSAKey|randomBytes)\b(?=\s*\()/, 'keyword.chariot.crypto'],
             [/\b(break|continue)\b(?=\s*\()/, 'keyword.chariot.flow'],
+            [/\b(assertSatisfies|class|field|interface|method|new|satisfies|signature|withSignature)\b(?=\s*\()/, 'keyword.chariot.classes'],
             [/\b(callMethod||getHostObject|hostObject)\b(?=\s*\()/, 'keyword.chariot.host'],
             [/\b(parseJSON|parseJSONValue|toJSON|toSimpleJSON)\b(?=\s*\()/, 'keyword.chariot.json'],
             [/\b(abs|add|amortize|apr|avg|balloon|ceil|ceiling|cos|depreciation|div|dotProduct|e|exp|floor|fv|int|irr|ln|lsp|loanBalance|log|log10|log2|matmul|max|min|mod|mul|nper|npv|pct|pi|pmt|pow|pv|random|randomSeed|randomString|rate|round|sin|solveLinear|sqrt|sub|sum|tan|transpose|vectorScale)\b(?=\s*\()/, 'keyword.chariot.math'],
@@ -1805,6 +1807,152 @@
         let editorContainerTemplate = '';
         const workspaceTabs = createWorkspaceTabs();
         const debugContext = createDebugContext();
+        let draftStore = null;
+        let draftTimer = null;
+        let draftRestoring = false;
+        let draftScopeRestored = false;
+        let workspaceInitialized = false;
+        let eventHandlersInitialized = false;
+        let pasteCommand = null;
+        let draftFields = {};
+        let pendingDraftFields = {};
+
+        function draftWarning(message) {
+            let banner = document.getElementById('draftWarning');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'draftWarning';
+                banner.setAttribute('role', 'alert');
+                banner.style.cssText = 'position:fixed;bottom:8px;left:8px;right:8px;z-index:10000;padding:12px;background:#663c00;color:white;';
+                document.body.appendChild(banner);
+            }
+            banner.textContent = message;
+        }
+
+        function captureEditorDraft() {
+            persistActiveTabContent();
+            const active = openFileTabs.get(activeFileTabId);
+            if (active && editor && ['files', 'functions', 'diagrams'].includes(currentTab)) active.viewState = editor.saveViewState();
+            const fields = { ...draftFields };
+            for (const id of CharioteerDraft.fieldIds) {
+                const el = document.getElementById(id);
+                if (el) fields[id] = el.value;
+            }
+            const viewport = {};
+            for (const id of CharioteerDraft.viewportIds) {
+                const el = document.getElementById(id);
+                if (el) viewport[id] = el.scrollTop;
+            }
+            return {
+                version: 1, tabs: Array.from(openFileTabs.values()), order: tabOrder,
+                activeId: activeFileTabId || '', referenceId: referenceTabId || '',
+                referenceView: referenceEditor && referenceTabId ? referenceEditor.saveViewState() : null,
+                last: { files: getLastFileTabId(), functions: getLastFunctionTabId(), diagrams: getLastDiagramTabId() },
+                view: currentTab, bottomTab: currentBottomTab, browserScope: currentFileBrowserScope,
+                fileScopePinned: fileScopePinnedByUser, diagramScope: diagramScopeState.current,
+                diagramScopePinned: diagramScopeState.pinnedByUser,
+                standalone: !active && editor ? editor.getValue() : '', standaloneOriginal: originalContent,
+                standaloneView: !active && editor ? editor.saveViewState() : null,
+                standaloneName: currentFileName, fields, viewport,
+                layout: { leftWidth: parseFloat(getComputedStyle(document.getElementById('leftPanel')).width),
+                    bottomHeight: parseFloat(getComputedStyle(document.getElementById('bottomPanel')).height) },
+                streaming: document.getElementById('streamingToggle').checked
+            };
+        }
+
+        function flushEditorDraft() {
+            clearTimeout(draftTimer);
+            if (draftStore && !draftRestoring) draftStore.save(captureEditorDraft());
+        }
+
+        function scheduleEditorDraft() {
+            if (!draftStore || draftRestoring) return;
+            clearTimeout(draftTimer);
+            draftTimer = setTimeout(flushEditorDraft, 150);
+        }
+
+        function restoreEditorDraft(user) {
+            draftRestoring = true;
+            draftScopeRestored = false;
+            draftStore = CharioteerDraft.createStore(() => localStorage, user, draftWarning);
+            const draft = draftStore.load();
+            try {
+                if (!draft) return;
+                draftScopeRestored = true;
+                currentFileBrowserScope = draft.browserScope || 'global';
+                fileScopePinnedByUser = draft.fileScopePinned;
+                diagramScopeState.current = draft.diagramScope || 'global';
+                diagramScopeState.pinnedByUser = draft.diagramScopePinned;
+                for (const saved of draft.tabs) {
+                    const tab = Object.assign(createTabRecord(saved), saved, { loaded: true });
+                    registerTab(tab);
+                    const untitled = /^untitled-(\d+)\.ch$/.exec(tab.displayName || '');
+                    if (untitled) untitledCounter = Math.max(untitledCounter, Number(untitled[1]) + 1);
+                    const fn = /^newFunction(\d+)$/.exec(tab.fileName || '');
+                    if (fn) functionDraftCounter = Math.max(functionDraftCounter, Number(fn[1]) + 1);
+                }
+                tabOrder = draft.order;
+                for (const id of Object.values(draft.last)) workspaceTabs.rememberActivation(openFileTabs.get(id));
+                referenceTabId = openFileTabs.has(draft.referenceId) ? draft.referenceId : null;
+                currentTab = 'files';
+                renderPrimaryTabs();
+                if (openFileTabs.has(draft.activeId)) {
+                    activateFileTab(draft.activeId, { force: true, skipPersist: true });
+                } else {
+                    setToolbarActiveState(['files', 'functions', 'diagrams'].includes(draft.view) ? draft.view : 'files');
+                    setPrimaryEditorValue(draft.standalone || '');
+                    originalContent = draft.standaloneOriginal || '';
+                    currentFileName = draft.standaloneName || '';
+                    isFileModified = editor.getValue() !== originalContent;
+                    if (draft.standaloneView) editor.restoreViewState(draft.standaloneView);
+                }
+                updateReferencePane();
+                if (draft.referenceView && referenceEditor) referenceEditor.restoreViewState(draft.referenceView);
+                draftFields = { ...draft.fields };
+                pendingDraftFields = { ...draft.fields };
+                if (draft.layout.leftWidth) document.getElementById('leftPanel').style.width = draft.layout.leftWidth + 'px';
+                if (draft.layout.bottomHeight) document.getElementById('bottomPanel').style.height = draft.layout.bottomHeight + 'px';
+                document.getElementById('streamingToggle').checked = draft.streaming;
+                switchTab(draft.bottomTab);
+                applyFileScopeUI();
+                applyDiagramScopeUI();
+                // Use the canonical toolbar transition; never replay run/save/import actions.
+                if (draft.view !== currentTab) document.getElementById(draft.view + 'Tab')?.click();
+                for (const [id, top] of Object.entries(draft.viewport)) {
+                    const el = document.getElementById(id);
+                    if (el) el.scrollTop = top;
+                }
+                editor?.layout();
+            } catch (error) {
+                draftWarning('Some draft UI state could not be restored. Code tabs were retained; export your code before leaving.');
+                // Do not replace an incompletely restored snapshot.
+                draftStore = null;
+            } finally { draftRestoring = false; }
+        }
+
+        function initializeDraftPersistence() {
+            let user = null;
+            try { if (localStorage.getItem('chariot_token')) user = localStorage.getItem('chariot_user'); }
+            catch (error) { /* createStore reports inaccessible storage visibly */ }
+            setToolbarActiveState('files');
+            restoreEditorDraft(user);
+            document.addEventListener('input', event => {
+                if (CharioteerDraft.fieldIds.includes(event.target.id)) {
+                    draftFields[event.target.id] = event.target.value;
+                    delete pendingDraftFields[event.target.id];
+                }
+                scheduleEditorDraft();
+            });
+            for (const event of ['click', 'change', 'mouseup', 'scroll']) document.addEventListener(event, scheduleEditorDraft, true);
+            window.addEventListener('pagehide', flushEditorDraft);
+            document.addEventListener('visibilitychange', () => { if (document.hidden) flushEditorDraft(); });
+            new MutationObserver(() => {
+                for (const [id, value] of Object.entries(pendingDraftFields)) {
+                    const el = document.getElementById(id);
+                    if (el) { el.value = value; delete pendingDraftFields[id]; }
+                }
+            }).observe(document.getElementById('editorContainer'), { childList: true, subtree: true });
+        }
 
         function getPaneState(paneId) {
             return editorPaneState[paneId || 'primary'];
@@ -2304,6 +2452,27 @@
                 return;
             }
             if (!activeFileTabId) {
+                // Promote free-form edits to a real tab, so replacing Monaco with Dashboard/MCP
+                // cannot orphan a draft that was typed before the user pressed New.
+                if (editor.getValue() !== '' || originalContent !== '') {
+                    const tab = createTabRecord({
+                        scope: currentTab === 'functions' ? FUNCTION_LIBRARY_SCOPE : currentFileScope,
+                        fileName: currentTab === 'functions' ? functionEditorFunctionName : currentFileName,
+                        displayName: 'untitled-' + untitledCounter++ + '.ch',
+                        content: editor.getValue(), originalContent,
+                        isDirty: editor.getValue() !== originalContent, isUntitled: !currentFileName
+                    });
+                    if (currentTab === 'diagrams') {
+                        tab.sourceType = 'diagram';
+                        tab.diagramSourceName = currentDiagramName;
+                    }
+                    tab.viewState = editor.saveViewState();
+                    registerTab(tab);
+                    activeFileTabId = tab.id;
+                    workspaceTabs.rememberActivation(tab);
+                    renderPrimaryTabs();
+                    return;
+                }
                 workspaceTabs.rememberStandalone(currentTab, {
                     content: editor.getValue(),
                     name: currentTab === 'functions' ? functionEditorFunctionName : (currentTab === 'diagrams' ? currentDiagramName : currentFileName),
@@ -2316,6 +2485,7 @@
                 return;
             }
             const tabView = getTabWorkspaceView(tab);
+            tab.viewState = editor.saveViewState();
             tab.content = editor.getValue();
             tab.isDirty = tab.content !== tab.originalContent;
             workspaceTabs.rememberContent(tab);
@@ -2399,6 +2569,7 @@
                 }
                 toggleDiagramActionButtons(!!currentDiagramName);
             }
+            if (targetTab.viewState) editor.restoreViewState(targetTab.viewState);
             refreshTabVisualState();
             updateSaveButtonStates();
             updateRunButtonState();
@@ -2587,7 +2758,11 @@
             if (divider) divider.classList.add('visible');
             splitViewActive = true;
             if (referenceEditor) {
-                referenceEditor.setValue(tab.content || '');
+                if (referenceEditor.getValue() !== (tab.content || '')) {
+                    const view = referenceEditor.saveViewState();
+                    referenceEditor.setValue(tab.content || '');
+                    if (view) referenceEditor.restoreViewState(view);
+                }
             }
             renderReferenceTabStrip(tab);
         }
@@ -3678,8 +3853,8 @@
                     defaultScope: resolvedScope,
                     currentScope: resolvedScope
                 };
-                alignDiagramScopeWithProfile(resolvedScope);
-                if (!fileScopePinnedByUser) {
+                if (!draftScopeRestored) alignDiagramScopeWithProfile(resolvedScope);
+                if (!fileScopePinnedByUser && !draftScopeRestored) {
                     currentFileBrowserScope = sandboxProfile.currentScope;
                 }
                 if (!activeFileTabId) {
@@ -3783,6 +3958,15 @@
             // Add event listener for content changes            
             // Initialize UI
             trackFileChanges(); // Add this line
+            editor.onDidChangeCursorSelection(scheduleEditorDraft);
+            editor.onDidScrollChange(scheduleEditorDraft);
+            if (!pasteCommand) {
+                pasteCommand = CharioteerDraft.installPaste(monaco,
+                    () => monaco.editor.getEditors().find(instance => instance.hasTextFocus()) || editor,
+                    () => navigator.clipboard, draftWarning);
+            }
+            // Match programmatic action invocation to the command used by Monaco's existing menu.
+            editor.addAction({ id: 'editor.action.clipboardPasteAction', label: 'Paste', run: pasteCommand.run });
 
             renderPrimaryTabs();
             updateReferencePane();
@@ -3790,18 +3974,21 @@
             // Initialize event handlers
             initializeEventHandlers();
 
-            // Initialize splitters
-            initializeSplitter();
-            initializeLeftSplitter();
+            // These DOM nodes survive editor rebuilds; do not stack their handlers.
+            if (!workspaceInitialized) {
+                initializeSplitter();
+                initializeLeftSplitter();
+            }
 
             applyDiagramScopeUI();
             applyFileScopeUI();
 
-            // Set initial UI state (logged out)
-            updateAuthUI(false);
-
-            // Check for existing token
-            checkExistingAuth();
+            if (!workspaceInitialized) {
+                workspaceInitialized = true;
+                updateAuthUI(false);
+                initializeDraftPersistence();
+                checkExistingAuth();
+            }
 
             initializeFunctionLibraryToolbar();
         }
@@ -4129,6 +4316,7 @@
                             functionSelect.appendChild(option);
                         });
                         functionSelect.disabled = unique.length === 0;
+                        functionSelect.value = functionEditorFunctionName || '';
                     }
                 }
             } catch (e) {
@@ -4405,6 +4593,13 @@
 
                 const result = await response.json();
                 if (response.ok && result.result === "OK" && result.data && result.data.token) {
+                    flushEditorDraft();
+                    draftStore = null;
+                    document.getElementById('filesTab')?.click();
+                    closeAllTabs();
+                    setPrimaryEditorValue('');
+                    draftFields = {};
+                    pendingDraftFields = {};
                     authToken = result.data.token;
                     sessionId = authToken; // Use token as session ID for debug API
                     currentUser = username;
@@ -4418,6 +4613,7 @@
                     startSessionManagement();
 
                     updateAuthUI(true);
+                    restoreEditorDraft(currentUser);
                     await fetchSessionProfile({ syncFileScope: true });
                     const functionNames = await fetchUserFunctions();
                     setChariotTokenizer(functionNames);
@@ -4440,6 +4636,11 @@
         // Logout functionality
         function logout() {
             console.log('DEBUG: Logout function called');
+            flushEditorDraft();
+            draftStore = null; // Logout must not autosave cleared editors over the user's draft.
+            document.getElementById('filesTab')?.click();
+            draftFields = {};
+            pendingDraftFields = {};
 
             clearBreakpointsOnServer(null, { clearAll: true });
 
@@ -4499,6 +4700,7 @@
             }
 
             updateAuthUI(false);
+            restoreEditorDraft(null);
         }
 
         // Session management functions
@@ -4656,6 +4858,8 @@
         // Ensure we only bind global UI handlers once across editor rebuilds
         let uiHandlersInitialized = false;
         function initializeEventHandlers() {
+            if (eventHandlersInitialized) return;
+            eventHandlersInitialized = true;
             if (uiHandlersInitialized) { return; }
             // Mark immediately to avoid duplicate bindings during early calls
             uiHandlersInitialized = true;
@@ -4872,6 +5076,13 @@
             if (filesTab && functionsTab && dashboardTab && agentsTab && diagramsTab && mcpTab && fileToolbar && functionsToolbar && dashboardToolbar && agentsToolbar && diagramsToolbar && mcpToolbar) {
                 function showToolbar(selected) {
                     const previousTab = currentTab;
+                    // All Monaco views share one editor, including generated diagrams.
+                    // Capture before a toolbar can replace its DOM or its content.
+                    persistActiveTabContent();
+                    for (const id of CharioteerDraft.fieldIds) {
+                        const el = document.getElementById(id);
+                        if (el) draftFields[id] = el.value;
+                    }
                     // Hide all toolbars
                     fileToolbar.classList.remove('active');
                     functionsToolbar.classList.remove('active');
@@ -4893,11 +5104,6 @@
                         // Leaving agents: stop WS and restore editor container
                         if (previousTab === 'agents') {
                             stopAgentsWS();
-                            const editorContainer = document.getElementById('editorContainer');
-                            if (editorContainer) {
-                                editorContainer.innerHTML = '';
-                                setupMonacoEditor();
-                            }
                         }
                         // Save current function editor state
                         if (previousTab === 'functions') {
@@ -4948,11 +5154,6 @@
                         // Leaving agents: stop WS and restore editor
                         if (previousTab === 'agents') {
                             stopAgentsWS();
-                            const editorContainer = document.getElementById('editorContainer');
-                            if (editorContainer) {
-                                editorContainer.innerHTML = '';
-                                setupMonacoEditor();
-                            }
                         }
                         // Save current file editor state
                         if (previousTab === 'files') {
@@ -7736,6 +7937,7 @@
                 return;
             }
 
+            persistActiveTabContent();
             const template = '// New Chariot Script\n';
             const displayName = 'untitled-' + untitledCounter++ + '.ch';
             const tab = createTabRecord({
@@ -7759,6 +7961,7 @@
             if (editor) {
                 setPrimaryEditorValue(template);
             }
+            scheduleEditorDraft();
             const fileSelect = document.getElementById('fileSelect');
             if (fileSelect) {
                 fileSelect.value = '';
@@ -7937,6 +8140,7 @@
                                 fileSelect.disabled = true;
                                 console.log('DEBUG: No files found');
                             }
+                            if (currentFileScope === currentFileBrowserScope) fileSelect.value = currentFileName || '';
                             if (pendingFileToLoad) {
                                 const targetFile = pendingFileToLoad;
                                 pendingFileToLoad = null;

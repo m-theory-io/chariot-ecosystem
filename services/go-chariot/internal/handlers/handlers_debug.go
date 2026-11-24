@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 var upgrader = websocket.Upgrader{

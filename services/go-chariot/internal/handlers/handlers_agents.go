@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"go.uber.org/zap"
 )
 

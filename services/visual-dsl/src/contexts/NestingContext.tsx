@@ -8,7 +8,7 @@ export interface Subflow {
   collapsed: boolean;
 }
 
-interface NestingRelation {
+export interface NestingRelation {
   parentId: string;
   childId: string;
   order: number; // Parameter order in function call
@@ -48,11 +48,11 @@ export const useNesting = () => {
   return context;
 };
 
-export const NestingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [nestingMode, setNestingMode] = useState(false);
-  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
-  const [nestingRelations, setNestingRelations] = useState<NestingRelation[]>([]);
-  const [subflows, setSubflows] = useState<Record<string, Subflow>>({});
+export const NestingProvider: React.FC<{ children: React.ReactNode; initialDraft?: import('../utils/diagramDraft').DiagramDraft }> = ({ children, initialDraft }) => {
+  const [nestingMode, setNestingMode] = useState(initialDraft?.editor.nestingMode ?? false);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(initialDraft?.editor.selectedParentId ?? null);
+  const [nestingRelations, setNestingRelations] = useState<NestingRelation[]>(initialDraft?.diagram.nestingRelations ?? []);
+  const [subflows, setSubflows] = useState<Record<string, Subflow>>(initialDraft?.diagram.subflows ?? {});
   const [subflowNavStack, setSubflowNavStack] = useState<{ subflowId: string; title: string }[]>([]);
 
   // Derive a consistent group/subflow id for a given parent id

@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 func testManager(t *testing.T) (*Manager, *ch.Runtime) {

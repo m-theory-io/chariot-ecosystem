@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 func TestMCPClient_ListAndExecute(t *testing.T) {

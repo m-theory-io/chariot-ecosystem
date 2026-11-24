@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // Add this helper function at the top of the file after imports

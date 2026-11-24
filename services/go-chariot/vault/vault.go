@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // DBContext represents database connection information for a tenant

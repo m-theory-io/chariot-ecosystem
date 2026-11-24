@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 type ProgressSink interface {
@@ -102,7 +102,7 @@ import (
 	"context"
 	"time"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 type runner struct {
@@ -187,7 +187,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot/agent"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot/agent"
 )
 
 var DefaultAgentMgr = agent.NewManager(agent.Options{
@@ -228,7 +228,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 type AgentStartReq struct {
@@ -292,7 +292,7 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 type agentsCfg struct {
@@ -328,7 +328,7 @@ import (
 	"encoding/json"
 
 	"github.com/nsqio/go-nsq"
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 type BeliefMsg struct {

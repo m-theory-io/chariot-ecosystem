@@ -26,12 +26,20 @@ const (
 	TOK_COMMA    // ,
 	TOK_LBRACKET // [
 	TOK_RBRACKET // ]
+	TOK_DOT      // .
+	TOK_INVALID
+	TOK_SEMICOLON // legacy statement separator, never an argument separator
 )
 
 // Token holds the type and literal text.
 type Token struct {
-	Type TokenType
-	Text string
+	Type   TokenType
+	Text   string
+	Line   int
+	Column int
+	// NewlineBefore records a line break in skipped whitespace/comments, not
+	// inside the preceding token (which may itself be a multiline string).
+	NewlineBefore bool
 }
 
 // Lexer splits source into a stream of Tokens.
@@ -53,18 +61,48 @@ func (lx *Lexer) getLineCol() (int, int) {
 }
 
 // Next returns the next Token from the input.
-func (lx *Lexer) Next() Token {
-	s := lx.src
-	// skip whitespace
-	for lx.pos < len(s) && unicode.IsSpace(rune(s[lx.pos])) {
-		if s[lx.pos] == '\n' {
-			lx.line++
-			lx.col = 1
-		} else {
-			lx.col++
+func (lx *Lexer) Next() (tok Token) {
+	// Track all consumed bytes, including comments and multiline strings. Token
+	// positions describe the start, not the end of the lexer lookahead.
+	start := lx.pos
+	defer func() {
+		for _, c := range lx.src[start:lx.pos] {
+			if c == '\n' {
+				lx.line++
+				lx.col = 1
+			} else {
+				lx.col++
+			}
 		}
-		lx.pos++
+	}()
+	s := lx.src
+	// Skip whitespace and comments iteratively, including consecutive comments.
+	for {
+		for lx.pos < len(s) && unicode.IsSpace(rune(s[lx.pos])) {
+			lx.pos++
+		}
+		if lx.pos+1 >= len(s) || s[lx.pos:lx.pos+2] != "//" {
+			break
+		}
+		lx.pos += 2
+		for lx.pos < len(s) && s[lx.pos] != '\n' {
+			lx.pos++
+		}
 	}
+	line, col := lx.line, lx.col
+	for _, c := range s[start:lx.pos] {
+		if c == '\n' {
+			line++
+			col = 1
+		} else {
+			col++
+		}
+	}
+	newlineBefore := strings.ContainsAny(s[start:lx.pos], "\r\n")
+	defer func() {
+		tok.Line, tok.Column = line, col
+		tok.NewlineBefore = newlineBefore
+	}()
 	if lx.pos >= len(s) {
 		return Token{Type: TOK_EOF}
 	}
@@ -74,46 +112,42 @@ func (lx *Lexer) Next() Token {
 		// Handle backtick strings
 		return lx.tokenizeBacktickString()
 	case c == '/':
-		if lx.pos+1 < len(s) && s[lx.pos+1] == '/' {
-			// Skip to end of line or end of input
-			lx.pos += 2 // Skip the '//'
-			for lx.pos < len(s) && s[lx.pos] != '\n' {
-				lx.pos++
-			}
-			// Recursively get the next token
-			return lx.Next()
-		}
-		// Otherwise it's not a comment, handle as an unknown character
 		lx.pos++
-		return lx.Next() // Skip and get next token
+		return Token{Type: TOK_INVALID, Text: "/"}
 	case isLetter(rune(c)):
 		start := lx.pos
 		for lx.pos < len(s) && (isLetter(rune(s[lx.pos])) || isDigit(s[lx.pos])) {
 			lx.pos++
 		}
 		return Token{Type: TOK_IDENT, Text: s[start:lx.pos]}
-	case isDigit(c):
-		start := lx.pos
-		for lx.pos < len(s) && (isDigit(s[lx.pos]) || s[lx.pos] == '.') {
+	case isDigit(c) || (c == '-' && lx.pos+1 < len(s) && isDigit(s[lx.pos+1])):
+		begin := lx.pos
+		if c == '-' {
 			lx.pos++
 		}
-		return Token{Type: TOK_NUMBER, Text: s[start:lx.pos]}
-
-	// In parser.go - add this case in the Next() function switch statement
-	case c == '-':
-		// Check if this is a negative number
-		if lx.pos+1 < len(s) && isDigit(s[lx.pos+1]) {
-			// Parse as negative number
-			start := lx.pos
-			lx.pos++ // Skip the minus
-			for lx.pos < len(s) && (isDigit(s[lx.pos]) || s[lx.pos] == '.') {
+		for lx.pos < len(s) && isDigit(s[lx.pos]) {
+			lx.pos++
+		}
+		if lx.pos < len(s) && s[lx.pos] == '.' {
+			// A dot followed by an identifier starts member access. Retain
+			// legacy trailing-decimal syntax (1.) and negative decimals.
+			if lx.pos+1 == len(s) || !isLetter(rune(s[lx.pos+1])) {
+				lx.pos++
+				for lx.pos < len(s) && isDigit(s[lx.pos]) {
+					lx.pos++
+				}
+			}
+		}
+		if lx.pos < len(s) && (s[lx.pos] == 'e' || s[lx.pos] == 'E') {
+			lx.pos++
+			if lx.pos < len(s) && (s[lx.pos] == '+' || s[lx.pos] == '-') {
 				lx.pos++
 			}
-			return Token{Type: TOK_NUMBER, Text: s[start:lx.pos]}
+			for lx.pos < len(s) && isDigit(s[lx.pos]) {
+				lx.pos++
+			}
 		}
-		// Otherwise, might be subtraction operator (handle later if needed)
-		lx.pos++
-		return lx.Next() // Skip for now
+		return Token{Type: TOK_NUMBER, Text: s[begin:lx.pos]}
 
 	case c == '\'':
 		// Single-quoted string literal
@@ -121,6 +155,8 @@ func (lx *Lexer) Next() Token {
 		content := lx.parseStringContent('\'')
 		if lx.pos < len(s) && s[lx.pos] == '\'' {
 			lx.pos++ // skip closing quote
+		} else {
+			return Token{Type: TOK_INVALID, Text: "unterminated string"}
 		}
 		return Token{Type: TOK_STRING, Text: content}
 
@@ -130,6 +166,8 @@ func (lx *Lexer) Next() Token {
 		content := lx.parseStringContent('"')
 		if lx.pos < len(s) && s[lx.pos] == '"' {
 			lx.pos++ // skip closing quote
+		} else {
+			return Token{Type: TOK_INVALID, Text: "unterminated string"}
 		}
 		return Token{Type: TOK_STRING, Text: content}
 	case c == '(':
@@ -153,10 +191,15 @@ func (lx *Lexer) Next() Token {
 	case c == ']':
 		lx.pos++
 		return Token{Type: TOK_RBRACKET}
-	default:
-		// skip unknown
+	case c == '.':
 		lx.pos++
-		return lx.Next()
+		return Token{Type: TOK_DOT, Text: "."}
+	case c == ';':
+		lx.pos++
+		return Token{Type: TOK_SEMICOLON, Text: ";"}
+	default:
+		lx.pos++
+		return Token{Type: TOK_INVALID, Text: string(c)}
 	}
 }
 
@@ -194,8 +237,7 @@ func NewParserWithFilename(src string, filename string) *Parser {
 
 // getCurrentPos returns the current source position
 func (p *Parser) getCurrentPos() SourcePos {
-	line, col := p.lx.getLineCol()
-	return SourcePos{File: p.filename, Line: line, Column: col}
+	return SourcePos{File: p.filename, Line: p.cur.Line, Column: p.cur.Column}
 }
 
 // next reads the next token into cur.
@@ -243,8 +285,8 @@ func (l *Lexer) tokenizeBacktickString() Token {
 	// If we get here, we have an unterminated backtick string
 	// For now, return what we have (you might want to handle this differently)
 	return Token{
-		Type: TOK_STRING,
-		Text: content.String(),
+		Type: TOK_INVALID,
+		Text: "unterminated backtick string",
 	}
 }
 
@@ -322,6 +364,10 @@ var parserDebug = func() bool {
 func (p *Parser) parseProgram() (*Block, error) {
 	blk := &Block{}
 	for p.cur.Type != TOK_EOF {
+		if p.cur.Type == TOK_SEMICOLON {
+			p.next()
+			continue
+		}
 		// Capture position before parsing expression
 		pos := p.getCurrentPos()
 		if parserDebug {
@@ -353,6 +399,79 @@ func (p *Parser) parseProgram() (*Block, error) {
 
 // parseExpr handles variable refs, literals, function calls, and blocks.
 func (p *Parser) parseExpr() (Node, error) {
+	pos := p.getCurrentPos()
+	node, err := p.parsePrimary()
+	if err != nil {
+		return nil, fmt.Errorf("%s:%d:%d: %w", pos.File, pos.Line, pos.Column, err)
+	}
+	if n, ok := node.(interface{ SetPos(SourcePos) }); ok {
+		n.SetPos(pos)
+	}
+	for {
+		switch p.cur.Type {
+		case TOK_DOT:
+			p.next()
+			if p.cur.Type != TOK_IDENT {
+				return nil, fmt.Errorf("%s:%d:%d: expected member name after '.'", p.filename, p.cur.Line, p.cur.Column)
+			}
+			node = &MemberAccessNode{Receiver: node, Name: p.cur.Text, Pos: pos}
+			p.next()
+		case TOK_LPAREN:
+			// A completed expression cannot acquire a call across a newline.
+			// This also applies inside argument lists; the enclosing parser keeps
+			// consuming arguments/grouping rather than ending the outer call.
+			if p.cur.NewlineBefore {
+				return node, nil
+			}
+			args, err := p.parseCallArgs()
+			if err != nil {
+				return nil, err
+			}
+			node = &FunctionCallNode{FuncExpr: node, Args: args, Pos: pos}
+		default:
+			return node, nil
+		}
+	}
+}
+
+func (p *Parser) parseCallArgs() ([]Node, error) {
+	p.next() // '('
+	args := []Node{}
+	for p.cur.Type != TOK_RPAREN {
+		if p.cur.Type == TOK_EOF {
+			return nil, fmt.Errorf("%s:%d:%d: expected ')'", p.filename, p.cur.Line, p.cur.Column)
+		}
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+		if p.cur.Type == TOK_COMMA {
+			p.next()
+		}
+		// Legacy Chariot accepts whitespace-separated arguments. Preserve it;
+		// unsupported punctuation still fails in parseExpr instead of vanishing.
+	}
+	p.next()
+	return args, nil
+}
+
+func (p *Parser) parsePrimary() (Node, error) {
+	if p.cur.Type == TOK_INVALID {
+		return nil, fmt.Errorf("invalid token %q", p.cur.Text)
+	}
+	if p.cur.Type == TOK_LPAREN {
+		p.next()
+		node, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type != TOK_RPAREN {
+			return nil, fmt.Errorf("expected ')' after grouped expression")
+		}
+		p.next()
+		return node, nil
+	}
 	// identifier: variable or function call
 	if p.cur.Type == TOK_IDENT {
 		ident := p.cur.Text
@@ -375,21 +494,25 @@ func (p *Parser) parseExpr() (Node, error) {
 
 		p.next()
 		// function call?
-		if p.cur.Type == TOK_LPAREN {
-			p.next() // skip '('
-			args := []Node{}
-			for p.cur.Type != TOK_RPAREN && p.cur.Type != TOK_EOF {
-				node, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				args = append(args, node)
-				if p.cur.Type == TOK_COMMA {
-					p.next()
+		if p.cur.Type == TOK_LPAREN && !p.cur.NewlineBefore {
+			args, err := p.parseCallArgs()
+			if err != nil {
+				return nil, err
+			}
+			// optional block for constructs like while
+			// Declaration/member names are symbols, not variable reads.
+			nameIndex := -1
+			if ident == "field" || ident == "requires" {
+				nameIndex = 0
+			}
+			if ident == "method" {
+				nameIndex = 1
+			}
+			if nameIndex >= 0 && len(args) > nameIndex {
+				if name, ok := args[nameIndex].(*VarRef); ok {
+					args[nameIndex] = &Literal{Val: Str(name.Name)}
 				}
 			}
-			p.next() // skip ')'
-			// optional block for constructs like while
 			if p.cur.Type == TOK_LBRACE {
 				blk, err := p.parseBlock()
 				if err != nil {
@@ -404,7 +527,10 @@ func (p *Parser) parseExpr() (Node, error) {
 	}
 	// number literal
 	if p.cur.Type == TOK_NUMBER {
-		f, _ := strconv.ParseFloat(p.cur.Text, 64)
+		f, err := strconv.ParseFloat(p.cur.Text, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid number %q", p.cur.Text)
+		}
 		node := &Literal{Val: Number(f)}
 		p.next()
 		return node, nil
@@ -648,6 +774,10 @@ func (p *Parser) parseBlock() (*Block, error) {
 
 	blk := &Block{}
 	for p.cur.Type != TOK_RBRACE && p.cur.Type != TOK_EOF {
+		if p.cur.Type == TOK_SEMICOLON {
+			p.next()
+			continue
+		}
 		stmt, err := p.parseExpr()
 		if err != nil {
 			return nil, err

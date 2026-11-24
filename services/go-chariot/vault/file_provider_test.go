@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 func TestFileProviderLoadsSecrets(t *testing.T) {

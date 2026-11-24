@@ -40,13 +40,13 @@ Charioteer can be configured using command line flags or environment variables:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/bhouse1273/charioteer.git
-   cd charioteer
+   git clone https://github.com/m-theory-io/chariot-ecosystem.git
+   cd chariot-ecosystem/services/charioteer
    ```
 
 2. Build the application:
    ```bash
-   go build -o charioteer main.go
+   go build -o charioteer .
    ```
 
 3. Run the server:

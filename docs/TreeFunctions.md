@@ -10,7 +10,7 @@ Chariot tree functions provide creation, serialization, secure storage, metadata
 | Function                      | Description                                                      |
 |-------------------------------|------------------------------------------------------------------|
 | `newTree(name)`               | Create a new tree node with the given name                       |
-| `treeSave(treeNode, filename [, format [, compression]])` | Save a tree node to a file (default: JSON)           |
+| `treeSave(treeNode, filename [, format [, compression]])` | Save a tree node (recognized extension, otherwise JSON) |
 | `treeLoad(filename)`          | Load a tree node from a file                                     |
 | `treeToXML(treeNode [, prettyPrint])` | Convert a tree node to XML string (prettyPrint default: true) |
 | `treeToYAML(treeNode)`        | Convert a tree node to YAML string                               |
@@ -39,18 +39,23 @@ setq(agent, newTree('MyAgent'))
 Saves a tree node to a file.
 - `treeNode`: The tree node to save.
 - `filename`: The file path.
-- `format`: (Optional) `"json"`, `"yaml"`, `"xml"`, `"gob"` (default: `"json"`).
+- `format`: (Optional) `"json"`, `"yaml"`, `"xml"`, `"gob"`. Defaults to the recognized filename extension (`.yml` means YAML); otherwise JSON. An explicit format overrides this default.
 - `compression`: (Optional) Boolean; if `true`, compresses the file (default: `false`).
 
 ```chariot
 treeSave(agent, 'agent.json')
+treeSave(agent, 'agent.gob') // writes stateful GOB, not JSON
 treeSave(agent, 'agent.yaml', 'yaml')
 treeSave(agent, 'agent.json.gz', 'json', true)
 ```
 
 #### `treeLoad(filename)`
 
-Loads a tree node from a file. Format is auto-detected from file extension.
+Loads a tree node from a file under `CHARIOT_TREE_PATH`. Format is selected from the filename extension; a final `.gz` is ignored for format selection and gzip compression is detected from the file bytes.
+
+Historical `.gob` files containing JSON (created by the former JSON-only save default) are read through the normal JSON tree decoder. Stateful GOB, legacy direct TreeNode GOB, and legacy GOB byte-slice wrappers are also supported. Invalid JSON, truncated GOB, and unsupported binary representations remain errors; a GOB decoder's “non-zero delta for singleton” alone does not prove the file is corrupt.
+
+Loading never rewrites or migrates the original file. To normalize an old artifact, load it and save to a **new filename**, specifying the intended format. Keep the original until the new file is verified. JSON and GOB persistence are not interchangeable for all runtime values: the stateful GOB value encoder does not preserve executable functions or the new class/instance values (it stringifies unsupported values). Use source declarations for classes with captured scopes; do not migrate such trees to GOB expecting executable state to survive.
 
 ```chariot
 setq(agent, treeLoad('agent.json'))

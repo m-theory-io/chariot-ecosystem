@@ -3,7 +3,6 @@ package chariot
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -69,6 +68,12 @@ func RegisterTreeFunctions(rt *Runtime) {
 			Compression: false,  // default
 			PrettyPrint: true,   // default
 		}
+		// A recognized extension is the default encoding; an explicit format
+		// argument still wins. Previously .gob files silently contained JSON.
+		switch format := treeFormatFromFilename(string(filename)); format {
+		case "json", "yaml", "xml", "gob", "binary":
+			options.Format = format
+		}
 
 		if len(args) > 2 {
 			if format, ok := args[2].(Str); ok {
@@ -110,21 +115,6 @@ func RegisterTreeFunctions(rt *Runtime) {
 		if !ok {
 			return nil, fmt.Errorf("argument must be a string filename, got %T", args[0])
 		}
-
-		// Detect format from extension
-		ext := strings.ToLower(filepath.Ext(string(filename)))
-		format := "json" // default
-		switch ext {
-		case ".gob":
-			format = "gob"
-		case ".json":
-			format = "json"
-		case ".xml":
-			format = "xml"
-		case ".yaml", ".yml":
-			format = "yaml"
-		}
-		_ = format
 
 		// Use global service with timeout
 		service := getTreeSerializerService()

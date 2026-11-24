@@ -1,4 +1,4 @@
-module github.com/bhouse1273/chariot-ecosystem/services/go-chariot
+module github.com/m-theory-io/chariot-ecosystem/services/go-chariot
 
 go 1.24.2
 

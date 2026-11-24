@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // Verify getProp/setProp work for Plan fields

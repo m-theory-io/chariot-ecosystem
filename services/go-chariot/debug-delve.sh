@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -e
+
+SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Stop Docker container first
 echo "Stopping Docker container..."
 docker stop chariot-go-chariot 2>/dev/null || true
@@ -39,5 +43,5 @@ echo "  (dlv) print args                    # Print variable values"
 echo "  (dlv) list                          # Show current code"
 echo ""
 
-cd /home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot
+cd "$SERVICE_DIR"
 dlv debug ./cmd --listen=:2345 --headless=true --api-version=2 --accept-multiclient

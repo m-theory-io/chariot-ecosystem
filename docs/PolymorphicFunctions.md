@@ -4,6 +4,16 @@
 
 Chariot provides a set of polymorphic (type-dispatched) functions that operate on multiple data types, such as arrays, strings, JSON, maps, and tree nodes. These functions automatically select the correct behavior based on the type of their arguments.
 
+For the canonical member read/call rules, see [Member notation](MemberNotation.md).
+`getProp(instance, "name")` reads a declared class field/method;
+`setProp(instance, "name", value)` validates an existing field contract. Unknown
+class members are errors, whereas missing `MapValue` keys return null. Writes
+remain `setProp`, never `instance.name = value`. Methods bind receivers;
+function-valued fields do not. See [Classes and interfaces](ClassesAndInterfaces.md)
+and [object examples](../examples/objects/README.md). Runtime graph cloning is
+separate from the polymorphic `clone` API; this change does not add a public
+`clone(instance)` guarantee or graph-aware copying of every host container.
+
 ### Available Polymorphic Functions
 
 | Function                | Description                                                                                   |
@@ -43,6 +53,12 @@ addTo(array(1,2), 3, 4)   // [1, 2, 3, 4]
 #### `apply(fn, collection)`
 
 Apply a function to each element of a collection (array, map, JSON, MapNode, TreeNode, etc.). The function receives (key, value) for maps, or (index, value) for arrays.
+
+Map-like callback keys are Chariot strings (`S`); array indexes are Chariot
+numbers (`N`). They can be used directly with typed callback signatures and
+property/index functions. Tree traversal retains its single-child callback.
+Embeddings that previously inspected native Go `string`/`int` callback keys
+should instead expect `Str`/`Number`.
 
 ```chariot
 apply(myFunc, array(1,2,3))
@@ -197,4 +213,5 @@ split("a,b,c", ",")           // ["a", "b", "c"]
 Join array elements into a string with the delimiter.
 
 ```chariot
-join(array("a","b","c"),
+join(array("a","b","c"), "-") // "a-b-c"
+```
