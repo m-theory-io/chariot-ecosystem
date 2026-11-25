@@ -162,13 +162,14 @@ type Value interface{}
 type ValueType int
 
 type FunctionValue struct {
-	Body            Node     // AST node representing the function body
-	Parameters      []string // Parameter names
-	SourceCode      string   // Original source (for debugging)
-	FormattedSource string   // Formatted source code for display
-	IsParsed        bool     // Whether the function has been parsed
-	Scope           *Scope   // Captured scope (closure)
-	OriginFile      string   // Canonical filename for debugger mapping
+	Signature       *Signature // Optional strict parameter/return contract; nil preserves legacy binding.
+	Body            Node       // AST node representing the function body
+	Parameters      []string   // Parameter names
+	SourceCode      string     // Original source (for debugging)
+	FormattedSource string     // Formatted source code for display
+	IsParsed        bool       // Whether the function has been parsed
+	Scope           *Scope     // Captured scope (closure)
+	OriginFile      string     // Canonical filename for debugger mapping
 }
 
 // Implement Value interface methods
@@ -214,7 +215,9 @@ func GetValueType(v Value) ValueType {
 		return ValueTable
 	case *HostObjectValue, HostObjectValue:
 		return ValueHostObject
-	case *FunctionValue, FunctionValue:
+	case *InstanceValue:
+		return ValueObject
+	case *FunctionValue, FunctionValue, Callable:
 		return ValueFunction
 	case *JSONNode, JSONNode:
 		return ValueJSON
@@ -250,7 +253,9 @@ func GetValueTypeSpec(val Value) string {
 		return "R" // Relation
 	case HostObjectValue, *HostObjectValue:
 		return "H"
-	case FunctionValue, *FunctionValue:
+	case *InstanceValue:
+		return "O"
+	case FunctionValue, *FunctionValue, Callable:
 		return "F"
 	case JSONNode, *JSONNode:
 		return "J"
@@ -349,6 +354,8 @@ func convertValueToUInt64(val Value) uint64 {
 // convertToNativeValue converts Chariot Value types to native Go types
 func convertValueToNative(val Value) interface{} {
 	switch v := val.(type) {
+	case *ClassValue, *InstanceValue, *InterfaceValue, *Signature, *boundScriptMethod:
+		return scriptNativeHook(v)
 	case *ETLTransformValue:
 		return v.ToNativeMap()
 
@@ -364,6 +371,9 @@ func convertValueToNative(val Value) interface{} {
 			"_value_type": "function",
 			"source":      v.SourceCode, // The "func(profile)" part
 			"parameters":  v.Parameters,
+		}
+		if v.Signature != nil {
+			result["signature"] = scriptNativeHook(v.Signature)
 		}
 
 		// Serialize the Body (the actual executable statements)
@@ -583,6 +593,13 @@ func convertFromNativeValue(val interface{}) Value {
 		}
 		return mv
 	case map[string]interface{}:
+		if kind, _ := v["_value_type"].(string); kind == "class" || kind == "instance" || kind == "interface" || kind == "signature" || kind == "script_map" || kind == "script_error" {
+			value, err := decodeScriptNative(v)
+			if err != nil {
+				return err
+			}
+			return value
+		}
 		// Check if this is a serialized OfferVariable
 		if valueType, ok := v["_value_type"]; ok && valueType == "offer_variable" {
 			value := convertFromNativeValue(v["value"])
@@ -607,7 +624,16 @@ func convertFromNativeValue(val interface{}) Value {
 			}
 
 			// Create FunctionValue with reconstructed body
+			var sig *Signature
+			if raw, exists := v["signature"]; exists {
+				var ok bool
+				sig, ok = convertFromNativeValue(raw).(*Signature)
+				if !ok || len(sig.Parameters) != len(params) {
+					return fmt.Errorf("invalid persisted function signature")
+				}
+			}
 			return &FunctionValue{
+				Signature:  sig,
 				Parameters: params,
 				SourceCode: source,
 				Body:       body,
@@ -812,6 +838,10 @@ func serializeNode(node Node) interface{} {
 	}
 
 	switch n := node.(type) {
+	case *MemberAccessNode:
+		return map[string]interface{}{"_node_type": "MemberAccessNode", "receiver": serializeNode(n.Receiver), "name": n.Name, "pos": n.Pos}
+	case *FunctionCallNode:
+		return map[string]interface{}{"_node_type": "FunctionCallNode", "funcExpr": serializeNode(n.FuncExpr), "args": serializeNodes(n.Args), "pos": n.Pos}
 	case *Block:
 		return map[string]interface{}{
 			"_node_type": "Block",
@@ -896,6 +926,12 @@ func deserializeNode(data interface{}) Node {
 	}
 
 	switch nodeType {
+	case "MemberAccessNode", "FunctionCallNode":
+		node, err := NodeFromMap(nodeMap)
+		if err != nil {
+			return nil
+		}
+		return node
 	case "Block":
 		if stmtsData, ok := nodeMap["stmts"].([]interface{}); ok {
 			stmts := make([]Node, 0, len(stmtsData))
@@ -1012,53 +1048,15 @@ func deserializeNodes(data []interface{}) []Node {
 	return nodes
 }
 
-// ValueToJSON converts a Chariot Value to a JSON-serializable Go value
+// ValueToJSON converts a Chariot Value to a JSON-serializable Go value. Legacy
+// callers receive an explicit error object on failure, never a partial projection.
+// Boundaries that can return errors should use ValueToJSONChecked instead.
 func ValueToJSON(v Value) interface{} {
-	if v == nil {
-		return nil
+	projected, err := ValueToJSONChecked(v)
+	if err != nil {
+		return map[string]interface{}{"error": err.Error()}
 	}
-
-	switch val := v.(type) {
-	case Number:
-		return float64(val)
-	case Str:
-		return string(val)
-	case Bool:
-		return bool(val)
-	case *ArrayValue:
-		arr := make([]interface{}, val.Length())
-		for i := 0; i < val.Length(); i++ {
-			arr[i] = ValueToJSON(val.Get(i))
-		}
-		return arr
-	case *MapValue:
-		m := make(map[string]interface{})
-		for k, v := range val.Values {
-			m[k] = ValueToJSON(v)
-		}
-		return m
-	case *Plan:
-		return map[string]interface{}{
-			"type": "plan",
-			"name": val.Name,
-		}
-	case *FunctionValue:
-		funcName := "<anonymous>"
-		if val.SourceCode != "" {
-			funcName = val.SourceCode
-		}
-		return map[string]interface{}{
-			"type": "function",
-			"name": funcName,
-		}
-	case TreeNode:
-		return map[string]interface{}{
-			"type": "treenode",
-			"name": val.Name(),
-		}
-	default:
-		return fmt.Sprintf("%v", v)
-	}
+	return projected
 }
 
 // JSONToValue converts a JSON-serializable Go value to a Chariot Value

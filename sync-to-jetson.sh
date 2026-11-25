@@ -7,8 +7,8 @@ set -e
 
 echo "🔄 Syncing chariot-ecosystem from StudioSSD to Jetson internal SSD..."
 
-SOURCE="/media/nvidia/StudioSSD/go/src/github.com/bhouse1273/chariot-ecosystem/"
-DEST="/home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/"
+SOURCE="${SOURCE:-/media/nvidia/StudioSSD/go/src/github.com/m-theory-io/chariot-ecosystem/}"
+DEST="${DEST:-/home/nvidia/go/src/github.com/m-theory-io/chariot-ecosystem/}"
 
 echo "📂 Source: $SOURCE"
 echo "📂 Destination: $DEST"
@@ -26,7 +26,7 @@ rsync -av \
 echo "✅ Sync complete!"
 echo ""
 echo "💡 Next steps:"
-echo "   cd /home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem"
+printf '   cd %q\n' "$DEST"
 echo "   git add ."
 echo "   git commit -m 'Your commit message'"
 echo "   git push"

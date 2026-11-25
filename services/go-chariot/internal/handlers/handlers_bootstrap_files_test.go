@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/labstack/echo/v4"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 func withBootstrapFileConfig(t *testing.T, enabled bool) string {

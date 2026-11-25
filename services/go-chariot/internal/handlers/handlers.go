@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/listeners"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/internal/listeners"
 	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"

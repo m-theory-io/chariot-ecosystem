@@ -1,4 +1,5 @@
 import React from 'react';
+import { getSourceNodeDiagnostic } from 'chariot-codegen';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { StartNodeProperties } from './dialogs/StartNodeProperties';
 import { DeclareNodeProperties } from './dialogs/DeclareNodeProperties';
@@ -11,10 +12,12 @@ interface LogiconNodeData {
   isInNestingGroup?: boolean;
   isNestingParent?: boolean;
   isCurrentNestingTarget?: boolean; // New property for active parent selection
+  classDiagnostics?: string[];
   properties?: StartNodeProperties | DeclareNodeProperties | CreateNodeProperties | Record<string, any>; // Properties for different node types
 }
 
 export const LogiconNode: React.FC<NodeProps<LogiconNodeData>> = ({ data, selected }) => {
+  const sourceDiagnostic = getSourceNodeDiagnostic({ data });
   const getNodeStyling = () => {
     let baseClasses = "px-3 py-2 shadow-md rounded-lg border-2 min-w-[100px] max-w-[140px]";
     
@@ -100,6 +103,17 @@ export const LogiconNode: React.FC<NodeProps<LogiconNodeData>> = ({ data, select
         }`}>
           {data.label}
         </div>
+        {sourceDiagnostic && (
+          <div role="alert" title={sourceDiagnostic} className="text-xs text-amber-800 dark:text-amber-300 text-center">
+            {sourceDiagnostic}
+          </div>
+        )}
+        {!!data.classDiagnostics?.length && (
+          <div role="alert" title={data.classDiagnostics.join('\n')} className="text-xs text-red-700 dark:text-red-300 text-center">
+            {data.classDiagnostics[0]}
+            {(data.label === 'Field' || data.label === 'Requires') && <div>Connect from {data.label === 'Field' ? 'Class' : 'Interface'} to nest this member.</div>}
+          </div>
+        )}
         
         {/* Nesting label for parent nodes */}
         {data.isNestingParent && (

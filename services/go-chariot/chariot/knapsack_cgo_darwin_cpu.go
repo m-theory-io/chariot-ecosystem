@@ -5,7 +5,7 @@ package chariot
 /*
 #cgo CFLAGS: -I${SRCDIR}/../knapsack-library/lib/macos-cpu
 #cgo CXXFLAGS: -I${SRCDIR}/../knapsack-library/lib/macos-cpu -std=c++14
-#cgo LDFLAGS: ${SRCDIR}/../knapsack-library/lib/macos-cpu/libknapsack_macos_cpu.a -lc++
+#cgo LDFLAGS: ${SRCDIR}/../knapsack-library/lib/macos-cpu/libknapsack_macos_cpu.a
 
 #include <stdlib.h>
 #include "knapsack_macos_cpu.h"

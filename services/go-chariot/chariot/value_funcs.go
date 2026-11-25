@@ -10,12 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"go.uber.org/zap"
 )
 
 // RegisterValues registers all value-related functions
 func RegisterValues(rt *Runtime) {
+	RegisterClasses(rt)
 	// Variable declaration and manipulation
 	rt.Register("declare", func(args ...Value) (Value, error) {
 		if len(args) < 2 {
@@ -291,14 +292,7 @@ func RegisterValues(rt *Runtime) {
 			return nil, errors.New("call requires at least a function argument")
 		}
 
-		// Get function value
-		fn, ok := args[0].(*FunctionValue)
-		if !ok {
-			return nil, fmt.Errorf("expected function value, got %T", args[0])
-		}
-
-		// Pass remaining args to function
-		return executeFunctionValue(rt, fn, args[1:])
+		return InvokeCallable(rt, args[0], args[1:])
 	})
 
 	rt.Register("listFunctions", func(args ...Value) (Value, error) {
@@ -790,7 +784,9 @@ func RegisterValues(rt *Runtime) {
 			return Str("R"), nil
 		case *HostObjectValue:
 			return Str("H"), nil
-		case *FunctionValue:
+		case *InstanceValue:
+			return Str("O"), nil
+		case *FunctionValue, Callable:
 			return Str("F"), nil
 		case *JSONNode:
 			return Str("J"), nil
@@ -1096,7 +1092,7 @@ func RegisterValues(rt *Runtime) {
 }
 
 func FunctionValueToMap(fn *FunctionValue) map[string]interface{} {
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"_value_type":      "function",
 		"parameters":       fn.Parameters,
 		"body":             fn.Body.ToMap(),
@@ -1104,6 +1100,10 @@ func FunctionValueToMap(fn *FunctionValue) map[string]interface{} {
 		"formatted_source": fn.FormattedSource, // Add this field for editor formatting
 		"origin_file":      fn.OriginFile,
 	}
+	if fn.Signature != nil {
+		result["signature"] = scriptNativeHook(fn.Signature)
+	}
+	return result
 }
 
 // Place this in a shared utils file or in value_funcs.go if needed
@@ -1321,9 +1321,10 @@ func validateTypeCompatibility(typeStr string, value Value) error {
 			return fmt.Errorf("type mismatch: expected JSON, got %T", value)
 		}
 	case TypeObject:
-		// Host Object -accept only references to registered HostObjects
-		if _, ok := value.(*HostObjectValue); !ok {
-			return fmt.Errorf("type mismatch: expected host object, got %T", value)
+		switch value.(type) {
+		case *HostObjectValue, *InstanceValue:
+		default:
+			return fmt.Errorf("type mismatch: expected object, got %T", value)
 		}
 	case TypeXML:
 		if _, ok := value.(*XMLNode); !ok {
@@ -1345,7 +1346,9 @@ func validateTypeCompatibility(typeStr string, value Value) error {
 			}
 		}
 	case TypeFunction:
-		if _, ok := value.(*FunctionValue); !ok {
+		switch value.(type) {
+		case *FunctionValue, Callable:
+		default:
 			return fmt.Errorf("type mismatch: expected function, got %T", value)
 		}
 	case TypePlan:
@@ -1436,6 +1439,13 @@ func MapToFunctionValue(fnMap map[string]interface{}) (*FunctionValue, error) {
 	}
 
 	// Source code (optional)
+	if raw, exists := fnMap["signature"]; exists {
+		sig, ok := convertFromNativeValue(raw).(*Signature)
+		if !ok || len(sig.Parameters) != len(fn.Parameters) {
+			return nil, fmt.Errorf("invalid persisted function signature")
+		}
+		fn.Signature = sig
+	}
 	if src, ok := fnMap["source"].(string); ok {
 		fn.SourceCode = src
 	}
@@ -1563,6 +1573,8 @@ func PrettyPrintFunction(fn *FunctionValue, name string) string {
 
 func PrettyPrintNode(node Node, indent string) string {
 	switch n := node.(type) {
+	case *MemberAccessNode, *FunctionCallNode, *ArrayLiteralNode:
+		return node.ToString()
 	case *Block:
 		var sb strings.Builder
 		for _, stmt := range n.Stmts {
@@ -1572,6 +1584,9 @@ func PrettyPrintNode(node Node, indent string) string {
 		}
 		return sb.String()
 	case *FuncCall:
+		if n.Name == "class" || n.Name == "interface" {
+			return n.ToString()
+		}
 		args := make([]string, len(n.Args))
 		for i, arg := range n.Args {
 			args[i] = PrettyPrintNode(arg, "")

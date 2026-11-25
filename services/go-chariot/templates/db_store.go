@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
 	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // DBTemplateStore implements TemplateStore using a database

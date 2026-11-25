@@ -6,7 +6,7 @@ Chariot is a functional, data‑centric scripting language where everything is a
 
 - **`chariot/`**: core Go library to parse, interpret, and execute Chariot scripts
 - **`cmd/chariotctl/`**: CLI tool to run `.ch` scripts from the command line
-- **`handlers/`**: Echo HTTP handler exposing an API endpoint to execute scripts over REST
+- **`internal/handlers/`**: Echo HTTP handlers used by the REST service
 
 ## Features
 
@@ -19,27 +19,39 @@ Chariot is a functional, data‑centric scripting language where everything is a
 ## Installation
 
 ```bash
-go get github.com/bhouse1273/go-chariot/chariot
+go get github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot@latest
 ```
 
-Or include in your `go.mod`:
+This adds the module `github.com/m-theory-io/chariot-ecosystem/services/go-chariot`
+at its latest available version to your `go.mod`.
 
-```go
-require github.com/bhouse1273/go-chariot v0.0.0
+For a local checkout, clone the monorepo:
+
+```bash
+git clone https://github.com/m-theory-io/chariot-ecosystem.git
+cd chariot-ecosystem/services/go-chariot
 ```
 
 ## Usage
 
 ### As a library
 
+Create a runtime with `chariot.NewRuntime()` and register its built-in functions
+with `chariot.RegisterAll(rt)`.
+
 ```go
+package main
+
 import (
-    "github.com/bhouse1273/go-chariot/chariot"
+    "fmt"
+    "log"
+
+    "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 func main() {
     rt := chariot.NewRuntime()
-    chariot.RegisterBuiltins(rt)
+    chariot.RegisterAll(rt)
 
     // Optionally bind host objects
     // rt.BindObject("db", dbClient)
@@ -65,7 +77,8 @@ func main() {
 Build the `chariotctl` CLI:
 
 ```bash
-cd github.com/bhouse1273/go-chariot
+# From the monorepo root
+cd services/go-chariot
 go build -o chariotctl ./cmd/chariotctl
 ```
 
@@ -78,34 +91,16 @@ Run your script:
 Or install globally:
 
 ```bash
-go install github.com/bhouse1273/go-chariot/cmd/chariotctl@latest
+go install github.com/m-theory-io/chariot-ecosystem/services/go-chariot/cmd/chariotctl@latest
 ```
 
-### HTTP Handler
+### HTTP Service
 
-Use the Echo handler in your web service:
-
-```go
-import (
-    "github.com/bhouse1273/go-chariot/handlers"
-)
-
-e := echo.New()
-e.POST("/execute", handlers.Execute)
-e.Start(":8080")
-```
-
-Request JSON:
-
-```json
-{ "program": "declare(x,'N',10); append('x=', x)" }
-```
-
-Response JSON:
-
-```json
-{ "result": "x=10" }
-```
+The Echo handlers live in `internal/handlers` and cannot be imported by other
+modules. Run the service with `go run ./cmd` from this service directory and use
+its authenticated `/api/execute` endpoint, or embed the public `chariot` library
+in your own HTTP server. See the [monorepo README](../../README.md) for service
+configuration.
 
 ## Project Structure
 
@@ -118,7 +113,7 @@ go-chariot/
 │   ├── builtins.go
 ├── cmd/
 │   └── chariotctl/     # CLI entrypoint
-├── handlers/           # HTTP handler for Echo
+├── internal/handlers/  # HTTP handlers for the service
 ├── go.mod
 └── README.md           # This file
 ```
@@ -228,4 +223,3 @@ arbitrary handler/hook code; keep it bounded and allow adequate termination grac
 ## License
 
 MIT © 2025 William J House
-

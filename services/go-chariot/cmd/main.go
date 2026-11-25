@@ -10,15 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/application"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/internal/application"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/logs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/vault"
 	"go.uber.org/zap"
 
-	mcpserver "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
 	"github.com/bhouse1273/kissflag"
+	mcpserver "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/mcp"
 )
 
 func init() {

@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/handlers"
 	"github.com/labstack/echo/v4"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/internal/handlers"
 )
 
 // RegisterRoutes sets up all API routes

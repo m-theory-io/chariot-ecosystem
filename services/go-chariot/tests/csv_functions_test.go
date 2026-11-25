@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 func TestCSVFileOperations(t *testing.T) {

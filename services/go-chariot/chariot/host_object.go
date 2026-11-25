@@ -61,7 +61,17 @@ func (rt *Runtime) BindObject(name string, obj interface{}) {
 }
 
 // CallHostMethod uses reflection to invoke a method on a bound object.
-func (rt *Runtime) CallHostMethod(obj interface{}, methodName string, args []Value) (Value, error) {
+func (rt *Runtime) CallHostMethod(obj interface{}, methodName string, args []Value) (result Value, err error) {
+	// Reflection and user Go methods must not panic through the interpreter.
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result = nil
+			err = fmt.Errorf("host method %s: %v", methodName, recovered)
+		}
+	}()
+	if isNilMemberReceiver(obj) {
+		return nil, fmt.Errorf("cannot call %s on null host object", methodName)
+	}
 	// Get the reflection value of the object
 	objValue := reflect.ValueOf(obj)
 
@@ -80,15 +90,20 @@ func (rt *Runtime) CallHostMethod(obj interface{}, methodName string, args []Val
 	numArgs := methodType.NumIn()
 
 	// Check argument count
-	if len(args) != numArgs {
+	if (!methodType.IsVariadic() && len(args) != numArgs) || (methodType.IsVariadic() && len(args) < numArgs-1) {
 		return nil, fmt.Errorf("incorrect number of arguments for %s (expected %d, got %d)",
 			methodName, numArgs, len(args))
 	}
 
 	// Convert Chariot values to Go values
-	goArgs := make([]reflect.Value, numArgs)
-	for i := 0; i < numArgs; i++ {
-		expectedType := methodType.In(i)
+	goArgs := make([]reflect.Value, len(args))
+	for i := range args {
+		var expectedType reflect.Type
+		if methodType.IsVariadic() && i >= numArgs-1 {
+			expectedType = methodType.In(numArgs - 1).Elem()
+		} else {
+			expectedType = methodType.In(i)
+		}
 		goValue, err := rt.convertToGoValue(args[i], expectedType)
 		if err != nil {
 			return nil, fmt.Errorf("argument %d: %v", i, err)
@@ -101,24 +116,20 @@ func (rt *Runtime) CallHostMethod(obj interface{}, methodName string, args []Val
 
 	// Handle the return value
 	if len(results) == 0 {
-		return nil, nil // Void method
+		return DBNull, nil // Void method
 	}
-
-	// Convert the first return value to a Chariot value
-	result, err := rt.convertToChariotValue(results[0])
-	if err != nil {
-		return nil, fmt.Errorf("error converting return value: %v", err)
-	}
-
 	// Check for error return value (if method returns multiple values and last is error)
-	if len(results) > 1 && results[len(results)-1].Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
-		if !results[len(results)-1].IsNil() {
-			err := results[len(results)-1].Interface().(error)
-			return nil, err
+	if results[len(results)-1].Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+		last := results[len(results)-1]
+		if e, ok := last.Interface().(error); ok && !isNilMemberReceiver(e) {
+			return nil, e
 		}
+		results = results[:len(results)-1]
 	}
-
-	return result, nil
+	if len(results) == 0 {
+		return DBNull, nil
+	}
+	return hostPropertyValue(rt, results[0].Interface())
 }
 
 // SetObjectProperty sets a property on a host object
@@ -133,6 +144,9 @@ func (rt *Runtime) SetObjectProperty(objectName string, propertyName string, val
 
 // setObjectProperty is a helper function that sets a property on any object
 func (rt *Runtime) setObjectProperty(obj interface{}, propertyName string, value Value) (Value, error) {
+	if isNilMemberReceiver(obj) {
+		return nil, fmt.Errorf("null host object")
+	}
 	// Handle map[string]Value objects
 	if m, ok := obj.(map[string]Value); ok {
 		m[propertyName] = value
@@ -146,7 +160,7 @@ func (rt *Runtime) setObjectProperty(obj interface{}, propertyName string, value
 		if err != nil {
 			return nil, fmt.Errorf("error converting value: %v", err)
 		}
-		m[propertyName] = goValue
+		m[propertyName] = goValue.Interface()
 		return value, nil
 	}
 
@@ -187,7 +201,7 @@ func (rt *Runtime) setObjectProperty(obj interface{}, propertyName string, value
 		return nil, fmt.Errorf("error converting value: %v", err)
 	}
 
-	val := reflect.ValueOf(goValue)
+	val := goValue
 	if !val.Type().AssignableTo(field.Type()) {
 		return nil, fmt.Errorf("cannot assign %s to field '%s' of type %s", val.Type(), propertyName, field.Type())
 	}

@@ -3,10 +3,9 @@ package chariot
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // RegisterTypeDispatchedFunctions registers functions that dispatch based on argument types
@@ -69,42 +68,42 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 		case map[string]Value:
 			// Iterate the map and execute the function for each key-value pair
 			for key, value := range coll {
-				if _, err := rt.funcs["call"](fn, key, value); err != nil {
+				if _, err := rt.funcs["call"](fn, Str(key), value); err != nil {
 					return nil, err
 				}
 			}
 		case *ArrayValue:
 			// Iterate the coll and execute the function for each element
 			for key, value := range coll.Elements {
-				if _, err := rt.funcs["call"](fn, key, value); err != nil {
+				if _, err := rt.funcs["call"](fn, Number(key), value); err != nil {
 					return nil, err
 				}
 			}
 		case *MapValue:
 			// Iterate the map and execute the function for each key-value pair
 			for key, value := range coll.Values {
-				if _, err := rt.funcs["call"](fn, key, value); err != nil {
+				if _, err := rt.funcs["call"](fn, Str(key), value); err != nil {
 					return nil, err
 				}
 			}
 		case *JSONNode:
 			// Iterate the attributes and execute the function for each key-value pair
 			for key, value := range coll.Attributes {
-				if _, err := rt.funcs["call"](fn, key, value); err != nil {
+				if _, err := rt.funcs["call"](fn, Str(key), value); err != nil {
 					return nil, err
 				}
 			}
 		case *SimpleJSON:
 			// Iterate the attributes and execute the function for each key-value pair
 			for key, value := range coll.GetValue().(map[string]Value) {
-				if _, err := rt.funcs["call"](fn, key, value); err != nil {
+				if _, err := rt.funcs["call"](fn, Str(key), value); err != nil {
 					return nil, err
 				}
 			}
 		case *MapNode:
 			// Iterate the attributes and execute the function for each key-value pair
 			for key, value := range coll.Attributes {
-				if _, err := rt.funcs["call"](fn, key, value); err != nil {
+				if _, err := rt.funcs["call"](fn, Str(key), value); err != nil {
 					return nil, err
 				}
 			}
@@ -379,29 +378,11 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 				args[i] = tvar.Value
 			}
 		}
-		switch args[0].(type) {
-		case *SimpleJSON:
-			return getPropSimpleJSON(args...)
-		case *MapNode:
-			return getPropMapNode(args...)
-		case *MapValue:
-			return getPropMapValue(args...)
-		case *JSONNode:
-			return getPropJSON(args...)
-		case *XMLNode:
-			return getPropXML(args...)
-		case *TreeNodeImpl:
-			return getPropTreeNode(args...)
-		case *Plan:
-			return getPropPlan(args...)
-		case map[string]Value:
-			return getPropMap(args...)
-		case map[string]interface{}:
-			return getPropMapInterface(args...)
-		case *HostObjectValue:
-			return getPropHostObject(rt, args...)
+		name, ok := args[1].(Str)
+		if !ok {
+			return nil, errors.New("property name must be a string")
 		}
-		return nil, fmt.Errorf("getProp not supported for type %T", args[0])
+		return ResolveMember(rt, args[0], string(name))
 	})
 
 	// Dynamic setProp function
@@ -417,6 +398,13 @@ func RegisterTypeDispatchedFunctions(rt *Runtime) {
 			}
 		}
 
+		if writer, ok := args[0].(MemberWriter); ok {
+			name, ok := args[1].(Str)
+			if !ok {
+				return nil, errors.New("property name must be a string")
+			}
+			return writer.SetMember(string(name), args[2])
+		}
 		switch args[0].(type) {
 		case map[string]Value:
 			return setPropMap(args...)
@@ -941,24 +929,27 @@ func getPropHostObject(rt *Runtime, args ...Value) (Value, error) {
 		return nil, errors.New("getProp requires 2 arguments: object and propertyName")
 	}
 
-	var objName string
+	var hostObj interface{}
 	switch obj := args[0].(type) {
+	case *HostObjectValue:
+		if obj == nil {
+			return nil, errors.New("null host object")
+		}
+		hostObj = obj.Value
 	case Str:
-		objName = string(obj)
+		var exists bool
+		hostObj, exists = rt.objects[string(obj)]
+		if !exists {
+			return nil, fmt.Errorf("host object '%s' not found", obj)
+		}
 	default:
-		return nil, errors.New("first argument must be object name")
+		return nil, errors.New("first argument must be host object or object name")
 	}
 
 	// Get the property name
 	propName, ok := args[1].(Str)
 	if !ok {
 		return nil, errors.New("second argument must be property name string")
-	}
-
-	// Get the object
-	hostObj, exists := rt.objects[objName]
-	if !exists {
-		return nil, fmt.Errorf("host object '%s' not found", objName)
 	}
 
 	// Use reflection to get the property
@@ -968,7 +959,7 @@ func getPropHostObject(rt *Runtime, args ...Value) (Value, error) {
 	}
 
 	// Convert to Chariot value
-	return convertToChariotValue(reflect.ValueOf(val)), nil
+	return hostPropertyValue(rt, val)
 }
 
 // getPropMapNode
@@ -1599,12 +1590,21 @@ func setPropHostObject(rt *Runtime, args ...Value) (Value, error) {
 		return nil, errors.New("setProp requires 3 arguments: object, propertyName, and value")
 	}
 
-	var objName string
+	var hostObj interface{}
 	switch obj := args[0].(type) {
+	case *HostObjectValue:
+		if obj == nil {
+			return nil, errors.New("null host object")
+		}
+		hostObj = obj.Value
 	case Str:
-		objName = string(obj)
+		var exists bool
+		hostObj, exists = rt.objects[string(obj)]
+		if !exists {
+			return nil, fmt.Errorf("host object '%s' not found", obj)
+		}
 	default:
-		return nil, errors.New("first argument must be object name")
+		return nil, errors.New("first argument must be host object or object name")
 	}
 
 	// Get the property name
@@ -1617,7 +1617,7 @@ func setPropHostObject(rt *Runtime, args ...Value) (Value, error) {
 	value := args[2]
 
 	// Set the property
-	return rt.SetObjectProperty(objName, string(propName), value)
+	return rt.setObjectProperty(hostObj, string(propName), value)
 }
 
 // getPropPlan - dynamic property access for Plan

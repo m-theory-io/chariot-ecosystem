@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // Minimal happy-path: trigger/guard true, three steps, no drop

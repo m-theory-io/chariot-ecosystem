@@ -1,4 +1,4 @@
-module github.com/bhouse1273/charioteer
+module github.com/m-theory-io/chariot-ecosystem/services/charioteer
 
 go 1.23.0
 

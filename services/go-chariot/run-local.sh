@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -e
+
+SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Stop the Docker container first
 echo "Stopping Docker container..."
 docker stop chariot-go-chariot 2>/dev/null || true
@@ -30,5 +34,5 @@ echo "Your changes will be immediately active!"
 echo "Press Ctrl+C to stop"
 echo ""
 
-cd /home/nvidia/go/src/github.com/bhouse1273/chariot-ecosystem/services/go-chariot
+cd "$SERVICE_DIR"
 go run ./cmd

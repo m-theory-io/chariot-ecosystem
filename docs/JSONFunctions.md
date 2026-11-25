@@ -77,10 +77,45 @@ setq(sj, toSimpleJSON(map("x", 1, "y", 2)))
 
 ### Notes
 
+- For script instances, distinguish tagged native persistence from HTTP wire
+	projection; see [Objects, persistence, and wire JSON](#objects-persistence-and-wire-json).
 - All JSON parsing functions return an error if the input is not valid JSON.
 - `parseJSON` and `parseJSONSimple` return node objects for structured manipulation.
 - `parseJSONValue` is best for extracting values directly as Chariot types.
-- `toJSON` always returns a string in valid JSON format.
+- On success `toJSON` returns a JSON string; a tagged `script_error` is valid JSON
+	but not a successful object snapshot.
 - Use `toSimpleJSON` for lightweight JSON node creation.
 
 ---
+
+### Objects, persistence, and wire JSON
+
+The canonical object boundary rules are in
+[Classes and interfaces](ClassesAndInterfaces.md#runtime-copying-and-persistence).
+Do not treat the following conversions as interchangeable:
+
+- **Script `toJSON(instance)`:** uses native value conversion, which can emit
+	a tagged `_value_type: "instance"` envelope containing class/field data for a
+	supported data-only graph. Captured methods, bound calls, aliases/cycles, map
+	metadata, and unsupported resources cannot be persisted by the checked script
+	format. The legacy hook can encode failure as `_value_type: "script_error"`
+	rather than raise a script error. Old generic container serializers are not
+	graph-safe; do not pass cyclic legacy arrays/maps to `toJSON`.
+- **Go `ScriptValueToNative`:** the checked persistence API returns conventional
+	errors for those unsupported graphs. Its native decoder can restore supported
+	tagged types. It is not a script builtin. Function library metadata can retain
+	signatures, but this does not provide captured lexical scope persistence.
+- **Script `parseJSONValue`:** parses JSON data, not tagged class identity or
+	executable behavior. It does not invoke the native persistence decoder.
+- **Go `ValueToJSONChecked` / HTTP listener responses:** recursively project
+	current instance fields as ordinary JSON objects, without class/method/scope
+	metadata. Repeated aliases are allowed and projected repeatedly; cycles and
+	unsupported values error. HTTP validates serialization before committing the
+	response status, including explicit `httpResponse` bodies. This wire projection
+	does not preserve identity or recreate instances on decode.
+
+For script JSON exchange, explicitly build a data map, serialize/parse it, and
+use `new(Class, attributes)` with an already declared class. See the complete
+[serialization example](../examples/objects/serialization.ch). For method-bearing
+model persistence, save executable declaration source/AST and re-execute in a
+fresh scope; this is not a snapshot of mutated fields or captured runtime state.

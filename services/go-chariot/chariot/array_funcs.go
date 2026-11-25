@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // RegisterArray registers all array-related functions

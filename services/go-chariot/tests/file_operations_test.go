@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 func TestFileOperations(t *testing.T) {

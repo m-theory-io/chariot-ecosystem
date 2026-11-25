@@ -22,9 +22,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/pbkdf2"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/vault"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/logs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/vault"
 )
 
 // Global CryptoManager instance

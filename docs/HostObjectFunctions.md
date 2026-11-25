@@ -4,6 +4,21 @@
 
 Chariot supports integration with host (Go) objects, allowing scripts to create, store, retrieve, and invoke methods on objects managed by the runtime. This enables advanced interoperability with Go code and external systems.
 
+## Dot access and bound methods
+
+See [Member notation](MemberNotation.md) for canonical access, binding, and null
+rules. On an exposed host object, `host.Add(2)`, `setq(bound, host.Add)` followed
+by `bound(2)`, and `call(host.Add, 2)` use the actual receiver, including pointer
+receivers. Exported method names are exact/case-sensitive; legacy reflected field
+lookup remains case-insensitive. Ordinary script function-valued host fields do
+not receive an injected receiver. Existing named host/property APIs remain valid.
+
+Bound host methods satisfy the `F` callable type; host wrappers and script
+instances satisfy `O`. This does **not** make hosts conform to script structural
+interfaces: host/map conformance remains deferred. Host resources remain borrowed
+in runtime clones and are not serializable class defaults or portable persistence
+values. See [Classes and interfaces](ClassesAndInterfaces.md).
+
 ---
 
 ### Available Host Object Functions

@@ -1,6 +1,36 @@
 # chariot-ecosystem
 Chariot monorepo for go-chariot, charioteer and visual-dsl
 
+## Go module paths
+
+The canonical repository is `github.com/m-theory-io/chariot-ecosystem`. Its Go
+workspace contains two modules:
+
+- `github.com/m-theory-io/chariot-ecosystem/services/go-chariot`
+- `github.com/m-theory-io/chariot-ecosystem/services/charioteer`
+
+For existing consumers, replace
+`github.com/bhouse1273/chariot-ecosystem/services/go-chariot` and the standalone
+`github.com/m-theory-io/go-chariot` prefix with
+`github.com/m-theory-io/chariot-ecosystem/services/go-chariot` in imports and module
+requirements. Replace the old `github.com/bhouse1273/charioteer` module path with
+`github.com/m-theory-io/chariot-ecosystem/services/charioteer`, then run
+`go mod tidy`. No compatibility `replace` directives are required.
+
+Checkout directories do not determine Go module identities and need not move.
+Local run/debug scripts resolve their service directory from the script location.
+If you move a checkout, update absolute paths in local editor/MCP configuration.
+The StudioSSD development script accepts `CHARIOT_WORKSPACE`; the Jetson sync
+script accepts `SOURCE` and `DEST`. The monorepo migration script accepts
+`VISUAL_DSL_SOURCE`, `GO_CHARIOT_SOURCE`, and `CHARIOTEER_SOURCE` for legacy
+checkout locations.
+
+## FTS model import
+
+Convert a local FTS modelseed into an executable Chariot class and relationship
+schema. See [FTS import](docs/FTSImport.md) for CLI usage, generated constructors,
+validation rules, and the [business-core example](examples/fts/business-core.ch).
+
 ## Canonical build and push (Azure)
 
 Use this exact flow for all builds and pushes. Tags are typically versioned (e.g., v0.026).

@@ -1,5 +1,25 @@
 # Chariot Listener Refactor Plan
 
+## Provisional acceptance — 2026-10-25
+
+**Status: Provisionally complete, accepted by the project owner.** The listener
+refactor is closed for this iteration; remaining release checks and known
+limitations are follow-up work, not claims of unconditional production readiness.
+
+Acceptance relies on the validation recorded below from 2026-10-24. Tests were
+not rerun for this documentation-only acceptance update, and subsequent code
+changes require their own validation.
+
+Follow-up release checks:
+
+- Manual SIGINT/SIGTERM smoke testing in production and debug profiles.
+- Container build, startup/shutdown validation, and publishing verification.
+- Resolve the documented publishing-helper limitations before relying on it for
+    release packaging.
+
+Retained constraints: registry auto-start is disabled; runtime cloning is not a
+security sandbox; arbitrary blocked handler/hook code cannot be forcibly killed.
+
 ## Current delivery status (final verification)
 
 - WP7 DevTest supervisor and lifecycle hardening are present in the working tree;

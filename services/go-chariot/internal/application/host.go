@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/handlers"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/internal/routes"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
-	mcpserver "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/internal/handlers"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/internal/routes"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/logs"
+	mcpserver "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/mcp"
 	"go.uber.org/zap"
 )
 

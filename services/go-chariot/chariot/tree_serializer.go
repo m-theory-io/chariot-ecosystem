@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/logs"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
@@ -86,7 +86,6 @@ type SignedAgentContainer struct {
 }
 
 type TreeSerializerService struct {
-	serializer  *TreeNodeSerializer
 	requestChan chan *SerializationRequest
 	workerCount int
 	logger      *logs.ZapLogger
@@ -135,7 +134,6 @@ func GetTreeSerializerService() *TreeSerializerService {
 
 func NewTreeSerializerService(workers, bufferSize int) *TreeSerializerService {
 	service := &TreeSerializerService{
-		serializer:  NewTreeNodeSerializer(), // Use existing serializer
 		requestChan: make(chan *SerializationRequest, bufferSize),
 		workerCount: workers,
 		logger:      cfg.ChariotLogger,
@@ -166,14 +164,15 @@ func (ts *TreeSerializerService) worker(id int) {
 }
 
 func (ts *TreeSerializerService) processRequest(req *SerializationRequest) *SerializationResult {
-	// Configure the serializer for this request
+	// Workers must not share mutable encoding settings or inherit prior requests.
+	serializer := NewTreeNodeSerializer()
 	pathType := pathTypeTree
 	if req.Options != nil {
 		if req.Options.Format != "" {
-			ts.serializer.Format = req.Options.Format
+			serializer.Format = req.Options.Format
 		}
-		ts.serializer.Compression = req.Options.Compression
-		ts.serializer.PrettyPrint = req.Options.PrettyPrint
+		serializer.Compression = req.Options.Compression
+		serializer.PrettyPrint = req.Options.PrettyPrint
 		if req.Options.PathType != "" {
 			pathType = req.Options.PathType
 		}
@@ -184,23 +183,23 @@ func (ts *TreeSerializerService) processRequest(req *SerializationRequest) *Seri
 	if pathType == "" {
 		pathType = pathTypeTree
 	}
-	ts.serializer.PathType = pathType
+	serializer.PathType = pathType
 	if req.Format != "" {
-		ts.serializer.Format = req.Format
+		serializer.Format = req.Format
 	}
 
 	switch req.Type {
 	case "save":
-		err := ts.serializer.SaveTree(req.Node, req.Filename)
+		err := serializer.SaveTree(req.Node, req.Filename)
 		if err != nil {
 			ts.logger.Error("save failed", zap.String("filename", req.Filename), zap.Error(err))
 			return &SerializationResult{Success: false, Error: err}
 		}
-		ts.logger.Info("Save successful", zap.String("filename", req.Filename), zap.String("format", ts.serializer.Format))
+		ts.logger.Info("Save successful", zap.String("filename", req.Filename), zap.String("format", serializer.Format))
 		return &SerializationResult{Success: true}
 
 	case "load":
-		node, err := ts.serializer.LoadTree(req.Filename)
+		node, err := serializer.LoadTree(req.Filename)
 		if err != nil {
 			ts.logger.Error("Load failed", zap.String("filename", req.Filename), zap.Error(err))
 			return &SerializationResult{Success: false, Error: err}
@@ -521,20 +520,22 @@ func (s *TreeNodeSerializer) LoadTree(filePath string) (TreeNode, error) {
 	}
 	defer f.Close()
 
-	// Choose reader based on compression
-	var reader io.Reader = f
-	if s.Compression {
-		gzReader, err := gzip.NewReader(f)
-		if err != nil {
-			return nil, err
-		}
-		defer gzReader.Close()
-		reader = gzReader
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read tree data: %w", err)
 	}
+	// Compression is a property of the file, not of the previous save request.
+	if isGzipData(data) || s.Compression {
+		data, err = gunzipBytes(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress tree data: %w", err)
+		}
+	}
+	var reader io.Reader = bytes.NewReader(data)
 
 	// Auto-detect format from file extension if not specified
 	format := s.Format
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filePath)), ".")
+	ext := treeFormatFromFilename(filePath)
 	if format == "" {
 		switch ext {
 		case "json":
@@ -594,21 +595,9 @@ func (s *TreeNodeSerializer) LoadTree(filePath string) (TreeNode, error) {
 			return nil, fmt.Errorf("failed to read GOB data: %w", err)
 		}
 
-		cfg.ChariotLogger.Info("Attempting stateful GOB deserialization", zap.Int("data_size", len(data)))
-
-		// Try stateful deserialization first (this is what we saved with)
-		deserializer := &StatefulGobDeserializer{}
-		node, err := deserializer.DeserializeTree(data)
+		node, err := s.decodeGOBTreePayload(data)
 		if err != nil {
-			cfg.ChariotLogger.Warn("Stateful GOB deserialization failed, exploring legacy formats",
-				zap.Error(err))
-
-			legacyNode, legacyErr := s.decodeLegacyGOBPayload(data)
-			if legacyErr != nil {
-				return nil, fmt.Errorf("both stateful and legacy GOB deserialization failed: %w", legacyErr)
-			}
-			cfg.ChariotLogger.Info("Legacy GOB payload decoded successfully")
-			return legacyNode, nil
+			return nil, fmt.Errorf("failed to decode GOB tree (including historical representations): %w", err)
 		}
 		return node, nil
 	default:
@@ -616,48 +605,53 @@ func (s *TreeNodeSerializer) LoadTree(filePath string) (TreeNode, error) {
 	}
 }
 
-func (s *TreeNodeSerializer) decodeLegacyGOBPayload(data []byte) (TreeNode, error) {
-	payload := data
-
-	// Attempt to decode the payload directly as a TreeNode
-	if node, err := decodeTreeNodeFromGOBBytes(payload); err == nil {
-		return node, nil
-	}
-
-	// Some older artifacts were gzip-compressed without toggling the Compression flag
-	if isGzipData(payload) {
-		decompressed, err := gunzipBytes(payload)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decompress legacy GOB payload: %w", err)
+func (s *TreeNodeSerializer) decodeGOBTreePayload(data []byte) (TreeNode, error) {
+	// Historical files may contain JSON despite a .gob suffix, or a GOB byte
+	// slice wrapping JSON/GOB (optionally gzip compressed). Inspect each layer
+	// before attempting binary decoders; never reinterpret arbitrary bytes as JSON.
+	for depth := 0; depth < 4; depth++ {
+		if isGzipData(data) {
+			var err error
+			data, err = gunzipBytes(data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decompress legacy payload: %w", err)
+			}
 		}
-		payload = decompressed
-		if node, err := decodeTreeNodeFromGOBBytes(payload); err == nil {
+		if looksLikeJSONPayload(data) {
+			node, err := s.LoadTreeFromJSON(string(data))
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON tree payload in GOB file: %w", err)
+			}
 			return node, nil
 		}
-	}
-
-	// Next, try decoding as a gob-encoded byte slice which itself may contain the tree
-	rawBytes, err := decodeGobByteSlice(payload)
-	if err != nil {
-		return nil, fmt.Errorf("legacy byte-slice decode failed: %w", err)
-	}
-	inner := rawBytes
-	if isGzipData(inner) {
-		inner, err = gunzipBytes(inner)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decompress nested legacy payload: %w", err)
+		node, statefulErr := (&StatefulGobDeserializer{}).DeserializeTree(data)
+		if statefulErr == nil {
+			return node, nil
 		}
+		node, directErr := decodeTreeNodeFromGOBBytes(data)
+		if directErr == nil && node != nil {
+			return node, nil
+		}
+		inner, sliceErr := decodeGobByteSlice(data)
+		if sliceErr != nil {
+			return nil, fmt.Errorf("unsupported or corrupt tree payload: %w", errors.Join(
+				statefulErr, directErr, fmt.Errorf("legacy byte-slice decode failed: %w", sliceErr)))
+		}
+		data = inner
 	}
+	return nil, fmt.Errorf("legacy tree payload exceeds supported wrapper depth")
+}
 
-	if node, err := decodeTreeNodeFromGOBBytes(inner); err == nil {
-		return node, nil
+// treeFormatFromFilename is shared by save defaults and load selection. A gzip
+// suffix describes compression, not the underlying serialization format.
+func treeFormatFromFilename(filename string) string {
+	name := strings.ToLower(filename)
+	name = strings.TrimSuffix(name, ".gz")
+	ext := strings.TrimPrefix(filepath.Ext(name), ".")
+	if ext == "yml" {
+		return "yaml"
 	}
-
-	if looksLikeJSONPayload(inner) {
-		return s.LoadTreeFromJSON(string(inner))
-	}
-
-	return nil, fmt.Errorf("legacy payload was not recognized as a supported tree format")
+	return ext
 }
 
 func decodeTreeNodeFromGOBBytes(data []byte) (TreeNode, error) {

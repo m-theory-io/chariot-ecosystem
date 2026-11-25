@@ -1811,6 +1811,8 @@ func main() {
 	// Serve shared codegen bundle (both root and prefixed for proxy hosting)
 	http.HandleFunc("/chariot-codegen.js", codegenJSHandler)
 	http.HandleFunc("/charioteer/chariot-codegen.js", codegenJSHandler)
+	http.HandleFunc("/editor-state.js", editorStateJSHandler)
+	http.HandleFunc("/charioteer/editor-state.js", editorStateJSHandler)
 
 	// Dashboard API proxy route
 	http.HandleFunc("/charioteer/api/dashboard/status", authMiddleware(dashboardAPIHandler))

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/mcp/spec"
 )
 
 // websocketUpgrader returns a configured websocket.Upgrader.

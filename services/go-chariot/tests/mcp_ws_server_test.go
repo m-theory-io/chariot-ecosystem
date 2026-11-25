@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp"
-	mcpspec "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/mcp/spec"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/mcp"
+	mcpspec "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/mcp/spec"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

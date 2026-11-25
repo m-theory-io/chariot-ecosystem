@@ -1,4 +1,10 @@
 import React from 'react';
+import { getSourceNodeDiagnostic, isClassNodeLabel, validateClassDiagram, type ClassNodeLabel, type VisualDSLDiagram, type VisualDSLNode, type VisualDSLEdge } from 'chariot-codegen';
+import { ClassNodePropertiesDialog } from '../components/dialogs/ClassNodeProperties';
+import { createLogiconData, classNestingError, declarationPlacementMessage, type ClassProperties } from '../utils/classAuthoring';
+import { deserializeDiagramInput } from '../utils/diagramInput';
+import type { DiagramData, DiagramDraft } from '../utils/diagramDraft';
+import { useDiagramDraft } from '../hooks/useDiagramDraft';
 import { ReactFlow, ReactFlowProvider, Node, Edge, Connection, addEdge, applyNodeChanges, applyEdgeChanges, NodeChange, EdgeChange, reconnectEdge, MiniMap, Controls, Background, BackgroundVariant } from 'reactflow';
 import { flushSync } from 'react-dom';
 import "reactflow/dist/style.css";
@@ -175,18 +181,6 @@ import { useNesting } from "../contexts/NestingContext";
 import type { Subflow } from "../contexts/NestingContext";
 import { LogiconData } from "../data/logicons";
 
-// Diagram persistence types
-interface DiagramData {
-  name: string;
-  nodes: Node[];
-  edges: Edge[];
-  nestingRelations: any[];
-  subflows?: Record<string, Subflow>;
-  groupCount: number;
-  created: string;
-  modified: string;
-}
-
 function getBdiDefaultProperties(label: string): BdiNodeProperties | null {
   switch (label) {
     case 'plan':
@@ -228,6 +222,12 @@ function getFunctionDefaultProperties(): FunctionNodeProperties {
     parameters: [],
     body: 'equal(1, 1)'
   };
+}
+
+function createPaletteNodeData(logicon: LogiconData, legacyProperties: object) {
+  const properties = logicon.label === 'Function' || logicon.label === 'func'
+    ? getFunctionDefaultProperties() : getBdiDefaultProperties(logicon.label) ?? legacyProperties;
+  return createLogiconData(logicon.label, logicon.icon, logicon.category, properties);
 }
 
 interface EtlTransformDefinition {
@@ -290,12 +290,12 @@ const collectDescendantIds = (rootId: string, relations: { parentId: string; chi
   return Array.from(result);
 };
 
-export default function VisualDSLPrototype() {
+export default function VisualDSLPrototype({ initialDraft }: { initialDraft?: DiagramDraft }) {
   const { theme } = useTheme();
   const { direction, selectedNodeId, setSelectedNodeId } = useFlowControl();
   const { nestingMode, selectedParentId, setSelectedParentId, nestingRelations, addNestingRelation, getChildrenOf, getParentOf, removeNestingRelation, setNestingMode, wrapGroupAsSubflow, unwrapSubflow, isSubflow, getSubflow, getAllSubflows, replaceAllSubflows } = useNesting();
-  const [nodes, setNodes] = React.useState<Node[]>(initialNodes);
-  const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
+  const [nodes, setNodes] = React.useState<Node[]>(initialDraft?.diagram.nodes ?? initialNodes);
+  const [edges, setEdges] = React.useState<Edge[]>(initialDraft?.diagram.edges ?? initialEdges);
   const [etlTransforms, setEtlTransforms] = React.useState<EtlTransformDefinition[]>([]);
   const [etlTransformError, setEtlTransformError] = React.useState<string | null>(null);
   const ensureAuthToken = React.useCallback(async () => {
@@ -414,10 +414,12 @@ export default function VisualDSLPrototype() {
   }, [etlTransforms, nodes]);
   
   // Simple group counter - increment when nesting is created
-  const [groupCount, setGroupCount] = React.useState(0);
+  const [groupCount, setGroupCount] = React.useState(initialDraft?.diagram.groupCount ?? 0);
   
   // Diagram state
-  const [currentDiagramName, setCurrentDiagramName] = React.useState('Untitled Diagram');
+  const [currentDiagramName, setCurrentDiagramName] = React.useState(initialDraft?.diagram.name ?? 'Untitled Diagram');
+  const [created, setCreated] = React.useState(() => initialDraft?.diagram.created ?? new Date().toISOString());
+  const [viewport, setViewport] = React.useState(initialDraft?.editor.viewport ?? { x: 0, y: 0, zoom: 1 });
   
   // Counter for unique node IDs
   const nodeCounterRef = React.useRef(0);
@@ -441,21 +443,39 @@ export default function VisualDSLPrototype() {
   // No auto-subflow wrapping; manual only
 
   // Diagram persistence functions
-  const createDiagramData = (): DiagramData => {
+  const createDiagramData = (): Omit<DiagramData, 'nodes' | 'edges'> & VisualDSLDiagram => {
     return {
       name: currentDiagramName,
-      nodes,
-      edges,
+      // ReactFlow declares type optional; authored/imported logicons carry the shared node shape.
+      nodes: nodes as VisualDSLNode[],
+      edges: edges as VisualDSLEdge[],
       nestingRelations,
       subflows: getAllSubflows(),
       groupCount,
-      created: new Date().toISOString(),
+      created,
       modified: new Date().toISOString()
     };
   };
 
+  const classIssues = React.useMemo(() => validateClassDiagram(createDiagramData()), [nodes, edges, nestingRelations]);
+
+  const draftSaved = useDiagramDraft({
+    version: 1,
+    diagram: { ...createDiagramData(), modified: created },
+    editor: {
+      selectedNodeId: nodes.some(n => n.id === selectedNodeId) ? selectedNodeId : null,
+      selectedParentId: nodes.some(n => n.id === selectedParentId) ? selectedParentId : null,
+      nestingMode, direction, viewport,
+    },
+  });
+
   const saveDiagram = () => {
     const diagramData = createDiagramData();
+    const issues = validateClassDiagram(diagramData);
+    if (issues.length) {
+      alert(issues.map(issue => `${issue.nodeId}: ${issue.property}: ${issue.message}`).join('\n'));
+      return;
+    }
     const key = `diagram_${currentDiagramName.replace(/[^a-zA-Z0-9]/g, '_')}`;
     localStorage.setItem(key, JSON.stringify(diagramData));
     
@@ -484,7 +504,7 @@ export default function VisualDSLPrototype() {
         }
       }
 
-      const diagramData: DiagramData = parsed;
+      const diagramData = deserializeDiagramInput(parsed) as DiagramData;
       
       // Clear existing nesting relations
       nestingRelations.forEach(rel => {
@@ -513,6 +533,7 @@ export default function VisualDSLPrototype() {
   setNodes(uniqueNodes);
       setEdges(uniqueEdges);
       setGroupCount(diagramData.groupCount || 0);
+      setCreated(diagramData.created || new Date().toISOString());
       
       // Sync diagram name - prefer Start node name if available, otherwise use saved name
       const startNode = (diagramData.nodes || []).find(node => node.data.label === 'Start');
@@ -581,9 +602,10 @@ export default function VisualDSLPrototype() {
       setSelectedParentId(null);
       setNestingMode(false);
       
-      alert(`Diagram "${diagramData.name}" loaded successfully!`);
+      const sourceWarnings = diagramData.nodes.map(getSourceNodeDiagnostic).filter(Boolean);
+      alert(`Diagram "${diagramData.name}" loaded successfully!${sourceWarnings.length ? `\n\n${Array.from(new Set(sourceWarnings)).join('\n')}` : ''}`);
     } catch (error) {
-      alert('Failed to load diagram. Invalid JSON format.');
+      alert(`Failed to load diagram: ${error instanceof Error ? error.message : 'Invalid JSON format.'}`);
       try {
         const preview = (typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData)).slice(0, 200);
         console.error('Load diagram error:', error, '\nPreview:', preview);
@@ -604,6 +626,10 @@ export default function VisualDSLPrototype() {
     setEdges([]);
     setGroupCount(0);
     setCurrentDiagramName('Untitled Diagram');
+    setCreated(new Date().toISOString());
+    replaceAllSubflows({});
+    setContextMenu(null);
+    setPropertiesDialog(null);
     
     // Clear nesting relations
     nestingRelations.forEach(rel => {
@@ -853,6 +879,11 @@ export default function VisualDSLPrototype() {
   const openPropertiesDialog = React.useCallback((nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
+      const sourceDiagnostic = getSourceNodeDiagnostic(node);
+      if (sourceDiagnostic) {
+        alert(sourceDiagnostic);
+        return;
+      }
       console.log('Opening properties for node:', node); // Debug log
       
       // Determine node type based on label or category
@@ -860,7 +891,9 @@ export default function VisualDSLPrototype() {
       const label = node.data.label;
       const category = node.data.category;
       
-      if ((label === 'Start' || label === 'start') && category === 'control') {
+      if (isClassNodeLabel(label)) {
+        nodeType = 'classes';
+      } else if ((label === 'Start' || label === 'start') && category === 'control') {
         nodeType = 'start';
       } else if ((label === 'Declare' || label === 'declare') && category === 'value') {
         nodeType = 'declare';
@@ -1428,7 +1461,8 @@ export default function VisualDSLPrototype() {
         setEdges(prevEdges => {
           const removedEdges = prevEdges.filter(edge => removedIds.includes(edge.id));
           removedEdges.forEach(edge => {
-            const branchRoot = findSwitchBranchRoot(edge.source);
+            const directRelation = nestingRelations.find(rel => rel.parentId === edge.source && rel.childId === edge.target);
+            const branchRoot = directRelation?.parentId ?? findSwitchBranchRoot(edge.source);
             if (branchRoot) {
               removeNestingRelation(branchRoot, edge.target);
               setTimeout(() => {
@@ -1447,18 +1481,24 @@ export default function VisualDSLPrototype() {
 
       setEdges(eds => applyEdgeChanges(changes, eds));
     },
-    [findSwitchBranchRoot, removeNestingRelation, updateGroupBounds, getParentOf]
+    [nestingRelations, findSwitchBranchRoot, removeNestingRelation, updateGroupBounds, getParentOf]
   );
 
   const onConnect = React.useCallback(
     (connection: Connection) => {
+      const target = nodes.find(node => node.id === connection.target);
+      const directNesting = nestingMode || target?.data.label === 'Field' || target?.data.label === 'Requires';
+      const branchRoot = directNesting ? connection.source : findSwitchBranchRoot(connection.source);
+      if (branchRoot && connection.target) {
+        const error = classNestingError(createDiagramData(), branchRoot, connection.target);
+        if (error) { alert(error); return; }
+      }
       setEdges(eds => addEdge(connection, eds));
 
       if (!connection.source || !connection.target) {
         return;
       }
 
-      const branchRoot = findSwitchBranchRoot(connection.source);
       if (!branchRoot) {
         return;
       }
@@ -1473,8 +1513,12 @@ export default function VisualDSLPrototype() {
         addNestingRelation({
           parentId: branchRoot,
           childId: connection.target,
-          order: siblings.length,
+          order: Math.max(-1, ...siblings.map(rel => rel.order)) + 1,
         });
+        if (!siblings.length) {
+          setGroupCount(count => count + 1);
+          setTimeout(() => createGroupForNesting(branchRoot, connection.target!), 0);
+        }
       }
 
       setTimeout(() => {
@@ -1485,15 +1529,32 @@ export default function VisualDSLPrototype() {
         }
       }, 0);
     },
-    [findSwitchBranchRoot, setEdges, getParentOf, removeNestingRelation, getChildrenOf, addNestingRelation, updateGroupBounds]
+    [nodes, nestingMode, nestingRelations, findSwitchBranchRoot, setEdges, getParentOf, removeNestingRelation, getChildrenOf, addNestingRelation, updateGroupBounds]
   );
 
   // Handle edge updates (moving connectors between handles)
   const onEdgeUpdate = React.useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
+      const target = nodes.find(node => node.id === newConnection.target);
+      const directNesting = nestingMode || target?.data.label === 'Field' || target?.data.label === 'Requires';
+      const newBranchRoot = directNesting ? newConnection.source : findSwitchBranchRoot(newConnection.source);
+      const oldDirectRelation = nestingRelations.find(rel => rel.parentId === oldEdge.source && rel.childId === oldEdge.target);
+      const proposedDiagram = {
+        ...createDiagramData(),
+        nestingRelations: nestingRelations.filter(rel => rel !== oldDirectRelation),
+      };
+      if (newBranchRoot && newConnection.target) {
+        const error = classNestingError(proposedDiagram, newBranchRoot, newConnection.target);
+        if (error) { alert(error); return; }
+      }
+      if (oldDirectRelation && oldEdge.target !== newConnection.target) {
+        const oldTarget = nodes.find(node => node.id === oldEdge.target);
+        const placement = declarationPlacementMessage(oldTarget?.data.label ?? '');
+        if (placement) { alert(`This would leave ${oldTarget?.data.label} without its declaration. ${placement}`); return; }
+      }
       setEdges(eds => reconnectEdge(oldEdge, newConnection, eds));
 
-      const oldBranchRoot = findSwitchBranchRoot(oldEdge.source);
+      const oldBranchRoot = oldDirectRelation?.parentId ?? findSwitchBranchRoot(oldEdge.source);
       if (oldBranchRoot) {
         removeNestingRelation(oldBranchRoot, oldEdge.target);
         setTimeout(() => {
@@ -1509,7 +1570,6 @@ export default function VisualDSLPrototype() {
         return;
       }
 
-      const newBranchRoot = findSwitchBranchRoot(newConnection.source);
       if (!newBranchRoot) {
         return;
       }
@@ -1519,13 +1579,16 @@ export default function VisualDSLPrototype() {
         removeNestingRelation(existingParent.parentId, newConnection.target);
       }
 
-      const siblings = getChildrenOf(newBranchRoot);
+      // Reconnect removes the old relation above; do not mistake that stale snapshot for a retained child.
+      const siblings = getChildrenOf(newBranchRoot).filter(rel => rel !== oldDirectRelation &&
+        !(oldBranchRoot === newBranchRoot && rel.childId === oldEdge.target));
       if (!siblings.some(rel => rel.childId === newConnection.target)) {
         addNestingRelation({
           parentId: newBranchRoot,
           childId: newConnection.target,
-          order: siblings.length,
+          order: Math.max(-1, ...siblings.map(rel => rel.order)) + 1,
         });
+        if (!siblings.length) setTimeout(() => createGroupForNesting(newBranchRoot, newConnection.target!), 0);
       }
 
       setTimeout(() => {
@@ -1536,7 +1599,7 @@ export default function VisualDSLPrototype() {
         }
       }, 0);
     },
-    [findSwitchBranchRoot, setEdges, removeNestingRelation, updateGroupBounds, getParentOf, getChildrenOf, addNestingRelation]
+    [nodes, nestingMode, nestingRelations, findSwitchBranchRoot, setEdges, removeNestingRelation, updateGroupBounds, getParentOf, getChildrenOf, addNestingRelation]
   );
 
   const resolveSwitchParent = React.useCallback((): string | null => {
@@ -1660,13 +1723,6 @@ export default function VisualDSLPrototype() {
     }
 
     const branchIcon = branchKind === 'Then' ? '✅' : '🚫';
-    if (logicon.label === 'Function' || logicon.label === 'func') {
-      defaultProperties = getFunctionDefaultProperties();
-    }
-    const bdiDefaultProperties = getBdiDefaultProperties(logicon.label);
-    if (bdiDefaultProperties) {
-      defaultProperties = bdiDefaultProperties;
-    }
 
     const newNode: Node = {
       id: branchId,
@@ -2129,6 +2185,12 @@ export default function VisualDSLPrototype() {
 
   // Regular add logicon with random placement (now the modifier behavior)
   const addLogiconRandom = (logicon: LogiconData, withModifier: boolean = false) => {
+    const placement = declarationPlacementMessage(logicon.label);
+    if (placement) {
+      if (nestingMode && selectedParentId) { addLogiconFlow(logicon); return; }
+      alert(placement);
+      return;
+    }
     if (logicon.label === 'Case') {
       const switchParent = resolveSwitchParent();
       if (!switchParent) {
@@ -2583,12 +2645,7 @@ export default function VisualDSLPrototype() {
         x: Math.random() * 600 + 100,
         y: Math.random() * 400 + 100,
       },
-      data: { 
-        label: logicon.label,
-        icon: logicon.icon,
-        category: logicon.category,
-        properties: defaultProperties
-      },
+      data: createPaletteNodeData(logicon, defaultProperties),
     };
     setNodes((nds) => [...nds, newNode]);
 
@@ -2692,6 +2749,11 @@ export default function VisualDSLPrototype() {
 
   // Add logicon in flow (now the default single-click behavior)
   const addLogiconFlow = (logicon: LogiconData) => {
+    const placement = declarationPlacementMessage(logicon.label);
+    if (placement && !(nestingMode && selectedParentId)) {
+      alert(placement);
+      return;
+    }
     if (logicon.label === 'Case') {
       const switchParent = resolveSwitchParent();
       if (!switchParent) {
@@ -2721,6 +2783,9 @@ export default function VisualDSLPrototype() {
       // Find the parent node
       const parentNode = nodes.find(n => n.id === selectedParentId);
       if (!parentNode) return;
+      const candidate: VisualDSLNode = { id, type: 'logicon', position: { x: 0, y: 0 }, data: createPaletteNodeData(logicon, {}) };
+      const error = classNestingError({ ...createDiagramData(), nodes: [...createDiagramData().nodes, candidate] }, selectedParentId, id);
+      if (error) { alert(error); return; }
       
       // Calculate child position based on direction and existing children count
       const childCount = getChildrenOf(selectedParentId).length;
@@ -2869,12 +2934,7 @@ export default function VisualDSLPrototype() {
         id,
         type: "logicon",
         position: childPosition,
-        data: { 
-          label: logicon.label,
-          icon: logicon.icon,
-          category: logicon.category,
-          properties: defaultProperties
-        },
+        data: createPaletteNodeData(logicon, defaultProperties),
       };
       
       // Add the nesting relationship first
@@ -2884,7 +2944,7 @@ export default function VisualDSLPrototype() {
       addNestingRelation({
         parentId: selectedParentId,
         childId: id,
-        order: children.length
+        order: Math.max(-1, ...children.map(rel => rel.order)) + 1
       });
       
       // Increment group count when creating the first nesting relationship for a parent
@@ -3245,16 +3305,13 @@ export default function VisualDSLPrototype() {
       id,
       type: "logicon",
       position: newPosition,
-      data: { 
-        label: logicon.label,
-        icon: logicon.icon,
-        category: logicon.category,
-        properties: defaultProperties
-      },
+      data: createPaletteNodeData(logicon, defaultProperties),
     };
 
   const branchRestrictedLabels = ['Case', 'Default', 'Then', 'Else', 'Loop Body'];
     if (branchRootId && !branchRestrictedLabels.includes(logicon.label)) {
+      const error = classNestingError({ ...createDiagramData(), nodes: [...createDiagramData().nodes, newNode as VisualDSLNode] }, branchRootId, id);
+      if (error) { alert(error); return; }
       const siblings = getChildrenOf(branchRootId);
       if (!siblings.some(rel => rel.childId === id)) {
         addNestingRelation({
@@ -3370,6 +3427,11 @@ export default function VisualDSLPrototype() {
           onExport={exportDiagram}
           diagramData={createDiagramData()}
         />
+        {!draftSaved && (
+          <div role="alert" className="bg-amber-100 text-amber-900 px-4 py-2 text-sm">
+            Browser draft could not be saved. Export your diagram before leaving this page.
+          </div>
+        )}
         
         {/* Main Content */}
         <div className="flex flex-1 overflow-hidden">
@@ -3458,7 +3520,6 @@ export default function VisualDSLPrototype() {
           )}
           
           <ReactFlow
-            key={`reactflow-${currentDiagramName}-${nodes.length}`}
             nodes={nodes
               .filter((node, index, array) => {
                 // Remove duplicate IDs - keep the first occurrence
@@ -3501,6 +3562,7 @@ export default function VisualDSLPrototype() {
                   isInNestingGroup,
                   isNestingParent,
                   isCurrentNestingTarget,
+                  classDiagnostics: classIssues.filter(issue => issue.nodeId === node.id).map(issue => `${issue.property}: ${issue.message}`),
                 },
               };
             })}
@@ -3515,7 +3577,8 @@ export default function VisualDSLPrototype() {
             onNodeClick={onNodeClick}
             onNodeContextMenu={onNodeContextMenu}
             nodeTypes={nodeTypes}
-            defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
+            defaultViewport={viewport}
+            onMove={(_event, nextViewport) => setViewport(nextViewport)}
             fitView={false}
             className="bg-gray-100 dark:bg-gray-900"
           >
@@ -3710,6 +3773,22 @@ export default function VisualDSLPrototype() {
                 description: '',
                 body: ''
               }}
+            />
+          )}
+
+          {propertiesDialog && propertiesDialog.nodeType === 'classes' && (
+            <ClassNodePropertiesDialog
+              key={propertiesDialog.nodeId}
+              returnFocusNodeId={propertiesDialog.nodeId}
+              nodeLabel={nodes.find(node => node.id === propertiesDialog.nodeId)!.data.label as ClassNodeLabel}
+              initialProperties={propertiesDialog.properties as ClassProperties}
+              onClose={() => setPropertiesDialog(null)}
+              onDelete={() => deleteNode(propertiesDialog.nodeId)}
+              onSave={properties => saveNodeProperties(propertiesDialog.nodeId, properties)}
+              validate={properties => validateClassDiagram({
+                ...createDiagramData(),
+                nodes: createDiagramData().nodes.map(node => node.id === propertiesDialog.nodeId ? { ...node, data: { ...node.data, properties } } : node),
+              }).filter(issue => (issue.nodeId === propertiesDialog.nodeId && issue.property.startsWith('nestingRelations')) || issue.message === 'Duplicate declaration member')}
             />
           )}
 

@@ -11,7 +11,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
   // Reorder categories to prioritize structure over procedural details
   const categories = [
     // Structural/Architectural functions first
-    'tree', 'node', 'control', 'bdi', 'array', 
+    'tree', 'node', 'classes', 'control', 'bdi', 'array',
     // Data manipulation and construction
     'value', 'json', 'csv', 'file', 'couchbase', 'sql',
     // Machine Learning
@@ -42,6 +42,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
 
   const getCategoryDisplayName = (category: string) => {
     const names: Record<string, string> = {
+      'classes': 'CLASSES',
       'control': 'Control Flow',
       'bdi': 'BDI / Signals',
       'array': 'Array',
@@ -79,6 +80,7 @@ export const LogiconPalette: React.FC<LogiconPaletteProps> = ({ onAddLogiconFlow
           <div key={category} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
             {/* Category Header - Clickable */}
             <button
+              aria-expanded={isExpanded}
               onClick={() => toggleCategory(category)}
               className="w-full flex items-center justify-between py-2 px-1 text-left hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             >

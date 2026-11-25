@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/bhouse1273/kissflag"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 func TestEnvironmentVariables(t *testing.T) {

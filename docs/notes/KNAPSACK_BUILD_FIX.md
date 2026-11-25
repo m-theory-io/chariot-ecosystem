@@ -117,7 +117,7 @@ endif()
 
 5. **Retry go-chariot build:**
    ```bash
-   cd /Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem
+   cd "$HOME/go/src/github.com/m-theory-io/chariot-ecosystem"
    ./scripts/build-azure-cross-platform.sh v0.034 go-chariot cpu
    ```
 

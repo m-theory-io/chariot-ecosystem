@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
 	"github.com/labstack/echo/v4"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 )
 
 // Request payload for saving a diagram

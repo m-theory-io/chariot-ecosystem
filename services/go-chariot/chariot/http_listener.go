@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
 	"go.uber.org/zap"
 )
 
@@ -494,6 +494,14 @@ func flattenHeaders(input http.Header) map[string]interface{} {
 
 func writeValueResponse(w http.ResponseWriter, result Value) error {
 	if response, ok := result.(*httpResponseValue); ok {
+		var data []byte
+		if response.Body != nil && response.Body != DBNull && response.StatusCode != http.StatusNoContent && response.StatusCode != http.StatusNotModified {
+			var err error
+			data, err = marshalValueBody(response.Body)
+			if err != nil {
+				return err
+			}
+		}
 		for name, values := range response.Headers {
 			for _, value := range values {
 				w.Header().Add(name, value)
@@ -506,29 +514,40 @@ func writeValueResponse(w http.ResponseWriter, result Value) error {
 		if response.Body == nil || response.Body == DBNull || response.StatusCode == http.StatusNoContent || response.StatusCode == http.StatusNotModified {
 			return nil
 		}
-		return writeValueBody(w, response.Body)
+		_, err := w.Write(data)
+		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
 	return writeValueBody(w, result)
 }
 
 func writeValueBody(w http.ResponseWriter, result Value) error {
+	data, err := marshalValueBody(result)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
+}
+
+func marshalValueBody(result Value) ([]byte, error) {
 	switch val := result.(type) {
 	case *JSONNode:
 		jsonStr, err := val.ToJSON()
 		if err != nil {
-			return fmt.Errorf("failed to serialize JSONNode: %w", err)
+			return nil, fmt.Errorf("failed to serialize JSONNode: %w", err)
 		}
-		_, err = w.Write([]byte(jsonStr))
-		return err
+		return []byte(jsonStr), nil
 	default:
-		native := ValueToJSON(result)
+		native, err := ValueToJSONChecked(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize response: %w", err)
+		}
 		data, err := json.Marshal(native)
 		if err != nil {
-			return fmt.Errorf("failed to serialize response: %w", err)
+			return nil, fmt.Errorf("failed to serialize response: %w", err)
 		}
-		_, err = w.Write(data)
-		return err
+		return data, nil
 	}
 }
 

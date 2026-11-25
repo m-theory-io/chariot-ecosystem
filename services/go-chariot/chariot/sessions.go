@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	cfg "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/configs"
-	"github.com/bhouse1273/chariot-ecosystem/services/go-chariot/logs"
+	cfg "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/configs"
+	"github.com/m-theory-io/chariot-ecosystem/services/go-chariot/logs"
 	"go.uber.org/zap"
 )
 
@@ -205,6 +205,9 @@ func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token st
 		for name, function := range bootstrapFunctions {
 			session.Runtime.RegisterFunction(name, function)
 		}
+		cloneScriptState(sm.bootstrapRuntime, session.Runtime)
+		// Sessions import bootstrap globals, not its transient working scope.
+		session.Runtime.currentScope = NewScope(session.Runtime.globalScope)
 
 		session.Logger.Info("Copied bootstrap resources into session",
 			zap.Int("globals", len(bootstrapGlobals)),

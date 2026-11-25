@@ -3,7 +3,7 @@ package listeners
 import (
 	"time"
 
-	ch "github.com/bhouse1273/chariot-ecosystem/services/go-chariot/chariot"
+	ch "github.com/m-theory-io/chariot-ecosystem/services/go-chariot/chariot"
 )
 
 // Definition is the configuration-only v2 persistence contract. The DevTest
