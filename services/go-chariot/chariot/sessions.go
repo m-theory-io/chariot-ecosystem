@@ -172,8 +172,13 @@ func (sm *SessionManager) NewSession(userID string, logger logs.Logger, token st
 		stopChan:     make(chan struct{}),
 	}
 
-	// Register standard builtins
-	RegisterAll(session.Runtime)
+	// Register standard builtins, preserving any category exclusions the
+	// bootstrap runtime was registered with
+	var registerOpts []RegisterOption
+	if sm.bootstrapRuntime != nil {
+		registerOpts = sm.bootstrapRuntime.registerOptions
+	}
+	RegisterAll(session.Runtime, registerOpts...)
 
 	// Copy bootstrap resources from shared bootstrap runtime if available
 	if sm.bootstrapRuntime != nil {
