@@ -9,7 +9,7 @@ echo "🚀 Starting Chariot Local Development on StudioSSD"
 
 # Set workspace paths
 export GOPATH="/media/nvidia/StudioSSD/go"
-export CHARIOT_WORKSPACE="/media/nvidia/StudioSSD/go/src/github.com/bhouse1273/chariot-ecosystem"
+export CHARIOT_WORKSPACE="${CHARIOT_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 export GO_CHARIOT_DIR="$CHARIOT_WORKSPACE/services/go-chariot"
 
 # Change to workspace
