@@ -4,6 +4,11 @@
 
 Chariot provides built-in functions for connecting to SQL databases, executing queries and statements, managing transactions, and introspecting database schema. SQL nodes are registered in the runtime and referenced by name for all operations.
 
+> **Registration note:** SQL functions belong to `CategorySQL`. Embedded hosts
+> that manage their own RDBMS access (e.g. via GORM) exclude them with
+> `chariot.RegisterAll(rt, chariot.Without(chariot.CategorySQL))` or
+> `chariot.EmbeddedProfile()`.
+
 ---
 
 ### Available SQL Functions

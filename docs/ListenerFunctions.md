@@ -2,6 +2,12 @@
 
 Application listeners are created by an application's bootstrap runtime and remain owned by that runtime until explicitly stopped or the application host shuts down.
 
+> **Registration note:** Listener functions are registered by
+> `RegisterListenerFunctions` under `CategoryListeners`. Embedded hosts
+> exclude them with
+> `chariot.RegisterAll(rt, chariot.Without(chariot.CategoryListeners))` or
+> `chariot.EmbeddedProfile()`.
+
 ## HTTP listeners
 
 ### `listen(port, handler [, options])`

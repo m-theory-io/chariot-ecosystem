@@ -89,6 +89,10 @@ type Runtime struct {
 	globalScope       *Scope
 	DefaultTemplateID string
 
+	// Options used by RegisterAll; replayed when builtins are re-registered
+	// internally (CloneRuntime, session creation) so exclusions persist.
+	registerOptions []RegisterOption
+
 	// Debugger
 	Debugger *Debugger // Optional debugger for breakpoints and stepping
 }
@@ -1076,9 +1080,10 @@ func (rt *Runtime) CloneRuntime() *Runtime {
 		clone.objects[k] = v
 	}
 
-	// Register all functions with the cloned runtime
+	// Register all functions with the cloned runtime, preserving any
+	// category exclusions the source runtime was registered with
 	cloneScriptState(rt, clone)
-	RegisterAll(clone)
+	RegisterAll(clone, rt.registerOptions...)
 
 	return clone
 }

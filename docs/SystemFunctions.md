@@ -5,7 +5,15 @@
 
 ## System Functions
 
-Chariot provides system-level functions for environment access, logging, runtime/platform information, time utilities, program control, and server listening.
+Chariot provides system-level functions for environment access, logging, runtime/platform information, time utilities, and program control.
+
+> **Registration note:** The listener functions listed below (`listen`,
+> `listenNSQ`, `httpResponse`, `listenerList`, `listenerStatus`,
+> `listenerStop`, `registerResponseTopic`, `listResponseTopics`) are
+> registered by `RegisterListenerFunctions` under `CategoryListeners`, not by
+> `RegisterSystem`. Embedded hosts exclude them with
+> `chariot.RegisterAll(rt, chariot.Without(chariot.CategoryListeners))` or
+> `chariot.EmbeddedProfile()`.
 
 ---
 

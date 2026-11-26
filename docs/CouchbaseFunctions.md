@@ -4,6 +4,11 @@
 
 Chariot provides built-in support for Couchbase database operations, including connection management, bucket and collection access, document CRUD, and N1QL queries.
 
+> **Registration note:** Couchbase functions belong to `CategoryCouchbase`.
+> Hosts without Couchbase exclude them with
+> `chariot.RegisterAll(rt, chariot.Without(chariot.CategoryCouchbase))` or
+> `chariot.EmbeddedProfile()`.
+
 ### Available Couchbase Functions
 
 | Function            | Description                                                      |

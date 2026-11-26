@@ -8,40 +8,137 @@ import (
 // Master function registry - all available built-in functions
 var MasterFunctionRegistry = map[string]func(...Value) (Value, error){}
 
-// RegisterAll registers all built-in functions with the runtime
-func RegisterAll(rt *Runtime) {
+// Category identifies a group of built-in functions that can be
+// conditionally excluded from registration via RegisterAll options.
+type Category string
+
+const (
+	CategoryValues    Category = "values"
+	CategoryFlow      Category = "flow"
+	CategoryArray     Category = "array"
+	CategoryCompare   Category = "compare"
+	CategoryMath      Category = "math"
+	CategoryDate      Category = "date"
+	CategoryString    Category = "string"
+	CategoryNode      Category = "node"
+	CategoryFile      Category = "file"
+	CategoryJSON      Category = "json"
+	CategorySystem    Category = "system"
+	CategoryListeners Category = "listeners"
+	CategoryHost      Category = "host"
+	CategorySQL       Category = "sql"
+	CategoryCouchbase Category = "couchbase"
+	CategoryETL       Category = "etl"
+	CategoryTree      Category = "tree"
+	CategoryCrypto    Category = "crypto"
+	CategoryAuth      Category = "auth"
+	CategoryRBAC      Category = "rbac"
+	CategoryCSV       Category = "csv"
+	CategoryMCP       Category = "mcp"
+	CategoryKnapsack  Category = "knapsack"
+	CategoryRL        Category = "rl"
+	CategorySignals   Category = "signals"
+	CategoryDispatch  Category = "dispatch"
+	CategoryPlan      Category = "plan"
+)
+
+// registrationOrder maps each category to its registration function, in the
+// order registration must run. CategoryDispatch (type-dispatched/polymorphic
+// functions) must run after all of its dispatch targets are registered.
+// This is a function rather than a package var to avoid an initialization
+// cycle (RegisterAll -> registrationOrder -> RegisterPlanFunctions -> ... -> RegisterAll).
+func registrationOrder() []struct {
+	category Category
+	register func(*Runtime)
+} {
+	return []struct {
+		category Category
+		register func(*Runtime)
+	}{
+		{CategoryValues, RegisterValues},
+		{CategoryFlow, RegisterFlow},
+		{CategoryArray, RegisterArray},
+		{CategoryCompare, RegisterCompares},
+		{CategoryMath, RegisterMath},
+		{CategoryDate, RegisterDate},
+		{CategoryString, RegisterString},
+		{CategoryNode, RegisterNode},
+		{CategoryFile, RegisterFile},
+		{CategoryJSON, RegisterJSON},
+		{CategorySystem, RegisterSystem},
+		{CategoryListeners, RegisterListenerFunctions},
+		{CategoryHost, RegisterHostFunctions},
+		{CategorySQL, RegisterSQLFunctions},
+		{CategoryCouchbase, RegisterCouchbaseFunctions},
+		{CategoryETL, RegisterETLFunctions},
+		{CategoryTree, RegisterTreeFunctions},
+		{CategoryCrypto, RegisterCryptoFunctions},
+		{CategoryAuth, RegisterAuthFuncs},
+		{CategoryRBAC, RegisterRBACFuncs},
+		{CategoryCSV, RegisterCSVFunctions},
+		{CategoryMCP, RegisterMCPFunctions},
+		{CategoryKnapsack, RegisterKnapsackFunctions},
+		{CategoryRL, RegisterRLFunctions},
+		{CategorySignals, RegisterSignalFunctions},
+		{CategoryDispatch, RegisterTypeDispatchedFunctions},
+		{CategoryPlan, RegisterPlanFunctions},
+	}
+}
+
+type registerConfig struct {
+	excluded map[Category]bool
+}
+
+// RegisterOption customizes which function categories RegisterAll loads.
+type RegisterOption func(*registerConfig)
+
+// Without excludes the given categories from registration.
+func Without(categories ...Category) RegisterOption {
+	return func(cfg *registerConfig) {
+		for _, c := range categories {
+			cfg.excluded[c] = true
+		}
+	}
+}
+
+// EmbeddedProfile excludes application-server categories that are
+// inappropriate when Chariot is embedded as a scripting language in a host
+// application: SQL and Couchbase (the host owns persistence), listeners
+// (inbound HTTP/NSQ traffic), auth and RBAC (the host owns identity), and
+// signals (server-side belief-feed pollers with process-global state).
+func EmbeddedProfile() RegisterOption {
+	return Without(
+		CategorySQL,
+		CategoryCouchbase,
+		CategoryListeners,
+		CategoryAuth,
+		CategoryRBAC,
+		CategorySignals,
+	)
+}
+
+// RegisterAll registers built-in functions with the runtime. With no options
+// every category is registered; options such as Without or EmbeddedProfile
+// exclude categories. The options are remembered on the runtime so internal
+// re-registrations (CloneRuntime, session creation) preserve the exclusions.
+func RegisterAll(rt *Runtime, opts ...RegisterOption) {
 	// Initialize master registry if not already done
 	if MasterFunctionRegistry == nil {
 		MasterFunctionRegistry = make(map[string]func(...Value) (Value, error))
 	}
 
-	// Register all functions to the runtime
-	RegisterValues(rt)
-	RegisterFlow(rt)
-	RegisterArray(rt)
-	RegisterCompares(rt)
-	RegisterMath(rt)
-	RegisterDate(rt)
-	RegisterString(rt)
-	RegisterNode(rt)
-	RegisterFile(rt)
-	RegisterJSON(rt) // Registers JSON functions
-	RegisterSystem(rt)
-	RegisterHostFunctions(rt)           // Registers host functions
-	RegisterSQLFunctions(rt)            // Registers SQL functions
-	RegisterCouchbaseFunctions(rt)      // Registers Couchbase functions
-	RegisterETLFunctions(rt)            // If you have ETL functions
-	RegisterTreeFunctions(rt)           // Registers tree functions
-	RegisterCryptoFunctions(rt)         // Registers crypto functions
-	RegisterAuthFuncs(rt)               // Registers auth functions
-	RegisterRBACFuncs(rt)               // Registers RBAC functions
-	RegisterCSVFunctions(rt)            // Registers CSV functions
-	RegisterMCPFunctions(rt)            // Registers MCP client functions
-	RegisterKnapsackFunctions(rt)       // Registers knapsack solver functions
-	RegisterRLFunctions(rt)             // Registers RL Support (NBA scoring) functions
-	RegisterSignalFunctions(rt)         // Registers signal sources and belief feeds
-	RegisterTypeDispatchedFunctions(rt) // Registers polymorphic functions LAST
-	RegisterPlanFunctions(rt)           // Registers plan/agent functions
+	cfg := &registerConfig{excluded: make(map[Category]bool)}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	rt.registerOptions = opts
+
+	for _, entry := range registrationOrder() {
+		if cfg.excluded[entry.category] {
+			continue
+		}
+		entry.register(rt)
+	}
 
 	// Populate master registry from the runtime
 	PopulateMasterRegistryFromRuntime(rt)
@@ -55,7 +152,10 @@ func RegisterToMaster(name string, fn func(...Value) (Value, error)) {
 	MasterFunctionRegistry[name] = fn
 }
 
-// PopulateMasterRegistryFromRuntime - extract all functions from a runtime to master registry
+// PopulateMasterRegistryFromRuntime - extract all functions from a runtime to
+// master registry. This is merge-only: a runtime registered with exclusions
+// (e.g. EmbeddedProfile) never shrinks the master registry, so role-based
+// runtimes and the MCP registry are unaffected by restricted registrations.
 func PopulateMasterRegistryFromRuntime(rt *Runtime) {
 	registeredFuncs := rt.GetRegisteredFunctions()
 	for name, fn := range registeredFuncs {

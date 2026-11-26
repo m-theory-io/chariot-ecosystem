@@ -72,6 +72,37 @@ func main() {
 }
 ```
 
+#### Conditional registration (embedded hosts)
+
+`RegisterAll` accepts options that exclude function categories. A host
+application that owns its own persistence (e.g. GORM), identity, and network
+layer should use the embedded profile:
+
+```go
+rt := chariot.NewRuntime()
+chariot.RegisterAll(rt, chariot.EmbeddedProfile())
+```
+
+`EmbeddedProfile()` is equivalent to:
+
+```go
+chariot.RegisterAll(rt, chariot.Without(
+    chariot.CategorySQL,       // host owns RDBMS access
+    chariot.CategoryCouchbase, // host owns document store access
+    chariot.CategoryListeners, // no inbound HTTP/NSQ listeners
+    chariot.CategoryAuth,      // host owns authentication
+    chariot.CategoryRBAC,      // host owns authorization
+    chariot.CategorySignals,   // no server-side belief-feed pollers
+))
+```
+
+Any combination of `chariot.Category*` constants can be passed to
+`chariot.Without(...)`. Exclusions are remembered by the runtime and preserved
+across `CloneRuntime` and session creation. Calling an excluded function fails
+with an "unknown function" script error. Note that exclusion removes the
+builtins from the runtime but does not remove the underlying code or its
+dependencies from the compiled binary.
+
 ### Command‑Line Tool
 
 Build the `chariotctl` CLI:
