@@ -2,7 +2,7 @@
 	"mcpServers": {
 		"chariot": {
 			"type": "stdio",
-			"command": "/Users/williamhouse/go/src/github.com/bhouse1273/chariot-ecosystem/scripts/run-mcp-stdio.sh",
+			"command": "/Users/williamhouse/go/src/github.com/m-theory-io/chariot-ecosystem/scripts/run-mcp-stdio.sh",
 			"args": [],
 			"tools": [
 				"*"
